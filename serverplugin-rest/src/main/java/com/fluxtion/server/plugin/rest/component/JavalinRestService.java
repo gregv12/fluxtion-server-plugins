@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 package com.fluxtion.server.plugin.rest.component;
 
 import com.fluxtion.runtime.lifecycle.Lifecycle;
@@ -54,7 +59,7 @@ public class JavalinRestService implements EventFlowService, Lifecycle, RestCont
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class Message{
+    public static class Message {
         private String message;
     }
 }
