@@ -10,21 +10,16 @@ import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
 import com.fluxtion.runtime.lifecycle.Lifecycle;
 import com.fluxtion.server.dispatch.EventFlowManager;
 import com.fluxtion.server.dispatch.EventFlowService;
-import com.fluxtion.server.plugin.rest.service.CommandProcessor;
-import com.fluxtion.server.plugin.rest.service.RestController;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import com.fluxtion.server.service.admin.AdminCommandRequest;
 import io.javalin.Javalin;
-import io.javalin.http.Context;
-import io.javalin.http.Handler;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.jetbrains.annotations.NotNull;
 
 @Log4j2
-public class JavalinRestService implements EventFlowService, Lifecycle, RestController {
+public class JavalinAdminCommandService implements EventFlowService, Lifecycle {
 
     private Javalin javalin;
     private EventFlowManager eventFlowManager;
@@ -46,14 +41,6 @@ public class JavalinRestService implements EventFlowService, Lifecycle, RestCont
     public void init() {
         log.info("init Javalin REST service");
         javalin = Javalin.create()
-                .get("/queues", new Handler() {
-                    @Override
-                    public void handle(@NotNull Context ctx) throws Exception {
-                        StringBuilder sb = new StringBuilder();
-                        eventFlowManager.appendQueueInformation(sb);
-                        ctx.json(new Message("registered queues - " + sb.toString()));
-                    }
-                })
                 .post("/admin", ctx -> {
                     AdminCommandRequest adminCommandRequest = ctx.bodyAsClass(AdminCommandRequest.class);
                     adminCommandRequest.setOutput(out -> ctx.json(new Message(out.toString())));
@@ -75,11 +62,6 @@ public class JavalinRestService implements EventFlowService, Lifecycle, RestCont
     public void tearDown() {
         log.info("tear down Javalin REST service");
         javalin.stop();
-    }
-
-    @Override
-    public <S, T> void addCommand(String command, CommandProcessor<S, T> commandProcessor) {
-        log.info("add command:'{}'", command);
     }
 
     @Data
