@@ -13,9 +13,7 @@ import com.fluxtion.server.dispatch.EventFlowService;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import com.fluxtion.server.service.admin.AdminCommandRequest;
 import io.javalin.Javalin;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
@@ -24,6 +22,9 @@ public class JavalinAdminCommandService implements EventFlowService, Lifecycle {
     private Javalin javalin;
     private EventFlowManager eventFlowManager;
     private AdminCommandRegistry adminCommandRegistry;
+    @Getter
+    @Setter
+    private int listenPort = 8080;
 
     @Override
     public void setEventFlowManager(EventFlowManager eventFlowManager, String serviceName) {
@@ -39,7 +40,7 @@ public class JavalinAdminCommandService implements EventFlowService, Lifecycle {
 
     @Override
     public void init() {
-        log.info("init Javalin REST service");
+        log.info("init Javalin REST service listening on port {}", listenPort);
         javalin = Javalin.create()
                 .post("/admin", ctx -> {
                     AdminCommandRequest adminCommandRequest = ctx.bodyAsClass(AdminCommandRequest.class);
@@ -50,7 +51,7 @@ public class JavalinAdminCommandService implements EventFlowService, Lifecycle {
                         adminCommandRegistry.processAdminCommandRequest(adminCommandRequest);
                     }
                 })
-                .start(8080);
+                .start(listenPort);
     }
 
     @Start
