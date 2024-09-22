@@ -12,28 +12,28 @@
         <version>0.1.4-SNAPSHOT</version>
     </parent>
 
-    <artifactId>serverplugin-rest</artifactId>
-
-    <name>fluxtion :: server-plugin-rest</name>
+    <artifactId>serverplugin-springbuilder</artifactId>
+    <name>fluxtion :: server-plugin-spring</name>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
+        <org.springframework.version>5.3.29</org.springframework.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <dependencies>
         <!--Javalin webserver-->
         <dependency>
-            <groupId>io.javalin</groupId>
-            <artifactId>javalin</artifactId>
-            <version>6.3.0</version>
+            <groupId>com.fluxtion</groupId>
+            <artifactId>compiler</artifactId>
+            <version>${fluxtion.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j2-impl</artifactId>
-            <version>2.23.1</version>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>${org.springframework.version}</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
-
 </project>

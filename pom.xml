@@ -9,7 +9,7 @@
 
     <groupId>com.fluxtion</groupId>
     <artifactId>fluxtion-server-plugins</artifactId>
-    <version>0.1.3-SNAPSHOT</version>
+    <version>0.1.4-SNAPSHOT</version>
     <name>fluxtion :: server-plugins</name>
     <packaging>pom</packaging>
 
@@ -24,7 +24,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <fluxtion.version>9.3.40</fluxtion.version>
-        <fluxtion.server.version>0.1.17</fluxtion.server.version>
+        <fluxtion.server.version>0.1.23</fluxtion.server.version>
         <fluxtion.mavenplugin.version>3.0.14</fluxtion.mavenplugin.version>
     </properties>
 
@@ -53,6 +53,7 @@
 
     <modules>
         <module>serverplugin-rest</module>
+        <module>serverplugin-springbuilder</module>
     </modules>
 
     <dependencies>
@@ -187,7 +188,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.2.5</version>
+                        <version>3.2.6</version>
                         <executions>
                             <execution>
                                 <phase>verify</phase>
