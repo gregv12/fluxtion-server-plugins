@@ -55,6 +55,7 @@
     <modules>
         <module>serverplugin-rest</module>
         <module>serverplugin-springbuilder</module>
+        <module>serverplugin-javabuilder</module>
     </modules>
 
     <dependencies>
