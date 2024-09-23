@@ -10,6 +10,7 @@ import com.fluxtion.compiler.Fluxtion;
 import com.fluxtion.compiler.FluxtionGraphBuilder;
 import com.fluxtion.compiler.generation.compiler.classcompiler.StringCompilation;
 import com.fluxtion.runtime.EventProcessor;
+import com.fluxtion.runtime.annotations.feature.Experimental;
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
 import com.fluxtion.runtime.audit.EventLogControlEvent;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
@@ -27,6 +28,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
 
+@Experimental
 @Log4j2
 public class JavaEventHandlerBuilder {
 

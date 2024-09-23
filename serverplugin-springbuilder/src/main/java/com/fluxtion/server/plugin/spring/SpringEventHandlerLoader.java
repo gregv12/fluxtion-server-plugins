@@ -8,6 +8,7 @@ package com.fluxtion.server.plugin.spring;
 import com.fluxtion.agrona.concurrent.YieldingIdleStrategy;
 import com.fluxtion.compiler.extern.spring.FluxtionSpring;
 import com.fluxtion.runtime.EventProcessor;
+import com.fluxtion.runtime.annotations.feature.Preview;
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
 import com.fluxtion.runtime.audit.EventLogControlEvent;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
@@ -18,6 +19,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
 
+@Preview
 @Log4j2
 public class SpringEventHandlerLoader {
 
