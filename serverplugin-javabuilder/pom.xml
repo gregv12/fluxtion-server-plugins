@@ -4,7 +4,9 @@
   ~ SPDX-License-Identifier: AGPL-3.0-only
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.fluxtion</groupId>
@@ -12,9 +14,8 @@
         <version>0.1.4-SNAPSHOT</version>
     </parent>
 
-    <artifactId>serverplugin-rest</artifactId>
-
-    <name>fluxtion :: server-plugin-rest</name>
+    <artifactId>serverplugin-javabuilder</artifactId>
+    <name>fluxtion :: server-plugin-javabuilder</name>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
@@ -22,17 +23,18 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+
     <dependencies>
         <!--Javalin webserver-->
         <dependency>
-            <groupId>io.javalin</groupId>
-            <artifactId>javalin</artifactId>
-            <version>6.3.0</version>
+            <groupId>com.fluxtion</groupId>
+            <artifactId>compiler</artifactId>
+            <version>${fluxtion.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j2-impl</artifactId>
-            <version>2.24.0</version>
+            <groupId>com.github.javaparser</groupId>
+            <artifactId>javaparser-core</artifactId>
+            <version>3.26.2</version>
         </dependency>
     </dependencies>
 

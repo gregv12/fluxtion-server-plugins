@@ -24,7 +24,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <fluxtion.version>9.3.40</fluxtion.version>
-        <fluxtion.server.version>0.1.23</fluxtion.server.version>
+        <fluxtion.server.version>0.1.26</fluxtion.server.version>
         <fluxtion.mavenplugin.version>3.0.14</fluxtion.mavenplugin.version>
     </properties>
 
@@ -54,6 +54,7 @@
     <modules>
         <module>serverplugin-rest</module>
         <module>serverplugin-springbuilder</module>
+        <module>serverplugin-javabuilder</module>
     </modules>
 
     <dependencies>
@@ -88,12 +89,12 @@
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-api</artifactId>
-            <version>2.23.1</version>
+            <version>2.24.0</version>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-core</artifactId>
-            <version>2.19.0</version>
+            <version>2.24.0</version>
         </dependency>
     </dependencies>
 
