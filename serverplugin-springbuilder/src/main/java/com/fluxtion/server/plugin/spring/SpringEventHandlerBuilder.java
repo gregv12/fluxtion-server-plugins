@@ -7,12 +7,14 @@ package com.fluxtion.server.plugin.spring;
 
 import com.fluxtion.compiler.extern.spring.FluxtionSpring;
 import com.fluxtion.runtime.EventProcessor;
+import com.fluxtion.runtime.annotations.feature.Preview;
 import com.fluxtion.runtime.audit.EventLogControlEvent;
 import lombok.Data;
 
 import java.nio.file.Path;
 import java.util.function.Supplier;
 
+@Preview
 @Data
 public class SpringEventHandlerBuilder<T extends EventProcessor<?>> implements Supplier<T> {
 
