@@ -18,9 +18,6 @@ import com.fluxtion.runtime.audit.EventLogControlEvent;
 import com.fluxtion.runtime.partition.LambdaReflection.SerializableConsumer;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import com.fluxtion.server.service.servercontrol.FluxtionServerController;
-import com.github.javaparser.StaticJavaParser;
-import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import lombok.Data;
 import lombok.extern.log4j.Log4j2;
 import org.yaml.snakeyaml.Yaml;
@@ -30,10 +27,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Consumer;
 
 @Experimental
@@ -94,21 +88,24 @@ public class EventHandlerLoader {
         }
 
         try {
-            CompilationUnit cu = StaticJavaParser.parse(javaSourceFilePath);
-            ClassOrInterfaceDeclaration classDeclaration = cu.findFirst(ClassOrInterfaceDeclaration.class).orElse(null);
-            if (classDeclaration != null) {
-                String className = classDeclaration.getFullyQualifiedName().get();
-                out.accept("compiling builder class: " + className);
-                Class<FluxtionGraphBuilder> compiledClass = StringCompilation.compile(className, Files.readString(javaSourceFilePath));
+//            CompilationUnit cu = StaticJavaParser.parse(javaSourceFilePath);
+//            ClassOrInterfaceDeclaration classDeclaration = cu.findFirst(ClassOrInterfaceDeclaration.class).orElse(null);
+//            NodeList<TypeDeclaration<?>> types = cu.getTypes();
+//            List<ClassOrInterfaceDeclaration> declarations = cu.findAll(ClassOrInterfaceDeclaration.class);
 
-                SerializableConsumer<EventProcessorConfig> buildGraph = compiledClass.getDeclaredConstructor().newInstance()::buildGraph;
-                EventProcessor<?> eventProcessor = compileProcessor ? Fluxtion.compile(buildGraph) : Fluxtion.interpret(buildGraph);
+//            if (classDeclaration != null) {
+//                String className = classDeclaration.getFullyQualifiedName().get();
+//                out.accept("compiling builder class: " + className);
+            Class<FluxtionGraphBuilder> compiledClass = StringCompilation.compile(Files.readString(javaSourceFilePath), Collections.emptyList());
 
-                eventProcessor.init();
+            SerializableConsumer<EventProcessorConfig> buildGraph = compiledClass.getDeclaredConstructor().newInstance()::buildGraph;
+            EventProcessor<?> eventProcessor = compileProcessor ? Fluxtion.compile(buildGraph) : Fluxtion.interpret(buildGraph);
 
-                out.accept("compiled and loaded processor" + eventProcessor.toString());
-                serverController.addEventProcessor(group, new YieldingIdleStrategy(), () -> eventProcessor);
-            }
+            eventProcessor.init();
+
+            out.accept("compiled and loaded processor" + eventProcessor.toString());
+            serverController.addEventProcessor(group, new YieldingIdleStrategy(), () -> eventProcessor);
+//            }
         } catch (IOException | ClassNotFoundException | URISyntaxException | InvocationTargetException |
                  InstantiationException | IllegalAccessException | NoSuchMethodException e) {
             err.accept("Failed to compile java source file: " + javaSourceFiler);
