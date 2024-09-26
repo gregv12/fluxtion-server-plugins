@@ -12,15 +12,15 @@
         <version>0.1.7-SNAPSHOT</version>
     </parent>
 
-    <artifactId>serverplugin-springbuilder</artifactId>
-    <name>fluxtion :: server-plugin-spring</name>
+    <artifactId>serverplugin-javabuilder</artifactId>
+    <name>fluxtion :: server-plugin-javabuilder</name>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <org.springframework.version>6.1.13</org.springframework.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+
 
     <dependencies>
         <!--Javalin webserver-->
@@ -30,10 +30,10 @@
             <version>${fluxtion.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-            <version>${org.springframework.version}</version>
-            <scope>provided</scope>
+            <groupId>com.github.javaparser</groupId>
+            <artifactId>javaparser-core</artifactId>
+            <version>3.26.2</version>
         </dependency>
     </dependencies>
+
 </project>
