@@ -20,7 +20,7 @@ public class SpringEventHandlerBuilder<T extends EventProcessor<?>> implements S
 
     private String springFile;
     private boolean addEventAuditor = true;
-    private EventLogControlEvent.LogLevel auditLogLevel;
+    private EventLogControlEvent.LogLevel auditTraceLogLevel;
 
     @Override
     @SuppressWarnings("unchecked")
@@ -30,8 +30,10 @@ public class SpringEventHandlerBuilder<T extends EventProcessor<?>> implements S
             throw new RuntimeException("File not found: " + springFile);
         }
         return (T) FluxtionSpring.compile(springFilePath, cfg -> {
-            if (addEventAuditor) {
-                cfg.addEventAudit(auditLogLevel != null ? auditLogLevel : EventLogControlEvent.LogLevel.INFO);
+            if (addEventAuditor && auditTraceLogLevel != null) {
+                cfg.addEventAudit(auditTraceLogLevel);
+            } else if (addEventAuditor) {
+                cfg.addEventAudit();
             }
         });
     }
