@@ -21,10 +21,30 @@ import java.util.Map;
 public class JdbcConnectionLoaderService implements Lifecycle, JdbcConnectionLoader {
 
     private Map<String, JdbcConnectionConfig> connections = new HashMap<>();
+    private boolean testConnection = false;
+    private boolean fastFail = false;
 
     @Override
     public void init() {
         log.info("registered connections {}", connections);
+    }
+
+    @Override
+    public void start() {
+        if (testConnection) {
+            log.info("starting connection test {}", connections);
+            for (String name : connections.keySet()) {
+                try {
+                    log.info("testing connection {}", name);
+                    getConnection(name);
+                } catch (SQLException e) {
+                    log.info("failed to connect to {}", name, e);
+                    if (fastFail) {
+                        throw new RuntimeException("failed to connect to " + name, e);
+                    }
+                }
+            }
+        }
     }
 
     @Override
