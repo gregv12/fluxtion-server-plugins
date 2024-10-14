@@ -36,6 +36,10 @@ public class SpringEventHandlerLoader {
         this.adminCommandRegistry = adminCommandRegistry;
         adminCommandRegistry.registerCommand("springLoader.compileProcessor", this::compileProcessor);
         adminCommandRegistry.registerCommand("springLoader.interpretProcessor", this::interpretProcessor);
+        adminCommandRegistry.registerCommand("springLoader.listProcessors", this::listProcessors);
+        adminCommandRegistry.registerCommand("springLoader.stopProcessor", this::stopProcessor);
+        adminCommandRegistry.registerCommand("springLoader.startProcessor", this::startProcessor);
+        adminCommandRegistry.registerCommand("springLoader.reloadProcessor", this::reloadProcessor);
     }
 
     @ServiceRegistered
@@ -52,6 +56,21 @@ public class SpringEventHandlerLoader {
         loadProcessor(true, args, out, err);
     }
 
+    private void listProcessors(List<String> args, Consumer<String> out, Consumer<String> err) {
+        log.info("listProcessors");
+    }
+
+    private void stopProcessor(List<String> args, Consumer<String> out, Consumer<String> err) {
+        log.info("stopProcessor");
+    }
+
+    private void startProcessor(List<String> args, Consumer<String> out, Consumer<String> err) {
+        log.info("startProcessor");
+    }
+
+    private void reloadProcessor(List<String> args, Consumer<String> out, Consumer<String> err) {
+        log.info("reloadProcessor");
+    }
 
     private void loadProcessor(boolean compileProcessor, List<String> args, Consumer<String> out, Consumer<String> err) {
         if (args.size() < 2) {
@@ -88,7 +107,7 @@ public class SpringEventHandlerLoader {
         eventProcessor.init();
 
         out.accept("compiled and loaded processor" + eventProcessor.toString());
-        serverController.addEventProcessor(group, new YieldingIdleStrategy(), () -> eventProcessor);
+        serverController.addEventProcessor(springFile, group, new YieldingIdleStrategy(), () -> eventProcessor);
 
     }
 }
