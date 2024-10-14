@@ -107,7 +107,7 @@ public class EventHandlerLoader {
                 eventProcessor.init();
 
                 out.accept("compiled and loaded processor" + eventProcessor.toString());
-                serverController.addEventProcessor(group, new YieldingIdleStrategy(), () -> eventProcessor);
+                serverController.addEventProcessor(javaSourceFiler, group, new YieldingIdleStrategy(), () -> eventProcessor);
             }
         } catch (IOException | ClassNotFoundException | URISyntaxException | InvocationTargetException |
                  InstantiationException | IllegalAccessException | NoSuchMethodException e) {
@@ -158,7 +158,7 @@ public class EventHandlerLoader {
             eventProcessor.init();
 
             out.accept("compiled and loaded processor" + eventProcessor.toString());
-            serverController.addEventProcessor(group, new YieldingIdleStrategy(), () -> eventProcessor);
+            serverController.addEventProcessor(javaSourceFiler, group, new YieldingIdleStrategy(), () -> eventProcessor);
         } catch (Exception e) {
             err.accept("Failed to compile java source file: " + javaSourceFiler);
             log.error(e);
