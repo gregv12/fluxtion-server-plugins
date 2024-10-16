@@ -11,24 +11,36 @@ import com.fluxtion.runtime.EventProcessor;
 import com.fluxtion.runtime.annotations.feature.Preview;
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
 import com.fluxtion.runtime.audit.EventLogControlEvent;
+import com.fluxtion.runtime.lifecycle.Lifecycle;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import com.fluxtion.server.service.servercontrol.FluxtionServerController;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
 @Preview
 @Log4j2
-public class SpringEventHandlerLoader {
+public class SpringEventHandlerLoader implements Lifecycle {
 
     private FluxtionServerController serverController;
     private AdminCommandRegistry adminCommandRegistry;
     private boolean addEventAuditor = true;
-    private EventLogControlEvent.LogLevel auditLogLevel;
+    private EventLogControlEvent.LogLevel traceLogLevel;
+    private EventLogControlEvent.LogLevel initialLogLevel = EventLogControlEvent.LogLevel.INFO;
     private static final String DEFAULT_GROUP = "springBeanLoader";
+    @Getter
+    @Setter
+    private Set<EventSpringFile> loadAtStartup = new HashSet<>();
 
+    public void init() {
+    }
 
     @ServiceRegistered
     public void adminRegistry(AdminCommandRegistry adminCommandRegistry, String name) {
@@ -44,6 +56,26 @@ public class SpringEventHandlerLoader {
     public void fluxtionServer(FluxtionServerController serverController, String name) {
         log.info("FluxtionServerController name: '{}'", name);
         this.serverController = serverController;
+    }
+
+    public void start() {
+        log.info("Start Spring EventHandler loader startUpConfig:{}", loadAtStartup);
+        loadAtStartup.forEach(cfg -> {
+            addEventAuditor = cfg.isAddEventAuditor();
+            traceLogLevel = cfg.getTraceLogLevel();
+            initialLogLevel = cfg.getInitialLogLevel();
+            loadProcessor(cfg.isCompile(),
+                    List.of("loadProcessor", cfg.getSpringFile(), cfg.getGroup()),
+                    log::info,
+                    log::error);
+        });
+        addEventAuditor = true;
+        traceLogLevel = null;
+        initialLogLevel = EventLogControlEvent.LogLevel.INFO;
+    }
+
+    public void tearDown() {
+
     }
 
     private void interpretProcessor(List<String> args, Consumer<String> out, Consumer<String> err) {
@@ -100,18 +132,21 @@ public class SpringEventHandlerLoader {
         if (compileProcessor) {
             eventProcessor = FluxtionSpring.compile(springFilePath, cfg -> {
                 if (addEventAuditor) {
-                    cfg.addEventAudit(auditLogLevel != null ? auditLogLevel : EventLogControlEvent.LogLevel.INFO);
+                    cfg.addEventAudit();
+                    cfg.addEventAudit(traceLogLevel);
                 }
             });
         } else {
             eventProcessor = FluxtionSpring.interpret(springFilePath, cfg -> {
                 if (addEventAuditor) {
-                    cfg.addEventAudit(auditLogLevel != null ? auditLogLevel : EventLogControlEvent.LogLevel.INFO);
+                    cfg.addEventAudit();
+                    cfg.addEventAudit(traceLogLevel);
                 }
             });
         }
 
         eventProcessor.init();
+        eventProcessor.setAuditLogLevel(initialLogLevel);
 
         try {
             serverController.addEventProcessor(springFile, group, new YieldingIdleStrategy(), () -> eventProcessor);
@@ -120,5 +155,15 @@ public class SpringEventHandlerLoader {
             err.accept("Failed to add event processor: " + e.getMessage());
         }
 
+    }
+
+    @Data
+    public static final class EventSpringFile {
+        private String springFile;
+        private String group = DEFAULT_GROUP;
+        private boolean addEventAuditor = true;
+        private boolean compile = true;
+        private EventLogControlEvent.LogLevel traceLogLevel;
+        private EventLogControlEvent.LogLevel initialLogLevel = EventLogControlEvent.LogLevel.INFO;
     }
 }
