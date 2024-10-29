@@ -8,8 +8,6 @@ package com.fluxtion.server.plugin.eventhandlerloader;
 import com.fluxtion.agrona.concurrent.YieldingIdleStrategy;
 import com.fluxtion.compiler.EventProcessorConfig;
 import com.fluxtion.compiler.Fluxtion;
-import com.fluxtion.compiler.FluxtionGraphBuilder;
-import com.fluxtion.compiler.generation.compiler.classcompiler.StringCompilation;
 import com.fluxtion.runtime.EventProcessor;
 import com.fluxtion.runtime.annotations.feature.Experimental;
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
@@ -18,16 +16,11 @@ import com.fluxtion.runtime.audit.EventLogControlEvent;
 import com.fluxtion.runtime.partition.LambdaReflection.SerializableConsumer;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import com.fluxtion.server.service.servercontrol.FluxtionServerController;
-import com.github.javaparser.StaticJavaParser;
-import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import lombok.Data;
 import lombok.extern.log4j.Log4j2;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -49,6 +42,8 @@ public class EventHandlerLoader {
         log.info("Admin registry: '{}' name: '{}'", adminCommandRegistry, name);
         adminCommandRegistry.registerCommand("javaLoader.compileProcessor", this::compileProcessor);
         adminCommandRegistry.registerCommand("javaLoader.interpretProcessor", this::interpretProcessor);
+        adminCommandRegistry.registerCommand("javaLoader.reloadInterpretProcessor", this::compileReloadProcessor);
+        adminCommandRegistry.registerCommand("javaLoader.reloadCompileProcessor", this::interpretReloadProcessor);
         adminCommandRegistry.registerCommand("yamlLoader.compileProcessor", this::compileProcessorYaml);
         adminCommandRegistry.registerCommand("yamlLoader.interpretProcessor", this::interpretProcessorYaml);
     }
@@ -60,11 +55,11 @@ public class EventHandlerLoader {
     }
 
 
-    private void interpretProcessor(List<String> args, Consumer<String> out, Consumer<String> err) {
+    protected void interpretProcessor(List<String> args, Consumer<String> out, Consumer<String> err) {
         loadProcessor(false, args, out, err);
     }
 
-    private void compileProcessor(List<String> args, Consumer<String> out, Consumer<String> err) {
+    protected void compileProcessor(List<String> args, Consumer<String> out, Consumer<String> err) {
         loadProcessor(true, args, out, err);
     }
 
@@ -74,6 +69,30 @@ public class EventHandlerLoader {
 
     private void compileProcessorYaml(List<String> args, Consumer<String> out, Consumer<String> err) {
         loadProcessorYaml(true, args, out, err);
+    }
+
+    private void interpretReloadProcessor(List<String> args, Consumer<String> out, Consumer<String> err) {
+        reloadProcessor(false, args, out, err);
+    }
+
+    private void compileReloadProcessor(List<String> args, Consumer<String> out, Consumer<String> err) {
+        reloadProcessor(true, args, out, err);
+    }
+
+    private void reloadProcessor(boolean compileProcessor, List<String> args, Consumer<String> out, Consumer<String> err) {
+        log.info("reloadProcessor");
+        if (args.size() < 2) {
+            err.accept("Missing arguments provide [java source file location] [group name]");
+            return;
+        }
+
+        String springFile = args.get(1);
+        out.accept("stopping processor defined from file:" + springFile);
+        String[] splitArgs = springFile.split("/");
+        serverController.stopProcessor(splitArgs[0], splitArgs[1]);
+
+        loadProcessor(compileProcessor, List.of("loadProcessor", splitArgs[1], splitArgs[0]), out, err);
+
     }
 
     private void loadProcessor(boolean compileProcessor, List<String> args, Consumer<String> out, Consumer<String> err) {
@@ -94,23 +113,18 @@ public class EventHandlerLoader {
         }
 
         try {
-            CompilationUnit cu = StaticJavaParser.parse(javaSourceFilePath);
-            ClassOrInterfaceDeclaration classDeclaration = cu.findFirst(ClassOrInterfaceDeclaration.class).orElse(null);
-            if (classDeclaration != null) {
-                String className = classDeclaration.getFullyQualifiedName().get();
-                out.accept("compiling builder class: " + className);
-                Class<FluxtionGraphBuilder> compiledClass = StringCompilation.compile(className, Files.readString(javaSourceFilePath));
-
-                SerializableConsumer<EventProcessorConfig> buildGraph = compiledClass.getDeclaredConstructor().newInstance()::buildGraph;
-                EventProcessor<?> eventProcessor = compileProcessor ? Fluxtion.compile(buildGraph) : Fluxtion.interpret(buildGraph);
+            EventProcessor<?> eventProcessor = DynamicCompiler.loadEventProcessor(compileProcessor, javaSourceFilePath, out, err);
+//            FluxtionGraphBuilder fluxtionGraphBuilder = DynamicCompiler.compileBuilder(javaSourceFilePath, out, err);
+            if (eventProcessor != null) {
+//                SerializableConsumer<EventProcessorConfig> buildGraph = fluxtionGraphBuilder::buildGraph;
+//                EventProcessor<?> eventProcessor = compileProcessor ? Fluxtion.compile(buildGraph) : Fluxtion.interpret(buildGraph);
 
                 eventProcessor.init();
 
                 out.accept("compiled and loaded processor" + eventProcessor.toString());
                 serverController.addEventProcessor(javaSourceFiler, group, new YieldingIdleStrategy(), () -> eventProcessor);
             }
-        } catch (IOException | ClassNotFoundException | URISyntaxException | InvocationTargetException |
-                 InstantiationException | IllegalAccessException | NoSuchMethodException e) {
+        } catch (IOException e) {
             err.accept("Failed to compile java source file: " + javaSourceFiler);
             log.error(e);
         }
