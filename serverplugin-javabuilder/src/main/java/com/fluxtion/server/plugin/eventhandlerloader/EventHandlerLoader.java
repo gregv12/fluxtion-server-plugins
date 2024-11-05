@@ -82,17 +82,19 @@ public class EventHandlerLoader {
     private void reloadProcessor(boolean compileProcessor, List<String> args, Consumer<String> out, Consumer<String> err) {
         log.info("reloadProcessor");
         if (args.size() < 2) {
-            err.accept("Missing arguments provide [java source file location] [group name]");
+            err.accept("Missing arguments provide [group name]/[java source file location]");
             return;
         }
 
         String springFile = args.get(1);
         out.accept("stopping processor defined from file:" + springFile);
+
         String[] splitArgs = springFile.split("/");
-        serverController.stopProcessor(splitArgs[0], splitArgs[1]);
+        String groupName = splitArgs[0];
+        String javaFile = springFile.substring(groupName.length());
+        serverController.stopProcessor(groupName, javaFile);
 
-        loadProcessor(compileProcessor, List.of("loadProcessor", splitArgs[1], splitArgs[0]), out, err);
-
+        loadProcessor(compileProcessor, List.of("loadProcessor", javaFile, groupName), out, err);
     }
 
     private void loadProcessor(boolean compileProcessor, List<String> args, Consumer<String> out, Consumer<String> err) {
