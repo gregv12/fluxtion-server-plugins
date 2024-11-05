@@ -26,7 +26,7 @@
         <dependency>
             <groupId>com.fluxtion</groupId>
             <artifactId>server</artifactId>
-            <version>${project.version}</version>
+            <version>${fluxtion.server.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
