@@ -1,36 +1,15 @@
 /*
  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
  * SPDX-License-Identifier: AGPL-3.0-only
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the Server Side Public License, version 1,
-* as published by MongoDB, Inc.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* Server Side License for more details.
-*
-* You should have received a copy of the Server Side Public License
-* along with this program.  If not, see
-*
-<http://www.mongodb.com/licensing/server-side-public-license>.
-*/
+ */
 package com.fluxtion.server.lib.pnl.calculator;
 
-import com.fluxtion.runtime.StaticEventProcessor;
-import com.fluxtion.runtime.lifecycle.BatchHandler;
-import com.fluxtion.runtime.lifecycle.Lifecycle;
 import com.fluxtion.runtime.EventProcessor;
-import com.fluxtion.runtime.callback.InternalEventProcessor;
-import com.fluxtion.runtime.EventProcessorContext;
+import com.fluxtion.runtime.StaticEventProcessor;
 import com.fluxtion.runtime.audit.Auditor;
 import com.fluxtion.runtime.audit.EventLogManager;
 import com.fluxtion.runtime.audit.NodeNameAuditor;
-import com.fluxtion.runtime.callback.CallbackDispatcherImpl;
-import com.fluxtion.runtime.callback.CallbackEvent;
-import com.fluxtion.runtime.callback.CallbackImpl;
-import com.fluxtion.runtime.callback.ExportFunctionAuditEvent;
+import com.fluxtion.runtime.callback.*;
 import com.fluxtion.runtime.dataflow.aggregate.function.AggregateFlowFunctionWrapper;
 import com.fluxtion.runtime.dataflow.aggregate.function.AggregateIdentityFlowFunction;
 import com.fluxtion.runtime.dataflow.aggregate.function.primitive.DoubleSumFlowFunction;
@@ -40,13 +19,8 @@ import com.fluxtion.runtime.dataflow.function.FlatMapFlowFunction;
 import com.fluxtion.runtime.dataflow.function.MapFlowFunction.MapRef2RefFlowFunction;
 import com.fluxtion.runtime.dataflow.function.MergeFlowFunction;
 import com.fluxtion.runtime.dataflow.function.PushFlowFunction;
-import com.fluxtion.runtime.dataflow.groupby.GroupBy;
+import com.fluxtion.runtime.dataflow.groupby.*;
 import com.fluxtion.runtime.dataflow.groupby.GroupBy.EmptyGroupBy;
-import com.fluxtion.runtime.dataflow.groupby.GroupByFlowFunctionWrapper;
-import com.fluxtion.runtime.dataflow.groupby.GroupByMapFlowFunction;
-import com.fluxtion.runtime.dataflow.groupby.GroupByReduceFlowFunction;
-import com.fluxtion.runtime.dataflow.groupby.LeftJoin;
-import com.fluxtion.runtime.dataflow.groupby.OuterJoin;
 import com.fluxtion.runtime.dataflow.helpers.DefaultValue;
 import com.fluxtion.runtime.dataflow.helpers.Mappers;
 import com.fluxtion.runtime.event.Event;
@@ -54,8 +28,9 @@ import com.fluxtion.runtime.event.Signal;
 import com.fluxtion.runtime.input.EventFeed;
 import com.fluxtion.runtime.input.SubscriptionManager;
 import com.fluxtion.runtime.input.SubscriptionManagerNode;
+import com.fluxtion.runtime.lifecycle.BatchHandler;
+import com.fluxtion.runtime.lifecycle.Lifecycle;
 import com.fluxtion.runtime.node.DefaultEventHandlerNode;
-import com.fluxtion.runtime.node.ForkedTriggerTask;
 import com.fluxtion.runtime.node.MutableEventProcessorContext;
 import com.fluxtion.runtime.output.SinkDeregister;
 import com.fluxtion.runtime.output.SinkPublisher;
@@ -64,20 +39,13 @@ import com.fluxtion.runtime.service.ServiceListener;
 import com.fluxtion.runtime.service.ServiceRegistryNode;
 import com.fluxtion.runtime.time.Clock;
 import com.fluxtion.runtime.time.ClockStrategy.ClockStrategyEvent;
-import com.fluxtion.server.lib.pnl.InstrumentPosition;
-import com.fluxtion.server.lib.pnl.MathUtil;
-import com.fluxtion.server.lib.pnl.MidPrice;
-import com.fluxtion.server.lib.pnl.PositionSnapshot;
-import com.fluxtion.server.lib.pnl.Trade;
-import com.fluxtion.server.lib.pnl.TradeBatch;
+import com.fluxtion.server.lib.pnl.*;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.SymbolLookup;
 
-import java.io.File;
 import java.util.Arrays;
-import java.util.Map;
-
 import java.util.IdentityHashMap;
+import java.util.Map;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
