@@ -5,7 +5,6 @@
 
 package com.fluxtion.server.lib.pnl;
 
-import com.fluxtion.server.lib.pnl.refdata.InMemorySymbolLookup;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
 import lombok.Value;
@@ -31,17 +30,5 @@ public class MidPrice {
             return symbol.dealtInstrument();
         }
         return null;
-    }
-
-    public double getUsdRate() {
-        return getRateForInstrument(InMemorySymbolLookup.INSTRUMENT_USD);
-    }
-
-    public Instrument getUsdContraInstrument() {
-        return getOppositeInstrument(InMemorySymbolLookup.INSTRUMENT_USD);
-    }
-
-    public boolean hasUsdRate() {
-        return getUsdContraInstrument() != null;
     }
 }
