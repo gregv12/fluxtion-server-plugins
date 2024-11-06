@@ -34,8 +34,8 @@ public interface MathUtil {
 
     static double mtmPositions(Tuple<Double, Double> tuple) {
         double position1 = tuple.getFirst() == null ? 0 : tuple.getFirst();
-        double position2 = tuple.getSecond() == null ? Double.NaN : tuple.getSecond();
-        return MathUtil.round(position1 * position2, 8);
+        double rate = tuple.getSecond() == null ? Double.NaN : tuple.getSecond();
+        return Double.isNaN(rate) ? Double.NaN : MathUtil.round(position1 * rate, 8);
     }
 
     static double mergeRates(Tuple<Double, Double> tuple) {

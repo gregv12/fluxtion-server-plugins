@@ -8,6 +8,7 @@ package com.fluxtion.server.lib.pnl;
 
 import com.fluxtion.server.lib.pnl.calculator.FluxtionPnlCalculator;
 import com.fluxtion.server.lib.pnl.refdata.InMemorySymbolLookup;
+import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -29,6 +30,12 @@ public class PnlCalculator {
         fluxtionPnlCalculator.onEvent(symbolLookup);
         fluxtionPnlCalculator.start();
         positionReset();
+    }
+
+    public PnlCalculator setMtmInstrument(Instrument instrument) {
+        fluxtionPnlCalculator.onEvent(new MtmInstrument(instrument));
+        fluxtionPnlCalculator.publishSignal("positionUpdate");
+        return this;
     }
 
     public PnlCalculator addSymbol(Symbol symbol) {
@@ -61,8 +68,9 @@ public class PnlCalculator {
         return this;
     }
 
-    public PnlCalculator priceUpdate(String symbol, double price) {
-        return priceUpdate(new MidPrice(symbolLookup.getSymbolForName(symbol), price));
+    public PnlCalculator priceUpdate(String symbolName, double price) {
+        Symbol symbol = symbolLookup.getSymbolForName(symbolName);
+        return symbol == null ? this : priceUpdate(new MidPrice(symbol, price));
     }
 
     public PnlCalculator processTrade(Trade... trades) {
