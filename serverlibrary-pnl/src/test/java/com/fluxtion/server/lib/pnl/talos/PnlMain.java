@@ -14,9 +14,6 @@ import com.fluxtion.server.lib.pnl.refdata.Symbol;
 
 import java.util.Map;
 
-import static com.fluxtion.server.lib.pnl.refdata.SymbolLookup.INSTRUMENT_USD;
-import static com.fluxtion.server.lib.pnl.refdata.SymbolLookup.INSTRUMENT_USDT;
-
 
 public class PnlMain {
 
@@ -26,10 +23,11 @@ public class PnlMain {
 
         Instrument moca = new Instrument("MOCA");
         Instrument ape = new Instrument("APE");
-        Symbol mocaUsdtSymbol = new Symbol("MOCA-USDT", moca, INSTRUMENT_USDT);
-        Symbol mocaUsdSymbol = new Symbol("MOCA-USD", moca, INSTRUMENT_USD);
-        Symbol apeUsdtPerpSymbol = new Symbol("okx:APEUSDT-PERP", ape, INSTRUMENT_USDT);
-        Symbol apeusdSymbol = new Symbol("APEUSD", ape, INSTRUMENT_USD);
+        Symbol mocaUsdtSymbol = new Symbol("MOCA-USDT", moca, Instrument.INSTRUMENT_USDT);
+        Symbol mocaUsdSymbol = new Symbol("MOCA-USD", moca, Instrument.INSTRUMENT_USD);
+        Symbol apeUsdtPerpSymbol = new Symbol("okx:APEUSDT-PERP", ape, Instrument.INSTRUMENT_USDT);
+        Symbol apeusdSymbol = new Symbol("APEUSD", ape, Instrument.INSTRUMENT_USD);
+        Symbol usdtSymbol = new Symbol("USDT-USD", Instrument.INSTRUMENT_USDT, Instrument.INSTRUMENT_USD);
 
         pnlCalculator
                 //set symbols
@@ -37,8 +35,11 @@ public class PnlMain {
                 .addSymbol(mocaUsdSymbol)
                 .addSymbol(apeUsdtPerpSymbol)
                 .addSymbol(apeusdSymbol)
+                .addSymbol(usdtSymbol)
                 //publish some initial rates
                 .priceUpdate("APEUSD", 2)
+                .priceUpdate("MOCA-USD", 0.5)
+                .priceUpdate("USDT-USD", 1)
                 //add listeners
                 .addPnlListener(PnlMain::pnlUpdate)
                 .addNetPnlListener(PnlMain::netPnlUpdate)
@@ -53,8 +54,8 @@ public class PnlMain {
         pnlCalculator.positionSnapshot(PositionSnapshot.of(
                 new InstrumentPosition(ape, 50),
                 new InstrumentPosition(moca, 12_000),
-                new InstrumentPosition(INSTRUMENT_USDT, 1500),
-                new InstrumentPosition(INSTRUMENT_USD, 200)
+                new InstrumentPosition(Instrument.INSTRUMENT_USDT, 1500),
+                new InstrumentPosition(Instrument.INSTRUMENT_USD, 200)
         ));
         System.out.println("--- finish snapshot positions ----\n");
 
@@ -67,7 +68,7 @@ public class PnlMain {
 
         PositionSnapshot positionSnapshot = PositionSnapshot.of(
                 new InstrumentPosition(ape, 500),
-                new InstrumentPosition(INSTRUMENT_USDT, 10)
+                new InstrumentPosition(Instrument.INSTRUMENT_USDT, 10)
         );
 
         System.out.println();
@@ -95,10 +96,20 @@ public class PnlMain {
         );
         System.out.println("--- finish price trade batch ----\n");
 
+
+        pnlCalculator.setMtmInstrument(moca);
+        System.out.println("--- finish change mtm to MOCA ----\n");
+
+        pnlCalculator.setMtmInstrument(Instrument.INSTRUMENT_GBP);
+        System.out.println("--- finish change mtm to GBP ----\n");
+
+        pnlCalculator.addSymbol(new Symbol("GBPUSD", Instrument.INSTRUMENT_GBP, Instrument.INSTRUMENT_USD));
+        pnlCalculator.priceUpdate("GBPUSD", 1.234);
+
         System.out.println("--- getters ---");
         System.out.println("get rates       - " + pnlCalculator.ratesMap());
         System.out.println("get position    - " + pnlCalculator.positionMap());
-        System.out.println("get mtmPosition - " + pnlCalculator.mtmPositionMap() + " (USD)");
+        System.out.println("get mtmPosition - " + pnlCalculator.mtmPositionMap() + " (MOCA)");
         System.out.println("get tradeFees   - " + pnlCalculator.tradeFees());
         System.out.println("get pnl         - " + pnlCalculator.pnl());
         System.out.println("get netPnl      - " + pnlCalculator.netPnl());
@@ -113,19 +124,19 @@ public class PnlMain {
     }
 
     private static void rateUpdate(Map<String, Double> positionMap) {
-        System.out.println("Callback:Rates      -> " + positionMap);
+        System.out.println("Callback:Rates       -> " + positionMap);
     }
 
     public static void tradeFeesUpdate(double tradeFees) {
-        System.out.printf("Callback:TradeFees   -> " + tradeFees + "\n");
+        System.out.println("Callback:TradeFees   -> " + tradeFees);
     }
 
     public static void pnlUpdate(double pnl) {
-        System.out.printf("Callback:Pnl         -> " + pnl + "\n");
+        System.out.println("Callback:Pnl         -> " + pnl);
     }
 
     public static void netPnlUpdate(double pnl) {
-        System.out.printf("Callback:NetPnl      -> " + pnl + "\n");
+        System.out.println("Callback:NetPnl      -> " + pnl);
     }
 
     public static String input = """

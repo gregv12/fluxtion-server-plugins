@@ -11,10 +11,10 @@ import com.fluxtion.runtime.annotations.builder.FluxtionIgnore;
 import com.fluxtion.runtime.dataflow.groupby.GroupBy;
 import com.fluxtion.runtime.dataflow.groupby.GroupByHashMap;
 import com.fluxtion.server.lib.pnl.MidPrice;
+import com.fluxtion.server.lib.pnl.MtmInstrument;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
-import com.fluxtion.server.lib.pnl.refdata.SymbolLookup;
 import lombok.Data;
-import org.jgrapht.alg.shortestpath.DijkstraShortestPath;
+import org.jgrapht.GraphPath;
 import org.jgrapht.graph.DefaultDirectedWeightedGraph;
 import org.jgrapht.graph.DefaultWeightedEdge;
 
@@ -28,18 +28,29 @@ public class DerivedRateNode {
     @FluxtionIgnore
     private final GroupByHashMap<Instrument, Double> derivedRates = new GroupByHashMap<>();
     @FluxtionIgnore
-    private final DijkstraShortestPath<Instrument, DefaultWeightedEdge> shortestPath = new DijkstraShortestPath<>(graph);
+    private final BellmanFordShortestPath<Instrument, DefaultWeightedEdge> shortestPath = new BellmanFordShortestPath<>(graph);
+    private Instrument mtmInstrument = Instrument.INSTRUMENT_USD;
+
+    @OnEventHandler
+    public boolean updateMtmInstrument(MtmInstrument mtmInstrumentUpdate) {
+        boolean change = mtmInstrument != mtmInstrumentUpdate.instrument();
+        mtmInstrument = mtmInstrumentUpdate.instrument();
+        return change;
+    }
 
     @OnEventHandler
     public boolean midRate(MidPrice midPrice) {
         Instrument dealtInstrument = midPrice.getSymbol().dealtInstrument();
         Instrument contraInstrument = midPrice.getSymbol().contraInstrument();
-        if (dealtInstrument == contraInstrument) {
+
+        //no self cycles allowed
+        if (dealtInstrument == contraInstrument | dealtInstrument == null | contraInstrument == null) {
             return false;
         }
+
         double rate = midPrice.getRate();
-        double logRate = Math.log(rate);
-        double logInverseRate = Math.log(1 / rate);
+        double logRate = Math.log10(rate);
+        double logInverseRate = Math.log10(1 / rate);
 
         graph.addVertex(dealtInstrument);
         graph.addVertex(contraInstrument);
@@ -53,6 +64,18 @@ public class DerivedRateNode {
         return false;
     }
 
+    public boolean isMtmSymbol(MidPrice midPrice) {
+        return midPrice.getOppositeInstrument(mtmInstrument) != null;
+    }
+
+    public Instrument getMtmContraInstrument(MidPrice midPrice) {
+        return midPrice.getOppositeInstrument(mtmInstrument);
+    }
+
+    public double getMtMRate(MidPrice midPrice) {
+        return midPrice.getRateForInstrument(mtmInstrument);
+    }
+
     public GroupBy<Instrument, Double> addDerived(
             GroupBy<Instrument, Double> rateMapGroupBy,
             GroupBy<Instrument, Double> positionMapGroupBy) {
@@ -62,18 +85,20 @@ public class DerivedRateNode {
 
         derivedRates.fromMap(rateMap);
         Map<Instrument, Double> derivedRateMap = derivedRates.toMap();
+        derivedRateMap.put(mtmInstrument, 1.0);
 
         positionMap.keySet().forEach(
                 i -> {
-                    derivedRateMap.computeIfAbsent(i, a -> {
-                        double rate = shortestPath.getPathWeight(a, SymbolLookup.INSTRUMENT_USD);
-                        return Double.isInfinite(rate) ? Double.NaN : Math.pow(10, rate);
+                    derivedRateMap.computeIfAbsent(i, positionInstrument -> {
+                        if (graph.containsVertex(positionInstrument) & graph.containsVertex(mtmInstrument)) {
+                            GraphPath<Instrument, DefaultWeightedEdge> path = shortestPath.getPath(positionInstrument, mtmInstrument);
+                            double log10Rate = shortestPath.getPathWeight(positionInstrument, mtmInstrument);
+                            return Double.isInfinite(log10Rate) ? Double.NaN : Math.pow(10, log10Rate);
+                        }
+                        return Double.NaN;
                     });
                 }
         );
-
-
-//        rateMap.put(new Instrument("MOCA"), 0.5);
         return derivedRates;
     }
 

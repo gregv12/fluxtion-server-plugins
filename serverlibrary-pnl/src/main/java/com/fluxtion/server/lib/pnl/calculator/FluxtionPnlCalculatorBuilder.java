@@ -124,10 +124,12 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
 
     private void buildRateMap() {
         //create a map of asset rates to USD, updates on any rate event
+        DerivedRateNode derivedRateNode = new DerivedRateNode();
         rateMap = DataFlow.subscribe(MidPrice.class)
-                .filter(MidPrice::hasUsdRate)
-                .groupBy(MidPrice::getUsdContraInstrument, MidPrice::getUsdRate)
-                .mapBiFunction(new DerivedRateNode()::addDerived, positionMap)
+                .filter(derivedRateNode::isMtmSymbol)
+                .groupBy(derivedRateNode::getMtmContraInstrument, derivedRateNode::getMtMRate)
+                .resetTrigger(DataFlow.subscribe(MtmInstrument.class))
+                .mapBiFunction(derivedRateNode::addDerived, positionMap)
                 .defaultValue(GroupBy.emptyCollection());
     }
 
@@ -140,8 +142,10 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         //aggregate pnl calculation triggers a recalc on any change to either rates or positions
         pnl = mtmPositionMap
                 .reduceValues(DoubleSumFlowFunction::new)
-                .id("pnl")
-                .updateTrigger(positionUpdateEob);
+                .defaultValue(Double.NaN)
+                .updateTrigger(positionUpdateEob)
+                .id("pnl");
+
 
         netPnl = pnl.mapBiFunction(Mappers::subtractDoubles, feeStream)
                 .updateTrigger(positionUpdateEob)
@@ -177,13 +181,9 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .sink("mtmPositionListener");
 
         //register aggregate pnl sink endpoint
-        pnl
-                .filter(Double::isFinite)
-                .sink("pnlListener");
+        pnl.sink("pnlListener");
 
         //register aggregate pnl sink endpoint
-        netPnl
-                .filter(Double::isFinite)
-                .sink("netPnlListener");
+        netPnl.sink("netPnlListener");
     }
 }
