@@ -5,8 +5,9 @@
 
 package com.fluxtion.server.lib.pnl.refdata;
 
-public record Instrument(String instrumentName, double defaultUsdRate) {
-    public Instrument(String instrumentName) {
-        this(instrumentName, Double.NaN);
-    }
+public record Instrument(String instrumentName) {
+
+    public static final Instrument INSTRUMENT_GBP = new Instrument("GBP");
+    public static final Instrument INSTRUMENT_USD = new Instrument("USD");
+    public static final Instrument INSTRUMENT_USDT = new Instrument("USDT");
 }

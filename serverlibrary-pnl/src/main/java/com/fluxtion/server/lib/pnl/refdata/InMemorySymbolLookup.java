@@ -16,9 +16,6 @@ public class InMemorySymbolLookup
     private final Map<String, Symbol> symbolMap = new HashMap<>();
 
     public InMemorySymbolLookup() {
-        addSymbol(SYMBOL_USD);
-        addSymbol(SYMBOL_USDT);
-        addSymbol(SYMBOL_GBP);
     }
 
     @Override
