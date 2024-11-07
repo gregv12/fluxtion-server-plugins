@@ -127,8 +127,8 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .filter(derivedRateNode::isMtmSymbol)
                 .groupBy(derivedRateNode::getMtmContraInstrument, derivedRateNode::getMtMRate)
                 .resetTrigger(DataFlow.subscribe(MtmInstrument.class))
-                .mapBiFunction(derivedRateNode::addDerived, positionMap)
-//                .mapBiFunction(derivedRateNode::addDerived, feePositionMp)
+                .mapBiFunction(derivedRateNode::trimDerivedRates, positionMap)
+                .mapBiFunction(derivedRateNode::addMissingDerivedRates, feePositionMp)
                 .defaultValue(GroupBy.emptyCollection());
     }
 

@@ -119,22 +119,22 @@ public class FluxtionPnlCalculator
 
   //Node declarations
   private final CallbackDispatcherImpl callbackDispatcher = new CallbackDispatcherImpl();
-  private final CallbackImpl callbackImpl_74 = new CallbackImpl<>(1, callbackDispatcher);
-  private final CallbackImpl callbackImpl_75 = new CallbackImpl<>(2, callbackDispatcher);
+  private final CallbackImpl callbackImpl_75 = new CallbackImpl<>(1, callbackDispatcher);
+  private final CallbackImpl callbackImpl_76 = new CallbackImpl<>(2, callbackDispatcher);
   public final Clock clock = new Clock();
   private final DerivedRateNode derivedRateNode_27 = new DerivedRateNode();
-  private final Double double_220 = Double.NaN;
-  private final DefaultValue defaultValue_40 = new DefaultValue<>(Double.NaN);
-  private final Double double_302 = 0.0d;
-  private final DefaultValue defaultValue_48 = new DefaultValue<>(0.0);
-  private final DoubleSumFlowFunction doubleSumFlowFunction_194 = new DoubleSumFlowFunction();
-  private final DoubleSumFlowFunction doubleSumFlowFunction_282 = new DoubleSumFlowFunction();
-  private final EmptyGroupBy emptyGroupBy_99 = new EmptyGroupBy<>();
-  private final DefaultValue defaultValue_18 = new DefaultValue<>(emptyGroupBy_99);
-  private final EmptyGroupBy emptyGroupBy_109 = new EmptyGroupBy<>();
-  private final DefaultValue defaultValue_25 = new DefaultValue<>(emptyGroupBy_109);
-  private final EmptyGroupBy emptyGroupBy_132 = new EmptyGroupBy<>();
-  private final DefaultValue defaultValue_32 = new DefaultValue<>(emptyGroupBy_132);
+  private final Double double_249 = Double.NaN;
+  private final DefaultValue defaultValue_41 = new DefaultValue<>(Double.NaN);
+  private final Double double_343 = 0.0d;
+  private final DefaultValue defaultValue_49 = new DefaultValue<>(0.0);
+  private final DoubleSumFlowFunction doubleSumFlowFunction_220 = new DoubleSumFlowFunction();
+  private final DoubleSumFlowFunction doubleSumFlowFunction_320 = new DoubleSumFlowFunction();
+  private final EmptyGroupBy emptyGroupBy_100 = new EmptyGroupBy<>();
+  private final DefaultValue defaultValue_18 = new DefaultValue<>(emptyGroupBy_100);
+  private final EmptyGroupBy emptyGroupBy_110 = new EmptyGroupBy<>();
+  private final DefaultValue defaultValue_25 = new DefaultValue<>(emptyGroupBy_110);
+  private final EmptyGroupBy emptyGroupBy_149 = new EmptyGroupBy<>();
+  private final DefaultValue defaultValue_33 = new DefaultValue<>(emptyGroupBy_149);
   private final GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_4 =
       new GroupByFlowFunctionWrapper<>(
           InstrumentPosition::instrument,
@@ -158,26 +158,26 @@ public class FluxtionPnlCalculator
       new GroupByMapFlowFunction(MathUtil::addPositions);
   private final GroupByMapFlowFunction groupByMapFlowFunction_16 =
       new GroupByMapFlowFunction(MathUtil::addPositions);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_36 =
+  private final GroupByMapFlowFunction groupByMapFlowFunction_37 =
       new GroupByMapFlowFunction(MathUtil::mtmPositions);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_44 =
+  private final GroupByMapFlowFunction groupByMapFlowFunction_45 =
       new GroupByMapFlowFunction(MathUtil::mtmPositions);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_51 =
+  private final GroupByMapFlowFunction groupByMapFlowFunction_52 =
       new GroupByMapFlowFunction(Instrument::instrumentName);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_55 =
+  private final GroupByMapFlowFunction groupByMapFlowFunction_56 =
       new GroupByMapFlowFunction(Instrument::instrumentName);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_59 =
+  private final GroupByMapFlowFunction groupByMapFlowFunction_60 =
       new GroupByMapFlowFunction(Instrument::instrumentName);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_63 =
+  private final GroupByMapFlowFunction groupByMapFlowFunction_64 =
       new GroupByMapFlowFunction(Instrument::instrumentName);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_67 =
+  private final GroupByMapFlowFunction groupByMapFlowFunction_68 =
       new GroupByMapFlowFunction(Instrument::instrumentName);
-  private final GroupByReduceFlowFunction groupByReduceFlowFunction_38 =
-      new GroupByReduceFlowFunction(doubleSumFlowFunction_194);
-  private final GroupByReduceFlowFunction groupByReduceFlowFunction_46 =
-      new GroupByReduceFlowFunction(doubleSumFlowFunction_282);
-  private final LeftJoin leftJoin_34 = new LeftJoin();
-  private final LeftJoin leftJoin_42 = new LeftJoin();
+  private final GroupByReduceFlowFunction groupByReduceFlowFunction_39 =
+      new GroupByReduceFlowFunction(doubleSumFlowFunction_220);
+  private final GroupByReduceFlowFunction groupByReduceFlowFunction_47 =
+      new GroupByReduceFlowFunction(doubleSumFlowFunction_320);
+  private final LeftJoin leftJoin_35 = new LeftJoin();
+  private final LeftJoin leftJoin_43 = new LeftJoin();
   public final NodeNameAuditor nodeNameLookup = new NodeNameAuditor();
   private final OuterJoin outerJoin_10 = new OuterJoin();
   private final OuterJoin outerJoin_14 = new OuterJoin();
@@ -261,85 +261,92 @@ public class FluxtionPnlCalculator
       new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_17, defaultValue_18::getOrDefault);
   private final BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_31 =
       new BinaryMapToRefFlowFunction<>(
-          mapRef2RefFlowFunction_30, mapRef2RefFlowFunction_19, derivedRateNode_27::addDerived);
+          mapRef2RefFlowFunction_30,
+          mapRef2RefFlowFunction_19,
+          derivedRateNode_27::trimDerivedRates);
   private final MapRef2RefFlowFunction mapRef2RefFlowFunction_20 =
       new MapRef2RefFlowFunction<>(mergeFlowFunction_2, MathUtil::feePositionTrade);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_33 =
-      new MapRef2RefFlowFunction<>(binaryMapToRefFlowFunction_31, defaultValue_32::getOrDefault);
-  private final BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_35 =
-      new BinaryMapToRefFlowFunction<>(
-          mapRef2RefFlowFunction_19, mapRef2RefFlowFunction_33, leftJoin_34::join);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_37 =
-      new MapRef2RefFlowFunction<>(
-          binaryMapToRefFlowFunction_35, groupByMapFlowFunction_36::mapValues);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_39 =
-      new MapRef2RefFlowFunction<>(
-          mapRef2RefFlowFunction_37, groupByReduceFlowFunction_38::reduceValues);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_52 =
-      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_19, groupByMapFlowFunction_51::mapKeys);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_60 =
-      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_33, groupByMapFlowFunction_59::mapKeys);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_64 =
-      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_37, groupByMapFlowFunction_63::mapKeys);
+  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_53 =
+      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_19, groupByMapFlowFunction_52::mapKeys);
   private final MergeFlowFunction mergeFlowFunction_22 =
       new MergeFlowFunction<>(Arrays.asList(mapRef2RefFlowFunction_20, mapRef2RefFlowFunction_21));
   private final MapRef2RefFlowFunction mapRef2RefFlowFunction_24 =
       new MapRef2RefFlowFunction<>(mergeFlowFunction_22, groupByFlowFunctionWrapper_23::aggregate);
   private final MapRef2RefFlowFunction mapRef2RefFlowFunction_26 =
       new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_24, defaultValue_25::getOrDefault);
-  private final BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_43 =
+  private final BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_32 =
       new BinaryMapToRefFlowFunction<>(
-          mapRef2RefFlowFunction_26, mapRef2RefFlowFunction_33, leftJoin_42::join);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_45 =
+          binaryMapToRefFlowFunction_31,
+          mapRef2RefFlowFunction_26,
+          derivedRateNode_27::addMissingDerivedRates);
+  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_34 =
+      new MapRef2RefFlowFunction<>(binaryMapToRefFlowFunction_32, defaultValue_33::getOrDefault);
+  private final BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_36 =
+      new BinaryMapToRefFlowFunction<>(
+          mapRef2RefFlowFunction_19, mapRef2RefFlowFunction_34, leftJoin_35::join);
+  private final BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_44 =
+      new BinaryMapToRefFlowFunction<>(
+          mapRef2RefFlowFunction_26, mapRef2RefFlowFunction_34, leftJoin_43::join);
+  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_38 =
       new MapRef2RefFlowFunction<>(
-          binaryMapToRefFlowFunction_43, groupByMapFlowFunction_44::mapValues);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_47 =
+          binaryMapToRefFlowFunction_36, groupByMapFlowFunction_37::mapValues);
+  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_40 =
       new MapRef2RefFlowFunction<>(
-          mapRef2RefFlowFunction_45, groupByReduceFlowFunction_46::reduceValues);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_56 =
-      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_26, groupByMapFlowFunction_55::mapKeys);
+          mapRef2RefFlowFunction_38, groupByReduceFlowFunction_39::reduceValues);
+  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_46 =
+      new MapRef2RefFlowFunction<>(
+          binaryMapToRefFlowFunction_44, groupByMapFlowFunction_45::mapValues);
+  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_48 =
+      new MapRef2RefFlowFunction<>(
+          mapRef2RefFlowFunction_46, groupByReduceFlowFunction_47::reduceValues);
+  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_57 =
+      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_26, groupByMapFlowFunction_56::mapKeys);
   public final MapRef2RefFlowFunction feePositionMap =
-      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_56, GroupBy<Object, Object>::toMap);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_68 =
-      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_45, groupByMapFlowFunction_67::mapKeys);
+      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_57, GroupBy<Object, Object>::toMap);
+  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_61 =
+      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_34, groupByMapFlowFunction_60::mapKeys);
+  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_65 =
+      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_38, groupByMapFlowFunction_64::mapKeys);
+  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_69 =
+      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_46, groupByMapFlowFunction_68::mapKeys);
   private final SinkPublisher mtmFeePositionListener =
       new SinkPublisher<>("mtmFeePositionListener");
   public final MapRef2RefFlowFunction mtmFeePositionMap =
-      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_68, GroupBy<Object, Object>::toMap);
+      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_69, GroupBy<Object, Object>::toMap);
   private final SinkPublisher mtmPositionListener = new SinkPublisher<>("mtmPositionListener");
   public final MapRef2RefFlowFunction mtmPositionMap =
-      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_64, GroupBy<Object, Object>::toMap);
+      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_65, GroupBy<Object, Object>::toMap);
   private final SinkPublisher netPnlListener = new SinkPublisher<>("netPnlListener");
   public final MapRef2RefFlowFunction pnl =
-      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_39, defaultValue_40::getOrDefault);
+      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_40, defaultValue_41::getOrDefault);
   private final SinkPublisher pnlListener = new SinkPublisher<>("pnlListener");
   private final SinkPublisher positionListener = new SinkPublisher<>("positionListener");
   public final MapRef2RefFlowFunction positionMap =
-      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_52, GroupBy<Object, Object>::toMap);
-  private final PushFlowFunction pushFlowFunction_54 =
+      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_53, GroupBy<Object, Object>::toMap);
+  private final PushFlowFunction pushFlowFunction_55 =
       new PushFlowFunction<>(positionMap, positionListener::publish);
-  private final PushFlowFunction pushFlowFunction_58 =
+  private final PushFlowFunction pushFlowFunction_59 =
       new PushFlowFunction<>(feePositionMap, feePositionListener::publish);
-  private final PushFlowFunction pushFlowFunction_66 =
+  private final PushFlowFunction pushFlowFunction_67 =
       new PushFlowFunction<>(mtmPositionMap, mtmPositionListener::publish);
-  private final PushFlowFunction pushFlowFunction_70 =
+  private final PushFlowFunction pushFlowFunction_71 =
       new PushFlowFunction<>(mtmFeePositionMap, mtmFeePositionListener::publish);
-  private final PushFlowFunction pushFlowFunction_72 =
+  private final PushFlowFunction pushFlowFunction_73 =
       new PushFlowFunction<>(pnl, pnlListener::publish);
   private final SinkPublisher rateListener = new SinkPublisher<>("rateListener");
   public final MapRef2RefFlowFunction rates =
-      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_60, GroupBy<Object, Object>::toMap);
-  private final PushFlowFunction pushFlowFunction_62 =
+      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_61, GroupBy<Object, Object>::toMap);
+  private final PushFlowFunction pushFlowFunction_63 =
       new PushFlowFunction<>(rates, rateListener::publish);
   public final ServiceRegistryNode serviceRegistry = new ServiceRegistryNode();
   public final MapRef2RefFlowFunction tradeFees =
-      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_47, defaultValue_48::getOrDefault);
+      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_48, defaultValue_49::getOrDefault);
   public final BinaryMapToRefFlowFunction netPnl =
       new BinaryMapToRefFlowFunction<>(pnl, tradeFees, Mappers::subtractDoubles);
-  private final PushFlowFunction pushFlowFunction_73 =
+  private final PushFlowFunction pushFlowFunction_74 =
       new PushFlowFunction<>(netPnl, netPnlListener::publish);
   private final SinkPublisher tradeFeesListener = new SinkPublisher<>("tradeFeesListener");
-  private final PushFlowFunction pushFlowFunction_71 =
+  private final PushFlowFunction pushFlowFunction_72 =
       new PushFlowFunction<>(tradeFees, tradeFeesListener::publish);
   private final SymbolLookupNode symbolLookupNode_0 = new SymbolLookupNode();
   private final ExportFunctionAuditEvent functionAudit = new ExportFunctionAuditEvent();
@@ -348,17 +355,18 @@ public class FluxtionPnlCalculator
   private boolean processing = false;
   private boolean buffering = false;
   private final IdentityHashMap<Object, BooleanSupplier> dirtyFlagSupplierMap =
-      new IdentityHashMap<>(58);
+      new IdentityHashMap<>(59);
   private final IdentityHashMap<Object, Consumer<Boolean>> dirtyFlagUpdateMap =
-      new IdentityHashMap<>(58);
+      new IdentityHashMap<>(59);
 
   private boolean isDirty_binaryMapToRefFlowFunction_11 = false;
   private boolean isDirty_binaryMapToRefFlowFunction_15 = false;
   private boolean isDirty_binaryMapToRefFlowFunction_31 = false;
-  private boolean isDirty_binaryMapToRefFlowFunction_35 = false;
-  private boolean isDirty_binaryMapToRefFlowFunction_43 = false;
-  private boolean isDirty_callbackImpl_74 = false;
+  private boolean isDirty_binaryMapToRefFlowFunction_32 = false;
+  private boolean isDirty_binaryMapToRefFlowFunction_36 = false;
+  private boolean isDirty_binaryMapToRefFlowFunction_44 = false;
   private boolean isDirty_callbackImpl_75 = false;
+  private boolean isDirty_callbackImpl_76 = false;
   private boolean isDirty_clock = false;
   private boolean isDirty_derivedRateNode_27 = false;
   private boolean isDirty_feePositionMap = false;
@@ -383,16 +391,16 @@ public class FluxtionPnlCalculator
   private boolean isDirty_mapRef2RefFlowFunction_24 = false;
   private boolean isDirty_mapRef2RefFlowFunction_26 = false;
   private boolean isDirty_mapRef2RefFlowFunction_30 = false;
-  private boolean isDirty_mapRef2RefFlowFunction_33 = false;
-  private boolean isDirty_mapRef2RefFlowFunction_37 = false;
-  private boolean isDirty_mapRef2RefFlowFunction_39 = false;
-  private boolean isDirty_mapRef2RefFlowFunction_45 = false;
-  private boolean isDirty_mapRef2RefFlowFunction_47 = false;
-  private boolean isDirty_mapRef2RefFlowFunction_52 = false;
-  private boolean isDirty_mapRef2RefFlowFunction_56 = false;
-  private boolean isDirty_mapRef2RefFlowFunction_60 = false;
-  private boolean isDirty_mapRef2RefFlowFunction_64 = false;
-  private boolean isDirty_mapRef2RefFlowFunction_68 = false;
+  private boolean isDirty_mapRef2RefFlowFunction_34 = false;
+  private boolean isDirty_mapRef2RefFlowFunction_38 = false;
+  private boolean isDirty_mapRef2RefFlowFunction_40 = false;
+  private boolean isDirty_mapRef2RefFlowFunction_46 = false;
+  private boolean isDirty_mapRef2RefFlowFunction_48 = false;
+  private boolean isDirty_mapRef2RefFlowFunction_53 = false;
+  private boolean isDirty_mapRef2RefFlowFunction_57 = false;
+  private boolean isDirty_mapRef2RefFlowFunction_61 = false;
+  private boolean isDirty_mapRef2RefFlowFunction_65 = false;
+  private boolean isDirty_mapRef2RefFlowFunction_69 = false;
   private boolean isDirty_mergeFlowFunction_2 = false;
   private boolean isDirty_mergeFlowFunction_22 = false;
   private boolean isDirty_mtmFeePositionMap = false;
@@ -400,14 +408,14 @@ public class FluxtionPnlCalculator
   private boolean isDirty_netPnl = false;
   private boolean isDirty_pnl = false;
   private boolean isDirty_positionMap = false;
-  private boolean isDirty_pushFlowFunction_54 = false;
-  private boolean isDirty_pushFlowFunction_58 = false;
-  private boolean isDirty_pushFlowFunction_62 = false;
-  private boolean isDirty_pushFlowFunction_66 = false;
-  private boolean isDirty_pushFlowFunction_70 = false;
+  private boolean isDirty_pushFlowFunction_55 = false;
+  private boolean isDirty_pushFlowFunction_59 = false;
+  private boolean isDirty_pushFlowFunction_63 = false;
+  private boolean isDirty_pushFlowFunction_67 = false;
   private boolean isDirty_pushFlowFunction_71 = false;
   private boolean isDirty_pushFlowFunction_72 = false;
   private boolean isDirty_pushFlowFunction_73 = false;
+  private boolean isDirty_pushFlowFunction_74 = false;
   private boolean isDirty_rates = false;
   private boolean isDirty_tradeFees = false;
 
@@ -422,22 +430,23 @@ public class FluxtionPnlCalculator
     if (context != null) {
       context.replaceMappings(contextMap);
     }
-    callbackImpl_74.dirtyStateMonitor = callbackDispatcher;
     callbackImpl_75.dirtyStateMonitor = callbackDispatcher;
-    doubleSumFlowFunction_194.dirtyStateMonitor = callbackDispatcher;
-    doubleSumFlowFunction_282.dirtyStateMonitor = callbackDispatcher;
+    callbackImpl_76.dirtyStateMonitor = callbackDispatcher;
+    doubleSumFlowFunction_220.dirtyStateMonitor = callbackDispatcher;
+    doubleSumFlowFunction_320.dirtyStateMonitor = callbackDispatcher;
     binaryMapToRefFlowFunction_11.setEventProcessorContext(context);
     binaryMapToRefFlowFunction_11.setPublishTriggerOverrideNode(handlerSignal_positionUpdate);
     binaryMapToRefFlowFunction_15.setEventProcessorContext(context);
     binaryMapToRefFlowFunction_31.setEventProcessorContext(context);
-    binaryMapToRefFlowFunction_35.setEventProcessorContext(context);
-    binaryMapToRefFlowFunction_43.setEventProcessorContext(context);
+    binaryMapToRefFlowFunction_32.setEventProcessorContext(context);
+    binaryMapToRefFlowFunction_36.setEventProcessorContext(context);
+    binaryMapToRefFlowFunction_44.setEventProcessorContext(context);
     netPnl.setEventProcessorContext(context);
     netPnl.setUpdateTriggerNode(handlerSignal_positionUpdate);
     filterFlowFunction_28.setEventProcessorContext(context);
-    flatMapFlowFunction_1.callback = callbackImpl_74;
+    flatMapFlowFunction_1.callback = callbackImpl_75;
     flatMapFlowFunction_1.dirtyStateMonitor = callbackDispatcher;
-    flatMapFlowFunction_3.callback = callbackImpl_75;
+    flatMapFlowFunction_3.callback = callbackImpl_76;
     flatMapFlowFunction_3.dirtyStateMonitor = callbackDispatcher;
     feePositionMap.setEventProcessorContext(context);
     mapRef2RefFlowFunction_5.setEventProcessorContext(context);
@@ -459,18 +468,18 @@ public class FluxtionPnlCalculator
     mapRef2RefFlowFunction_26.setUpdateTriggerNode(handlerSignal_positionUpdate);
     mapRef2RefFlowFunction_30.setEventProcessorContext(context);
     mapRef2RefFlowFunction_30.setResetTriggerNode(handlerMtmInstrument);
-    mapRef2RefFlowFunction_33.setEventProcessorContext(context);
-    mapRef2RefFlowFunction_37.setEventProcessorContext(context);
-    mapRef2RefFlowFunction_37.setUpdateTriggerNode(handlerSignal_positionUpdate);
-    mapRef2RefFlowFunction_39.setEventProcessorContext(context);
-    mapRef2RefFlowFunction_45.setEventProcessorContext(context);
-    mapRef2RefFlowFunction_45.setUpdateTriggerNode(handlerSignal_positionUpdate);
-    mapRef2RefFlowFunction_47.setEventProcessorContext(context);
-    mapRef2RefFlowFunction_52.setEventProcessorContext(context);
-    mapRef2RefFlowFunction_56.setEventProcessorContext(context);
-    mapRef2RefFlowFunction_60.setEventProcessorContext(context);
-    mapRef2RefFlowFunction_64.setEventProcessorContext(context);
-    mapRef2RefFlowFunction_68.setEventProcessorContext(context);
+    mapRef2RefFlowFunction_34.setEventProcessorContext(context);
+    mapRef2RefFlowFunction_38.setEventProcessorContext(context);
+    mapRef2RefFlowFunction_38.setUpdateTriggerNode(handlerSignal_positionUpdate);
+    mapRef2RefFlowFunction_40.setEventProcessorContext(context);
+    mapRef2RefFlowFunction_46.setEventProcessorContext(context);
+    mapRef2RefFlowFunction_46.setUpdateTriggerNode(handlerSignal_positionUpdate);
+    mapRef2RefFlowFunction_48.setEventProcessorContext(context);
+    mapRef2RefFlowFunction_53.setEventProcessorContext(context);
+    mapRef2RefFlowFunction_57.setEventProcessorContext(context);
+    mapRef2RefFlowFunction_61.setEventProcessorContext(context);
+    mapRef2RefFlowFunction_65.setEventProcessorContext(context);
+    mapRef2RefFlowFunction_69.setEventProcessorContext(context);
     mtmFeePositionMap.setEventProcessorContext(context);
     mtmPositionMap.setEventProcessorContext(context);
     pnl.setEventProcessorContext(context);
@@ -481,14 +490,14 @@ public class FluxtionPnlCalculator
     tradeFees.setUpdateTriggerNode(handlerSignal_positionUpdate);
     mergeFlowFunction_2.dirtyStateMonitor = callbackDispatcher;
     mergeFlowFunction_22.dirtyStateMonitor = callbackDispatcher;
-    pushFlowFunction_54.setEventProcessorContext(context);
-    pushFlowFunction_58.setEventProcessorContext(context);
-    pushFlowFunction_62.setEventProcessorContext(context);
-    pushFlowFunction_66.setEventProcessorContext(context);
-    pushFlowFunction_70.setEventProcessorContext(context);
+    pushFlowFunction_55.setEventProcessorContext(context);
+    pushFlowFunction_59.setEventProcessorContext(context);
+    pushFlowFunction_63.setEventProcessorContext(context);
+    pushFlowFunction_67.setEventProcessorContext(context);
     pushFlowFunction_71.setEventProcessorContext(context);
     pushFlowFunction_72.setEventProcessorContext(context);
     pushFlowFunction_73.setEventProcessorContext(context);
+    pushFlowFunction_74.setEventProcessorContext(context);
     context.setClock(clock);
     feePositionListener.setEventProcessorContext(context);
     mtmFeePositionListener.setEventProcessorContext(context);
@@ -521,11 +530,11 @@ public class FluxtionPnlCalculator
     auditEvent(Lifecycle.LifecycleEvent.Init);
     //initialise dirty lookup map
     isDirty("test");
-    callbackImpl_74.init();
     callbackImpl_75.init();
+    callbackImpl_76.init();
     clock.init();
-    doubleSumFlowFunction_194.init();
-    doubleSumFlowFunction_282.init();
+    doubleSumFlowFunction_220.init();
+    doubleSumFlowFunction_320.init();
     handlerMidPrice.init();
     filterFlowFunction_28.initialiseEventStream();
     handlerMtmInstrument.init();
@@ -546,36 +555,37 @@ public class FluxtionPnlCalculator
     mapRef2RefFlowFunction_19.initialiseEventStream();
     binaryMapToRefFlowFunction_31.initialiseEventStream();
     mapRef2RefFlowFunction_20.initialiseEventStream();
-    mapRef2RefFlowFunction_33.initialiseEventStream();
-    binaryMapToRefFlowFunction_35.initialiseEventStream();
-    mapRef2RefFlowFunction_37.initialiseEventStream();
-    mapRef2RefFlowFunction_39.initialiseEventStream();
-    mapRef2RefFlowFunction_52.initialiseEventStream();
-    mapRef2RefFlowFunction_60.initialiseEventStream();
-    mapRef2RefFlowFunction_64.initialiseEventStream();
+    mapRef2RefFlowFunction_53.initialiseEventStream();
     mapRef2RefFlowFunction_24.initialiseEventStream();
     mapRef2RefFlowFunction_26.initialiseEventStream();
-    binaryMapToRefFlowFunction_43.initialiseEventStream();
-    mapRef2RefFlowFunction_45.initialiseEventStream();
-    mapRef2RefFlowFunction_47.initialiseEventStream();
-    mapRef2RefFlowFunction_56.initialiseEventStream();
+    binaryMapToRefFlowFunction_32.initialiseEventStream();
+    mapRef2RefFlowFunction_34.initialiseEventStream();
+    binaryMapToRefFlowFunction_36.initialiseEventStream();
+    binaryMapToRefFlowFunction_44.initialiseEventStream();
+    mapRef2RefFlowFunction_38.initialiseEventStream();
+    mapRef2RefFlowFunction_40.initialiseEventStream();
+    mapRef2RefFlowFunction_46.initialiseEventStream();
+    mapRef2RefFlowFunction_48.initialiseEventStream();
+    mapRef2RefFlowFunction_57.initialiseEventStream();
     feePositionMap.initialiseEventStream();
-    mapRef2RefFlowFunction_68.initialiseEventStream();
+    mapRef2RefFlowFunction_61.initialiseEventStream();
+    mapRef2RefFlowFunction_65.initialiseEventStream();
+    mapRef2RefFlowFunction_69.initialiseEventStream();
     mtmFeePositionMap.initialiseEventStream();
     mtmPositionMap.initialiseEventStream();
     pnl.initialiseEventStream();
     positionMap.initialiseEventStream();
-    pushFlowFunction_54.initialiseEventStream();
-    pushFlowFunction_58.initialiseEventStream();
-    pushFlowFunction_66.initialiseEventStream();
-    pushFlowFunction_70.initialiseEventStream();
-    pushFlowFunction_72.initialiseEventStream();
+    pushFlowFunction_55.initialiseEventStream();
+    pushFlowFunction_59.initialiseEventStream();
+    pushFlowFunction_67.initialiseEventStream();
+    pushFlowFunction_71.initialiseEventStream();
+    pushFlowFunction_73.initialiseEventStream();
     rates.initialiseEventStream();
-    pushFlowFunction_62.initialiseEventStream();
+    pushFlowFunction_63.initialiseEventStream();
     tradeFees.initialiseEventStream();
     netPnl.initialiseEventStream();
-    pushFlowFunction_73.initialiseEventStream();
-    pushFlowFunction_71.initialiseEventStream();
+    pushFlowFunction_74.initialiseEventStream();
+    pushFlowFunction_72.initialiseEventStream();
     afterEvent();
   }
 
@@ -707,7 +717,7 @@ public class FluxtionPnlCalculator
     switch (typedEvent.filterId()) {
         //Event Class:[com.fluxtion.runtime.callback.CallbackEvent] filterId:[1]
       case (1):
-        isDirty_callbackImpl_74 = callbackImpl_74.onEvent(typedEvent);
+        isDirty_callbackImpl_75 = callbackImpl_75.onEvent(typedEvent);
         if (guardCheck_flatMapFlowFunction_1()) {
           isDirty_flatMapFlowFunction_1 = true;
           flatMapFlowFunction_1.callbackReceived();
@@ -763,14 +773,14 @@ public class FluxtionPnlCalculator
           isDirty_mapRef2RefFlowFunction_19 = mapRef2RefFlowFunction_19.map();
           if (isDirty_mapRef2RefFlowFunction_19) {
             binaryMapToRefFlowFunction_31.input2Updated(mapRef2RefFlowFunction_19);
-            binaryMapToRefFlowFunction_35.inputUpdated(mapRef2RefFlowFunction_19);
-            mapRef2RefFlowFunction_52.inputUpdated(mapRef2RefFlowFunction_19);
+            mapRef2RefFlowFunction_53.inputUpdated(mapRef2RefFlowFunction_19);
+            binaryMapToRefFlowFunction_36.inputUpdated(mapRef2RefFlowFunction_19);
           }
         }
         if (guardCheck_binaryMapToRefFlowFunction_31()) {
           isDirty_binaryMapToRefFlowFunction_31 = binaryMapToRefFlowFunction_31.map();
           if (isDirty_binaryMapToRefFlowFunction_31) {
-            mapRef2RefFlowFunction_33.inputUpdated(binaryMapToRefFlowFunction_31);
+            binaryMapToRefFlowFunction_32.inputUpdated(binaryMapToRefFlowFunction_31);
           }
         }
         if (guardCheck_mapRef2RefFlowFunction_20()) {
@@ -779,49 +789,10 @@ public class FluxtionPnlCalculator
             mergeFlowFunction_22.inputStreamUpdated(mapRef2RefFlowFunction_20);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_33()) {
-          isDirty_mapRef2RefFlowFunction_33 = mapRef2RefFlowFunction_33.map();
-          if (isDirty_mapRef2RefFlowFunction_33) {
-            binaryMapToRefFlowFunction_35.input2Updated(mapRef2RefFlowFunction_33);
-            mapRef2RefFlowFunction_60.inputUpdated(mapRef2RefFlowFunction_33);
-            binaryMapToRefFlowFunction_43.input2Updated(mapRef2RefFlowFunction_33);
-          }
-        }
-        if (guardCheck_binaryMapToRefFlowFunction_35()) {
-          isDirty_binaryMapToRefFlowFunction_35 = binaryMapToRefFlowFunction_35.map();
-          if (isDirty_binaryMapToRefFlowFunction_35) {
-            mapRef2RefFlowFunction_37.inputUpdated(binaryMapToRefFlowFunction_35);
-          }
-        }
-        if (guardCheck_mapRef2RefFlowFunction_37()) {
-          isDirty_mapRef2RefFlowFunction_37 = mapRef2RefFlowFunction_37.map();
-          if (isDirty_mapRef2RefFlowFunction_37) {
-            mapRef2RefFlowFunction_39.inputUpdated(mapRef2RefFlowFunction_37);
-            mapRef2RefFlowFunction_64.inputUpdated(mapRef2RefFlowFunction_37);
-          }
-        }
-        if (guardCheck_mapRef2RefFlowFunction_39()) {
-          isDirty_mapRef2RefFlowFunction_39 = mapRef2RefFlowFunction_39.map();
-          if (isDirty_mapRef2RefFlowFunction_39) {
-            pnl.inputUpdated(mapRef2RefFlowFunction_39);
-          }
-        }
-        if (guardCheck_mapRef2RefFlowFunction_52()) {
-          isDirty_mapRef2RefFlowFunction_52 = mapRef2RefFlowFunction_52.map();
-          if (isDirty_mapRef2RefFlowFunction_52) {
-            positionMap.inputUpdated(mapRef2RefFlowFunction_52);
-          }
-        }
-        if (guardCheck_mapRef2RefFlowFunction_60()) {
-          isDirty_mapRef2RefFlowFunction_60 = mapRef2RefFlowFunction_60.map();
-          if (isDirty_mapRef2RefFlowFunction_60) {
-            rates.inputUpdated(mapRef2RefFlowFunction_60);
-          }
-        }
-        if (guardCheck_mapRef2RefFlowFunction_64()) {
-          isDirty_mapRef2RefFlowFunction_64 = mapRef2RefFlowFunction_64.map();
-          if (isDirty_mapRef2RefFlowFunction_64) {
-            mtmPositionMap.inputUpdated(mapRef2RefFlowFunction_64);
+        if (guardCheck_mapRef2RefFlowFunction_53()) {
+          isDirty_mapRef2RefFlowFunction_53 = mapRef2RefFlowFunction_53.map();
+          if (isDirty_mapRef2RefFlowFunction_53) {
+            positionMap.inputUpdated(mapRef2RefFlowFunction_53);
           }
         }
         if (guardCheck_mergeFlowFunction_22()) {
@@ -839,108 +810,126 @@ public class FluxtionPnlCalculator
         if (guardCheck_mapRef2RefFlowFunction_26()) {
           isDirty_mapRef2RefFlowFunction_26 = mapRef2RefFlowFunction_26.map();
           if (isDirty_mapRef2RefFlowFunction_26) {
-            binaryMapToRefFlowFunction_43.inputUpdated(mapRef2RefFlowFunction_26);
-            mapRef2RefFlowFunction_56.inputUpdated(mapRef2RefFlowFunction_26);
+            binaryMapToRefFlowFunction_32.input2Updated(mapRef2RefFlowFunction_26);
+            binaryMapToRefFlowFunction_44.inputUpdated(mapRef2RefFlowFunction_26);
+            mapRef2RefFlowFunction_57.inputUpdated(mapRef2RefFlowFunction_26);
           }
         }
-        if (guardCheck_binaryMapToRefFlowFunction_43()) {
-          isDirty_binaryMapToRefFlowFunction_43 = binaryMapToRefFlowFunction_43.map();
-          if (isDirty_binaryMapToRefFlowFunction_43) {
-            mapRef2RefFlowFunction_45.inputUpdated(binaryMapToRefFlowFunction_43);
+        if (guardCheck_binaryMapToRefFlowFunction_32()) {
+          isDirty_binaryMapToRefFlowFunction_32 = binaryMapToRefFlowFunction_32.map();
+          if (isDirty_binaryMapToRefFlowFunction_32) {
+            mapRef2RefFlowFunction_34.inputUpdated(binaryMapToRefFlowFunction_32);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_45()) {
-          isDirty_mapRef2RefFlowFunction_45 = mapRef2RefFlowFunction_45.map();
-          if (isDirty_mapRef2RefFlowFunction_45) {
-            mapRef2RefFlowFunction_47.inputUpdated(mapRef2RefFlowFunction_45);
-            mapRef2RefFlowFunction_68.inputUpdated(mapRef2RefFlowFunction_45);
+        if (guardCheck_mapRef2RefFlowFunction_34()) {
+          isDirty_mapRef2RefFlowFunction_34 = mapRef2RefFlowFunction_34.map();
+          if (isDirty_mapRef2RefFlowFunction_34) {
+            binaryMapToRefFlowFunction_36.input2Updated(mapRef2RefFlowFunction_34);
+            binaryMapToRefFlowFunction_44.input2Updated(mapRef2RefFlowFunction_34);
+            mapRef2RefFlowFunction_61.inputUpdated(mapRef2RefFlowFunction_34);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_47()) {
-          isDirty_mapRef2RefFlowFunction_47 = mapRef2RefFlowFunction_47.map();
-          if (isDirty_mapRef2RefFlowFunction_47) {
-            tradeFees.inputUpdated(mapRef2RefFlowFunction_47);
+        if (guardCheck_binaryMapToRefFlowFunction_36()) {
+          isDirty_binaryMapToRefFlowFunction_36 = binaryMapToRefFlowFunction_36.map();
+          if (isDirty_binaryMapToRefFlowFunction_36) {
+            mapRef2RefFlowFunction_38.inputUpdated(binaryMapToRefFlowFunction_36);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_56()) {
-          isDirty_mapRef2RefFlowFunction_56 = mapRef2RefFlowFunction_56.map();
-          if (isDirty_mapRef2RefFlowFunction_56) {
-            feePositionMap.inputUpdated(mapRef2RefFlowFunction_56);
+        if (guardCheck_binaryMapToRefFlowFunction_44()) {
+          isDirty_binaryMapToRefFlowFunction_44 = binaryMapToRefFlowFunction_44.map();
+          if (isDirty_binaryMapToRefFlowFunction_44) {
+            mapRef2RefFlowFunction_46.inputUpdated(binaryMapToRefFlowFunction_44);
+          }
+        }
+        if (guardCheck_mapRef2RefFlowFunction_38()) {
+          isDirty_mapRef2RefFlowFunction_38 = mapRef2RefFlowFunction_38.map();
+          if (isDirty_mapRef2RefFlowFunction_38) {
+            mapRef2RefFlowFunction_40.inputUpdated(mapRef2RefFlowFunction_38);
+            mapRef2RefFlowFunction_65.inputUpdated(mapRef2RefFlowFunction_38);
+          }
+        }
+        if (guardCheck_mapRef2RefFlowFunction_40()) {
+          isDirty_mapRef2RefFlowFunction_40 = mapRef2RefFlowFunction_40.map();
+          if (isDirty_mapRef2RefFlowFunction_40) {
+            pnl.inputUpdated(mapRef2RefFlowFunction_40);
+          }
+        }
+        if (guardCheck_mapRef2RefFlowFunction_46()) {
+          isDirty_mapRef2RefFlowFunction_46 = mapRef2RefFlowFunction_46.map();
+          if (isDirty_mapRef2RefFlowFunction_46) {
+            mapRef2RefFlowFunction_48.inputUpdated(mapRef2RefFlowFunction_46);
+            mapRef2RefFlowFunction_69.inputUpdated(mapRef2RefFlowFunction_46);
+          }
+        }
+        if (guardCheck_mapRef2RefFlowFunction_48()) {
+          isDirty_mapRef2RefFlowFunction_48 = mapRef2RefFlowFunction_48.map();
+          if (isDirty_mapRef2RefFlowFunction_48) {
+            tradeFees.inputUpdated(mapRef2RefFlowFunction_48);
+          }
+        }
+        if (guardCheck_mapRef2RefFlowFunction_57()) {
+          isDirty_mapRef2RefFlowFunction_57 = mapRef2RefFlowFunction_57.map();
+          if (isDirty_mapRef2RefFlowFunction_57) {
+            feePositionMap.inputUpdated(mapRef2RefFlowFunction_57);
           }
         }
         if (guardCheck_feePositionMap()) {
           isDirty_feePositionMap = feePositionMap.map();
           if (isDirty_feePositionMap) {
-            pushFlowFunction_58.inputUpdated(feePositionMap);
+            pushFlowFunction_59.inputUpdated(feePositionMap);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_68()) {
-          isDirty_mapRef2RefFlowFunction_68 = mapRef2RefFlowFunction_68.map();
-          if (isDirty_mapRef2RefFlowFunction_68) {
-            mtmFeePositionMap.inputUpdated(mapRef2RefFlowFunction_68);
+        if (guardCheck_mapRef2RefFlowFunction_61()) {
+          isDirty_mapRef2RefFlowFunction_61 = mapRef2RefFlowFunction_61.map();
+          if (isDirty_mapRef2RefFlowFunction_61) {
+            rates.inputUpdated(mapRef2RefFlowFunction_61);
+          }
+        }
+        if (guardCheck_mapRef2RefFlowFunction_65()) {
+          isDirty_mapRef2RefFlowFunction_65 = mapRef2RefFlowFunction_65.map();
+          if (isDirty_mapRef2RefFlowFunction_65) {
+            mtmPositionMap.inputUpdated(mapRef2RefFlowFunction_65);
+          }
+        }
+        if (guardCheck_mapRef2RefFlowFunction_69()) {
+          isDirty_mapRef2RefFlowFunction_69 = mapRef2RefFlowFunction_69.map();
+          if (isDirty_mapRef2RefFlowFunction_69) {
+            mtmFeePositionMap.inputUpdated(mapRef2RefFlowFunction_69);
           }
         }
         if (guardCheck_mtmFeePositionMap()) {
           isDirty_mtmFeePositionMap = mtmFeePositionMap.map();
           if (isDirty_mtmFeePositionMap) {
-            pushFlowFunction_70.inputUpdated(mtmFeePositionMap);
+            pushFlowFunction_71.inputUpdated(mtmFeePositionMap);
           }
         }
         if (guardCheck_mtmPositionMap()) {
           isDirty_mtmPositionMap = mtmPositionMap.map();
           if (isDirty_mtmPositionMap) {
-            pushFlowFunction_66.inputUpdated(mtmPositionMap);
+            pushFlowFunction_67.inputUpdated(mtmPositionMap);
           }
         }
         if (guardCheck_pnl()) {
           isDirty_pnl = pnl.map();
           if (isDirty_pnl) {
-            pushFlowFunction_72.inputUpdated(pnl);
+            pushFlowFunction_73.inputUpdated(pnl);
             netPnl.inputUpdated(pnl);
           }
         }
         if (guardCheck_positionMap()) {
           isDirty_positionMap = positionMap.map();
           if (isDirty_positionMap) {
-            pushFlowFunction_54.inputUpdated(positionMap);
+            pushFlowFunction_55.inputUpdated(positionMap);
           }
         }
-        if (guardCheck_pushFlowFunction_54()) {
-          isDirty_pushFlowFunction_54 = pushFlowFunction_54.push();
+        if (guardCheck_pushFlowFunction_55()) {
+          isDirty_pushFlowFunction_55 = pushFlowFunction_55.push();
         }
-        if (guardCheck_pushFlowFunction_58()) {
-          isDirty_pushFlowFunction_58 = pushFlowFunction_58.push();
+        if (guardCheck_pushFlowFunction_59()) {
+          isDirty_pushFlowFunction_59 = pushFlowFunction_59.push();
         }
-        if (guardCheck_pushFlowFunction_66()) {
-          isDirty_pushFlowFunction_66 = pushFlowFunction_66.push();
-        }
-        if (guardCheck_pushFlowFunction_70()) {
-          isDirty_pushFlowFunction_70 = pushFlowFunction_70.push();
-        }
-        if (guardCheck_pushFlowFunction_72()) {
-          isDirty_pushFlowFunction_72 = pushFlowFunction_72.push();
-        }
-        if (guardCheck_rates()) {
-          isDirty_rates = rates.map();
-          if (isDirty_rates) {
-            pushFlowFunction_62.inputUpdated(rates);
-          }
-        }
-        if (guardCheck_pushFlowFunction_62()) {
-          isDirty_pushFlowFunction_62 = pushFlowFunction_62.push();
-        }
-        if (guardCheck_tradeFees()) {
-          isDirty_tradeFees = tradeFees.map();
-          if (isDirty_tradeFees) {
-            netPnl.input2Updated(tradeFees);
-            pushFlowFunction_71.inputUpdated(tradeFees);
-          }
-        }
-        if (guardCheck_netPnl()) {
-          isDirty_netPnl = netPnl.map();
-          if (isDirty_netPnl) {
-            pushFlowFunction_73.inputUpdated(netPnl);
-          }
+        if (guardCheck_pushFlowFunction_67()) {
+          isDirty_pushFlowFunction_67 = pushFlowFunction_67.push();
         }
         if (guardCheck_pushFlowFunction_71()) {
           isDirty_pushFlowFunction_71 = pushFlowFunction_71.push();
@@ -948,11 +937,39 @@ public class FluxtionPnlCalculator
         if (guardCheck_pushFlowFunction_73()) {
           isDirty_pushFlowFunction_73 = pushFlowFunction_73.push();
         }
+        if (guardCheck_rates()) {
+          isDirty_rates = rates.map();
+          if (isDirty_rates) {
+            pushFlowFunction_63.inputUpdated(rates);
+          }
+        }
+        if (guardCheck_pushFlowFunction_63()) {
+          isDirty_pushFlowFunction_63 = pushFlowFunction_63.push();
+        }
+        if (guardCheck_tradeFees()) {
+          isDirty_tradeFees = tradeFees.map();
+          if (isDirty_tradeFees) {
+            netPnl.input2Updated(tradeFees);
+            pushFlowFunction_72.inputUpdated(tradeFees);
+          }
+        }
+        if (guardCheck_netPnl()) {
+          isDirty_netPnl = netPnl.map();
+          if (isDirty_netPnl) {
+            pushFlowFunction_74.inputUpdated(netPnl);
+          }
+        }
+        if (guardCheck_pushFlowFunction_72()) {
+          isDirty_pushFlowFunction_72 = pushFlowFunction_72.push();
+        }
+        if (guardCheck_pushFlowFunction_74()) {
+          isDirty_pushFlowFunction_74 = pushFlowFunction_74.push();
+        }
         afterEvent();
         return;
         //Event Class:[com.fluxtion.runtime.callback.CallbackEvent] filterId:[2]
       case (2):
-        isDirty_callbackImpl_75 = callbackImpl_75.onEvent(typedEvent);
+        isDirty_callbackImpl_76 = callbackImpl_76.onEvent(typedEvent);
         if (guardCheck_flatMapFlowFunction_3()) {
           isDirty_flatMapFlowFunction_3 = true;
           flatMapFlowFunction_3.callbackReceived();
@@ -982,150 +999,156 @@ public class FluxtionPnlCalculator
           isDirty_mapRef2RefFlowFunction_19 = mapRef2RefFlowFunction_19.map();
           if (isDirty_mapRef2RefFlowFunction_19) {
             binaryMapToRefFlowFunction_31.input2Updated(mapRef2RefFlowFunction_19);
-            binaryMapToRefFlowFunction_35.inputUpdated(mapRef2RefFlowFunction_19);
-            mapRef2RefFlowFunction_52.inputUpdated(mapRef2RefFlowFunction_19);
+            mapRef2RefFlowFunction_53.inputUpdated(mapRef2RefFlowFunction_19);
+            binaryMapToRefFlowFunction_36.inputUpdated(mapRef2RefFlowFunction_19);
           }
         }
         if (guardCheck_binaryMapToRefFlowFunction_31()) {
           isDirty_binaryMapToRefFlowFunction_31 = binaryMapToRefFlowFunction_31.map();
           if (isDirty_binaryMapToRefFlowFunction_31) {
-            mapRef2RefFlowFunction_33.inputUpdated(binaryMapToRefFlowFunction_31);
+            binaryMapToRefFlowFunction_32.inputUpdated(binaryMapToRefFlowFunction_31);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_33()) {
-          isDirty_mapRef2RefFlowFunction_33 = mapRef2RefFlowFunction_33.map();
-          if (isDirty_mapRef2RefFlowFunction_33) {
-            binaryMapToRefFlowFunction_35.input2Updated(mapRef2RefFlowFunction_33);
-            mapRef2RefFlowFunction_60.inputUpdated(mapRef2RefFlowFunction_33);
-            binaryMapToRefFlowFunction_43.input2Updated(mapRef2RefFlowFunction_33);
+        if (guardCheck_mapRef2RefFlowFunction_53()) {
+          isDirty_mapRef2RefFlowFunction_53 = mapRef2RefFlowFunction_53.map();
+          if (isDirty_mapRef2RefFlowFunction_53) {
+            positionMap.inputUpdated(mapRef2RefFlowFunction_53);
           }
         }
-        if (guardCheck_binaryMapToRefFlowFunction_35()) {
-          isDirty_binaryMapToRefFlowFunction_35 = binaryMapToRefFlowFunction_35.map();
-          if (isDirty_binaryMapToRefFlowFunction_35) {
-            mapRef2RefFlowFunction_37.inputUpdated(binaryMapToRefFlowFunction_35);
+        if (guardCheck_binaryMapToRefFlowFunction_32()) {
+          isDirty_binaryMapToRefFlowFunction_32 = binaryMapToRefFlowFunction_32.map();
+          if (isDirty_binaryMapToRefFlowFunction_32) {
+            mapRef2RefFlowFunction_34.inputUpdated(binaryMapToRefFlowFunction_32);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_37()) {
-          isDirty_mapRef2RefFlowFunction_37 = mapRef2RefFlowFunction_37.map();
-          if (isDirty_mapRef2RefFlowFunction_37) {
-            mapRef2RefFlowFunction_39.inputUpdated(mapRef2RefFlowFunction_37);
-            mapRef2RefFlowFunction_64.inputUpdated(mapRef2RefFlowFunction_37);
+        if (guardCheck_mapRef2RefFlowFunction_34()) {
+          isDirty_mapRef2RefFlowFunction_34 = mapRef2RefFlowFunction_34.map();
+          if (isDirty_mapRef2RefFlowFunction_34) {
+            binaryMapToRefFlowFunction_36.input2Updated(mapRef2RefFlowFunction_34);
+            binaryMapToRefFlowFunction_44.input2Updated(mapRef2RefFlowFunction_34);
+            mapRef2RefFlowFunction_61.inputUpdated(mapRef2RefFlowFunction_34);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_39()) {
-          isDirty_mapRef2RefFlowFunction_39 = mapRef2RefFlowFunction_39.map();
-          if (isDirty_mapRef2RefFlowFunction_39) {
-            pnl.inputUpdated(mapRef2RefFlowFunction_39);
+        if (guardCheck_binaryMapToRefFlowFunction_36()) {
+          isDirty_binaryMapToRefFlowFunction_36 = binaryMapToRefFlowFunction_36.map();
+          if (isDirty_binaryMapToRefFlowFunction_36) {
+            mapRef2RefFlowFunction_38.inputUpdated(binaryMapToRefFlowFunction_36);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_52()) {
-          isDirty_mapRef2RefFlowFunction_52 = mapRef2RefFlowFunction_52.map();
-          if (isDirty_mapRef2RefFlowFunction_52) {
-            positionMap.inputUpdated(mapRef2RefFlowFunction_52);
+        if (guardCheck_binaryMapToRefFlowFunction_44()) {
+          isDirty_binaryMapToRefFlowFunction_44 = binaryMapToRefFlowFunction_44.map();
+          if (isDirty_binaryMapToRefFlowFunction_44) {
+            mapRef2RefFlowFunction_46.inputUpdated(binaryMapToRefFlowFunction_44);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_60()) {
-          isDirty_mapRef2RefFlowFunction_60 = mapRef2RefFlowFunction_60.map();
-          if (isDirty_mapRef2RefFlowFunction_60) {
-            rates.inputUpdated(mapRef2RefFlowFunction_60);
+        if (guardCheck_mapRef2RefFlowFunction_38()) {
+          isDirty_mapRef2RefFlowFunction_38 = mapRef2RefFlowFunction_38.map();
+          if (isDirty_mapRef2RefFlowFunction_38) {
+            mapRef2RefFlowFunction_40.inputUpdated(mapRef2RefFlowFunction_38);
+            mapRef2RefFlowFunction_65.inputUpdated(mapRef2RefFlowFunction_38);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_64()) {
-          isDirty_mapRef2RefFlowFunction_64 = mapRef2RefFlowFunction_64.map();
-          if (isDirty_mapRef2RefFlowFunction_64) {
-            mtmPositionMap.inputUpdated(mapRef2RefFlowFunction_64);
+        if (guardCheck_mapRef2RefFlowFunction_40()) {
+          isDirty_mapRef2RefFlowFunction_40 = mapRef2RefFlowFunction_40.map();
+          if (isDirty_mapRef2RefFlowFunction_40) {
+            pnl.inputUpdated(mapRef2RefFlowFunction_40);
           }
         }
-        if (guardCheck_binaryMapToRefFlowFunction_43()) {
-          isDirty_binaryMapToRefFlowFunction_43 = binaryMapToRefFlowFunction_43.map();
-          if (isDirty_binaryMapToRefFlowFunction_43) {
-            mapRef2RefFlowFunction_45.inputUpdated(binaryMapToRefFlowFunction_43);
+        if (guardCheck_mapRef2RefFlowFunction_46()) {
+          isDirty_mapRef2RefFlowFunction_46 = mapRef2RefFlowFunction_46.map();
+          if (isDirty_mapRef2RefFlowFunction_46) {
+            mapRef2RefFlowFunction_48.inputUpdated(mapRef2RefFlowFunction_46);
+            mapRef2RefFlowFunction_69.inputUpdated(mapRef2RefFlowFunction_46);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_45()) {
-          isDirty_mapRef2RefFlowFunction_45 = mapRef2RefFlowFunction_45.map();
-          if (isDirty_mapRef2RefFlowFunction_45) {
-            mapRef2RefFlowFunction_47.inputUpdated(mapRef2RefFlowFunction_45);
-            mapRef2RefFlowFunction_68.inputUpdated(mapRef2RefFlowFunction_45);
+        if (guardCheck_mapRef2RefFlowFunction_48()) {
+          isDirty_mapRef2RefFlowFunction_48 = mapRef2RefFlowFunction_48.map();
+          if (isDirty_mapRef2RefFlowFunction_48) {
+            tradeFees.inputUpdated(mapRef2RefFlowFunction_48);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_47()) {
-          isDirty_mapRef2RefFlowFunction_47 = mapRef2RefFlowFunction_47.map();
-          if (isDirty_mapRef2RefFlowFunction_47) {
-            tradeFees.inputUpdated(mapRef2RefFlowFunction_47);
+        if (guardCheck_mapRef2RefFlowFunction_61()) {
+          isDirty_mapRef2RefFlowFunction_61 = mapRef2RefFlowFunction_61.map();
+          if (isDirty_mapRef2RefFlowFunction_61) {
+            rates.inputUpdated(mapRef2RefFlowFunction_61);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_68()) {
-          isDirty_mapRef2RefFlowFunction_68 = mapRef2RefFlowFunction_68.map();
-          if (isDirty_mapRef2RefFlowFunction_68) {
-            mtmFeePositionMap.inputUpdated(mapRef2RefFlowFunction_68);
+        if (guardCheck_mapRef2RefFlowFunction_65()) {
+          isDirty_mapRef2RefFlowFunction_65 = mapRef2RefFlowFunction_65.map();
+          if (isDirty_mapRef2RefFlowFunction_65) {
+            mtmPositionMap.inputUpdated(mapRef2RefFlowFunction_65);
+          }
+        }
+        if (guardCheck_mapRef2RefFlowFunction_69()) {
+          isDirty_mapRef2RefFlowFunction_69 = mapRef2RefFlowFunction_69.map();
+          if (isDirty_mapRef2RefFlowFunction_69) {
+            mtmFeePositionMap.inputUpdated(mapRef2RefFlowFunction_69);
           }
         }
         if (guardCheck_mtmFeePositionMap()) {
           isDirty_mtmFeePositionMap = mtmFeePositionMap.map();
           if (isDirty_mtmFeePositionMap) {
-            pushFlowFunction_70.inputUpdated(mtmFeePositionMap);
+            pushFlowFunction_71.inputUpdated(mtmFeePositionMap);
           }
         }
         if (guardCheck_mtmPositionMap()) {
           isDirty_mtmPositionMap = mtmPositionMap.map();
           if (isDirty_mtmPositionMap) {
-            pushFlowFunction_66.inputUpdated(mtmPositionMap);
+            pushFlowFunction_67.inputUpdated(mtmPositionMap);
           }
         }
         if (guardCheck_pnl()) {
           isDirty_pnl = pnl.map();
           if (isDirty_pnl) {
-            pushFlowFunction_72.inputUpdated(pnl);
+            pushFlowFunction_73.inputUpdated(pnl);
             netPnl.inputUpdated(pnl);
           }
         }
         if (guardCheck_positionMap()) {
           isDirty_positionMap = positionMap.map();
           if (isDirty_positionMap) {
-            pushFlowFunction_54.inputUpdated(positionMap);
+            pushFlowFunction_55.inputUpdated(positionMap);
           }
         }
-        if (guardCheck_pushFlowFunction_54()) {
-          isDirty_pushFlowFunction_54 = pushFlowFunction_54.push();
+        if (guardCheck_pushFlowFunction_55()) {
+          isDirty_pushFlowFunction_55 = pushFlowFunction_55.push();
         }
-        if (guardCheck_pushFlowFunction_66()) {
-          isDirty_pushFlowFunction_66 = pushFlowFunction_66.push();
-        }
-        if (guardCheck_pushFlowFunction_70()) {
-          isDirty_pushFlowFunction_70 = pushFlowFunction_70.push();
-        }
-        if (guardCheck_pushFlowFunction_72()) {
-          isDirty_pushFlowFunction_72 = pushFlowFunction_72.push();
-        }
-        if (guardCheck_rates()) {
-          isDirty_rates = rates.map();
-          if (isDirty_rates) {
-            pushFlowFunction_62.inputUpdated(rates);
-          }
-        }
-        if (guardCheck_pushFlowFunction_62()) {
-          isDirty_pushFlowFunction_62 = pushFlowFunction_62.push();
-        }
-        if (guardCheck_tradeFees()) {
-          isDirty_tradeFees = tradeFees.map();
-          if (isDirty_tradeFees) {
-            netPnl.input2Updated(tradeFees);
-            pushFlowFunction_71.inputUpdated(tradeFees);
-          }
-        }
-        if (guardCheck_netPnl()) {
-          isDirty_netPnl = netPnl.map();
-          if (isDirty_netPnl) {
-            pushFlowFunction_73.inputUpdated(netPnl);
-          }
+        if (guardCheck_pushFlowFunction_67()) {
+          isDirty_pushFlowFunction_67 = pushFlowFunction_67.push();
         }
         if (guardCheck_pushFlowFunction_71()) {
           isDirty_pushFlowFunction_71 = pushFlowFunction_71.push();
         }
         if (guardCheck_pushFlowFunction_73()) {
           isDirty_pushFlowFunction_73 = pushFlowFunction_73.push();
+        }
+        if (guardCheck_rates()) {
+          isDirty_rates = rates.map();
+          if (isDirty_rates) {
+            pushFlowFunction_63.inputUpdated(rates);
+          }
+        }
+        if (guardCheck_pushFlowFunction_63()) {
+          isDirty_pushFlowFunction_63 = pushFlowFunction_63.push();
+        }
+        if (guardCheck_tradeFees()) {
+          isDirty_tradeFees = tradeFees.map();
+          if (isDirty_tradeFees) {
+            netPnl.input2Updated(tradeFees);
+            pushFlowFunction_72.inputUpdated(tradeFees);
+          }
+        }
+        if (guardCheck_netPnl()) {
+          isDirty_netPnl = netPnl.map();
+          if (isDirty_netPnl) {
+            pushFlowFunction_74.inputUpdated(netPnl);
+          }
+        }
+        if (guardCheck_pushFlowFunction_72()) {
+          isDirty_pushFlowFunction_72 = pushFlowFunction_72.push();
+        }
+        if (guardCheck_pushFlowFunction_74()) {
+          isDirty_pushFlowFunction_74 = pushFlowFunction_74.push();
         }
         afterEvent();
         return;
@@ -1191,150 +1214,156 @@ public class FluxtionPnlCalculator
           isDirty_mapRef2RefFlowFunction_19 = mapRef2RefFlowFunction_19.map();
           if (isDirty_mapRef2RefFlowFunction_19) {
             binaryMapToRefFlowFunction_31.input2Updated(mapRef2RefFlowFunction_19);
-            binaryMapToRefFlowFunction_35.inputUpdated(mapRef2RefFlowFunction_19);
-            mapRef2RefFlowFunction_52.inputUpdated(mapRef2RefFlowFunction_19);
+            mapRef2RefFlowFunction_53.inputUpdated(mapRef2RefFlowFunction_19);
+            binaryMapToRefFlowFunction_36.inputUpdated(mapRef2RefFlowFunction_19);
           }
         }
         if (guardCheck_binaryMapToRefFlowFunction_31()) {
           isDirty_binaryMapToRefFlowFunction_31 = binaryMapToRefFlowFunction_31.map();
           if (isDirty_binaryMapToRefFlowFunction_31) {
-            mapRef2RefFlowFunction_33.inputUpdated(binaryMapToRefFlowFunction_31);
+            binaryMapToRefFlowFunction_32.inputUpdated(binaryMapToRefFlowFunction_31);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_33()) {
-          isDirty_mapRef2RefFlowFunction_33 = mapRef2RefFlowFunction_33.map();
-          if (isDirty_mapRef2RefFlowFunction_33) {
-            binaryMapToRefFlowFunction_35.input2Updated(mapRef2RefFlowFunction_33);
-            mapRef2RefFlowFunction_60.inputUpdated(mapRef2RefFlowFunction_33);
-            binaryMapToRefFlowFunction_43.input2Updated(mapRef2RefFlowFunction_33);
+        if (guardCheck_mapRef2RefFlowFunction_53()) {
+          isDirty_mapRef2RefFlowFunction_53 = mapRef2RefFlowFunction_53.map();
+          if (isDirty_mapRef2RefFlowFunction_53) {
+            positionMap.inputUpdated(mapRef2RefFlowFunction_53);
           }
         }
-        if (guardCheck_binaryMapToRefFlowFunction_35()) {
-          isDirty_binaryMapToRefFlowFunction_35 = binaryMapToRefFlowFunction_35.map();
-          if (isDirty_binaryMapToRefFlowFunction_35) {
-            mapRef2RefFlowFunction_37.inputUpdated(binaryMapToRefFlowFunction_35);
+        if (guardCheck_binaryMapToRefFlowFunction_32()) {
+          isDirty_binaryMapToRefFlowFunction_32 = binaryMapToRefFlowFunction_32.map();
+          if (isDirty_binaryMapToRefFlowFunction_32) {
+            mapRef2RefFlowFunction_34.inputUpdated(binaryMapToRefFlowFunction_32);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_37()) {
-          isDirty_mapRef2RefFlowFunction_37 = mapRef2RefFlowFunction_37.map();
-          if (isDirty_mapRef2RefFlowFunction_37) {
-            mapRef2RefFlowFunction_39.inputUpdated(mapRef2RefFlowFunction_37);
-            mapRef2RefFlowFunction_64.inputUpdated(mapRef2RefFlowFunction_37);
+        if (guardCheck_mapRef2RefFlowFunction_34()) {
+          isDirty_mapRef2RefFlowFunction_34 = mapRef2RefFlowFunction_34.map();
+          if (isDirty_mapRef2RefFlowFunction_34) {
+            binaryMapToRefFlowFunction_36.input2Updated(mapRef2RefFlowFunction_34);
+            binaryMapToRefFlowFunction_44.input2Updated(mapRef2RefFlowFunction_34);
+            mapRef2RefFlowFunction_61.inputUpdated(mapRef2RefFlowFunction_34);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_39()) {
-          isDirty_mapRef2RefFlowFunction_39 = mapRef2RefFlowFunction_39.map();
-          if (isDirty_mapRef2RefFlowFunction_39) {
-            pnl.inputUpdated(mapRef2RefFlowFunction_39);
+        if (guardCheck_binaryMapToRefFlowFunction_36()) {
+          isDirty_binaryMapToRefFlowFunction_36 = binaryMapToRefFlowFunction_36.map();
+          if (isDirty_binaryMapToRefFlowFunction_36) {
+            mapRef2RefFlowFunction_38.inputUpdated(binaryMapToRefFlowFunction_36);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_52()) {
-          isDirty_mapRef2RefFlowFunction_52 = mapRef2RefFlowFunction_52.map();
-          if (isDirty_mapRef2RefFlowFunction_52) {
-            positionMap.inputUpdated(mapRef2RefFlowFunction_52);
+        if (guardCheck_binaryMapToRefFlowFunction_44()) {
+          isDirty_binaryMapToRefFlowFunction_44 = binaryMapToRefFlowFunction_44.map();
+          if (isDirty_binaryMapToRefFlowFunction_44) {
+            mapRef2RefFlowFunction_46.inputUpdated(binaryMapToRefFlowFunction_44);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_60()) {
-          isDirty_mapRef2RefFlowFunction_60 = mapRef2RefFlowFunction_60.map();
-          if (isDirty_mapRef2RefFlowFunction_60) {
-            rates.inputUpdated(mapRef2RefFlowFunction_60);
+        if (guardCheck_mapRef2RefFlowFunction_38()) {
+          isDirty_mapRef2RefFlowFunction_38 = mapRef2RefFlowFunction_38.map();
+          if (isDirty_mapRef2RefFlowFunction_38) {
+            mapRef2RefFlowFunction_40.inputUpdated(mapRef2RefFlowFunction_38);
+            mapRef2RefFlowFunction_65.inputUpdated(mapRef2RefFlowFunction_38);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_64()) {
-          isDirty_mapRef2RefFlowFunction_64 = mapRef2RefFlowFunction_64.map();
-          if (isDirty_mapRef2RefFlowFunction_64) {
-            mtmPositionMap.inputUpdated(mapRef2RefFlowFunction_64);
+        if (guardCheck_mapRef2RefFlowFunction_40()) {
+          isDirty_mapRef2RefFlowFunction_40 = mapRef2RefFlowFunction_40.map();
+          if (isDirty_mapRef2RefFlowFunction_40) {
+            pnl.inputUpdated(mapRef2RefFlowFunction_40);
           }
         }
-        if (guardCheck_binaryMapToRefFlowFunction_43()) {
-          isDirty_binaryMapToRefFlowFunction_43 = binaryMapToRefFlowFunction_43.map();
-          if (isDirty_binaryMapToRefFlowFunction_43) {
-            mapRef2RefFlowFunction_45.inputUpdated(binaryMapToRefFlowFunction_43);
+        if (guardCheck_mapRef2RefFlowFunction_46()) {
+          isDirty_mapRef2RefFlowFunction_46 = mapRef2RefFlowFunction_46.map();
+          if (isDirty_mapRef2RefFlowFunction_46) {
+            mapRef2RefFlowFunction_48.inputUpdated(mapRef2RefFlowFunction_46);
+            mapRef2RefFlowFunction_69.inputUpdated(mapRef2RefFlowFunction_46);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_45()) {
-          isDirty_mapRef2RefFlowFunction_45 = mapRef2RefFlowFunction_45.map();
-          if (isDirty_mapRef2RefFlowFunction_45) {
-            mapRef2RefFlowFunction_47.inputUpdated(mapRef2RefFlowFunction_45);
-            mapRef2RefFlowFunction_68.inputUpdated(mapRef2RefFlowFunction_45);
+        if (guardCheck_mapRef2RefFlowFunction_48()) {
+          isDirty_mapRef2RefFlowFunction_48 = mapRef2RefFlowFunction_48.map();
+          if (isDirty_mapRef2RefFlowFunction_48) {
+            tradeFees.inputUpdated(mapRef2RefFlowFunction_48);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_47()) {
-          isDirty_mapRef2RefFlowFunction_47 = mapRef2RefFlowFunction_47.map();
-          if (isDirty_mapRef2RefFlowFunction_47) {
-            tradeFees.inputUpdated(mapRef2RefFlowFunction_47);
+        if (guardCheck_mapRef2RefFlowFunction_61()) {
+          isDirty_mapRef2RefFlowFunction_61 = mapRef2RefFlowFunction_61.map();
+          if (isDirty_mapRef2RefFlowFunction_61) {
+            rates.inputUpdated(mapRef2RefFlowFunction_61);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_68()) {
-          isDirty_mapRef2RefFlowFunction_68 = mapRef2RefFlowFunction_68.map();
-          if (isDirty_mapRef2RefFlowFunction_68) {
-            mtmFeePositionMap.inputUpdated(mapRef2RefFlowFunction_68);
+        if (guardCheck_mapRef2RefFlowFunction_65()) {
+          isDirty_mapRef2RefFlowFunction_65 = mapRef2RefFlowFunction_65.map();
+          if (isDirty_mapRef2RefFlowFunction_65) {
+            mtmPositionMap.inputUpdated(mapRef2RefFlowFunction_65);
+          }
+        }
+        if (guardCheck_mapRef2RefFlowFunction_69()) {
+          isDirty_mapRef2RefFlowFunction_69 = mapRef2RefFlowFunction_69.map();
+          if (isDirty_mapRef2RefFlowFunction_69) {
+            mtmFeePositionMap.inputUpdated(mapRef2RefFlowFunction_69);
           }
         }
         if (guardCheck_mtmFeePositionMap()) {
           isDirty_mtmFeePositionMap = mtmFeePositionMap.map();
           if (isDirty_mtmFeePositionMap) {
-            pushFlowFunction_70.inputUpdated(mtmFeePositionMap);
+            pushFlowFunction_71.inputUpdated(mtmFeePositionMap);
           }
         }
         if (guardCheck_mtmPositionMap()) {
           isDirty_mtmPositionMap = mtmPositionMap.map();
           if (isDirty_mtmPositionMap) {
-            pushFlowFunction_66.inputUpdated(mtmPositionMap);
+            pushFlowFunction_67.inputUpdated(mtmPositionMap);
           }
         }
         if (guardCheck_pnl()) {
           isDirty_pnl = pnl.map();
           if (isDirty_pnl) {
-            pushFlowFunction_72.inputUpdated(pnl);
+            pushFlowFunction_73.inputUpdated(pnl);
             netPnl.inputUpdated(pnl);
           }
         }
         if (guardCheck_positionMap()) {
           isDirty_positionMap = positionMap.map();
           if (isDirty_positionMap) {
-            pushFlowFunction_54.inputUpdated(positionMap);
+            pushFlowFunction_55.inputUpdated(positionMap);
           }
         }
-        if (guardCheck_pushFlowFunction_54()) {
-          isDirty_pushFlowFunction_54 = pushFlowFunction_54.push();
+        if (guardCheck_pushFlowFunction_55()) {
+          isDirty_pushFlowFunction_55 = pushFlowFunction_55.push();
         }
-        if (guardCheck_pushFlowFunction_66()) {
-          isDirty_pushFlowFunction_66 = pushFlowFunction_66.push();
-        }
-        if (guardCheck_pushFlowFunction_70()) {
-          isDirty_pushFlowFunction_70 = pushFlowFunction_70.push();
-        }
-        if (guardCheck_pushFlowFunction_72()) {
-          isDirty_pushFlowFunction_72 = pushFlowFunction_72.push();
-        }
-        if (guardCheck_rates()) {
-          isDirty_rates = rates.map();
-          if (isDirty_rates) {
-            pushFlowFunction_62.inputUpdated(rates);
-          }
-        }
-        if (guardCheck_pushFlowFunction_62()) {
-          isDirty_pushFlowFunction_62 = pushFlowFunction_62.push();
-        }
-        if (guardCheck_tradeFees()) {
-          isDirty_tradeFees = tradeFees.map();
-          if (isDirty_tradeFees) {
-            netPnl.input2Updated(tradeFees);
-            pushFlowFunction_71.inputUpdated(tradeFees);
-          }
-        }
-        if (guardCheck_netPnl()) {
-          isDirty_netPnl = netPnl.map();
-          if (isDirty_netPnl) {
-            pushFlowFunction_73.inputUpdated(netPnl);
-          }
+        if (guardCheck_pushFlowFunction_67()) {
+          isDirty_pushFlowFunction_67 = pushFlowFunction_67.push();
         }
         if (guardCheck_pushFlowFunction_71()) {
           isDirty_pushFlowFunction_71 = pushFlowFunction_71.push();
         }
         if (guardCheck_pushFlowFunction_73()) {
           isDirty_pushFlowFunction_73 = pushFlowFunction_73.push();
+        }
+        if (guardCheck_rates()) {
+          isDirty_rates = rates.map();
+          if (isDirty_rates) {
+            pushFlowFunction_63.inputUpdated(rates);
+          }
+        }
+        if (guardCheck_pushFlowFunction_63()) {
+          isDirty_pushFlowFunction_63 = pushFlowFunction_63.push();
+        }
+        if (guardCheck_tradeFees()) {
+          isDirty_tradeFees = tradeFees.map();
+          if (isDirty_tradeFees) {
+            netPnl.input2Updated(tradeFees);
+            pushFlowFunction_72.inputUpdated(tradeFees);
+          }
+        }
+        if (guardCheck_netPnl()) {
+          isDirty_netPnl = netPnl.map();
+          if (isDirty_netPnl) {
+            pushFlowFunction_74.inputUpdated(netPnl);
+          }
+        }
+        if (guardCheck_pushFlowFunction_72()) {
+          isDirty_pushFlowFunction_72 = pushFlowFunction_72.push();
+        }
+        if (guardCheck_pushFlowFunction_74()) {
+          isDirty_pushFlowFunction_74 = pushFlowFunction_74.push();
         }
         afterEvent();
         return;
@@ -1346,10 +1375,10 @@ public class FluxtionPnlCalculator
           binaryMapToRefFlowFunction_11.publishTriggerOverrideNodeUpdated(
               handlerSignal_positionUpdate);
           mapRef2RefFlowFunction_19.updateTriggerNodeUpdated(handlerSignal_positionUpdate);
-          mapRef2RefFlowFunction_37.updateTriggerNodeUpdated(handlerSignal_positionUpdate);
           mapRef2RefFlowFunction_26.publishTriggerOverrideNodeUpdated(handlerSignal_positionUpdate);
           mapRef2RefFlowFunction_26.updateTriggerNodeUpdated(handlerSignal_positionUpdate);
-          mapRef2RefFlowFunction_45.updateTriggerNodeUpdated(handlerSignal_positionUpdate);
+          mapRef2RefFlowFunction_38.updateTriggerNodeUpdated(handlerSignal_positionUpdate);
+          mapRef2RefFlowFunction_46.updateTriggerNodeUpdated(handlerSignal_positionUpdate);
           pnl.updateTriggerNodeUpdated(handlerSignal_positionUpdate);
           tradeFees.updateTriggerNodeUpdated(handlerSignal_positionUpdate);
           netPnl.updateTriggerNodeUpdated(handlerSignal_positionUpdate);
@@ -1388,172 +1417,179 @@ public class FluxtionPnlCalculator
           isDirty_mapRef2RefFlowFunction_19 = mapRef2RefFlowFunction_19.map();
           if (isDirty_mapRef2RefFlowFunction_19) {
             binaryMapToRefFlowFunction_31.input2Updated(mapRef2RefFlowFunction_19);
-            binaryMapToRefFlowFunction_35.inputUpdated(mapRef2RefFlowFunction_19);
-            mapRef2RefFlowFunction_52.inputUpdated(mapRef2RefFlowFunction_19);
+            mapRef2RefFlowFunction_53.inputUpdated(mapRef2RefFlowFunction_19);
+            binaryMapToRefFlowFunction_36.inputUpdated(mapRef2RefFlowFunction_19);
           }
         }
         if (guardCheck_binaryMapToRefFlowFunction_31()) {
           isDirty_binaryMapToRefFlowFunction_31 = binaryMapToRefFlowFunction_31.map();
           if (isDirty_binaryMapToRefFlowFunction_31) {
-            mapRef2RefFlowFunction_33.inputUpdated(binaryMapToRefFlowFunction_31);
+            binaryMapToRefFlowFunction_32.inputUpdated(binaryMapToRefFlowFunction_31);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_33()) {
-          isDirty_mapRef2RefFlowFunction_33 = mapRef2RefFlowFunction_33.map();
-          if (isDirty_mapRef2RefFlowFunction_33) {
-            binaryMapToRefFlowFunction_35.input2Updated(mapRef2RefFlowFunction_33);
-            mapRef2RefFlowFunction_60.inputUpdated(mapRef2RefFlowFunction_33);
-            binaryMapToRefFlowFunction_43.input2Updated(mapRef2RefFlowFunction_33);
-          }
-        }
-        if (guardCheck_binaryMapToRefFlowFunction_35()) {
-          isDirty_binaryMapToRefFlowFunction_35 = binaryMapToRefFlowFunction_35.map();
-          if (isDirty_binaryMapToRefFlowFunction_35) {
-            mapRef2RefFlowFunction_37.inputUpdated(binaryMapToRefFlowFunction_35);
-          }
-        }
-        if (guardCheck_mapRef2RefFlowFunction_37()) {
-          isDirty_mapRef2RefFlowFunction_37 = mapRef2RefFlowFunction_37.map();
-          if (isDirty_mapRef2RefFlowFunction_37) {
-            mapRef2RefFlowFunction_39.inputUpdated(mapRef2RefFlowFunction_37);
-            mapRef2RefFlowFunction_64.inputUpdated(mapRef2RefFlowFunction_37);
-          }
-        }
-        if (guardCheck_mapRef2RefFlowFunction_39()) {
-          isDirty_mapRef2RefFlowFunction_39 = mapRef2RefFlowFunction_39.map();
-          if (isDirty_mapRef2RefFlowFunction_39) {
-            pnl.inputUpdated(mapRef2RefFlowFunction_39);
-          }
-        }
-        if (guardCheck_mapRef2RefFlowFunction_52()) {
-          isDirty_mapRef2RefFlowFunction_52 = mapRef2RefFlowFunction_52.map();
-          if (isDirty_mapRef2RefFlowFunction_52) {
-            positionMap.inputUpdated(mapRef2RefFlowFunction_52);
-          }
-        }
-        if (guardCheck_mapRef2RefFlowFunction_60()) {
-          isDirty_mapRef2RefFlowFunction_60 = mapRef2RefFlowFunction_60.map();
-          if (isDirty_mapRef2RefFlowFunction_60) {
-            rates.inputUpdated(mapRef2RefFlowFunction_60);
-          }
-        }
-        if (guardCheck_mapRef2RefFlowFunction_64()) {
-          isDirty_mapRef2RefFlowFunction_64 = mapRef2RefFlowFunction_64.map();
-          if (isDirty_mapRef2RefFlowFunction_64) {
-            mtmPositionMap.inputUpdated(mapRef2RefFlowFunction_64);
+        if (guardCheck_mapRef2RefFlowFunction_53()) {
+          isDirty_mapRef2RefFlowFunction_53 = mapRef2RefFlowFunction_53.map();
+          if (isDirty_mapRef2RefFlowFunction_53) {
+            positionMap.inputUpdated(mapRef2RefFlowFunction_53);
           }
         }
         if (guardCheck_mapRef2RefFlowFunction_26()) {
           isDirty_mapRef2RefFlowFunction_26 = mapRef2RefFlowFunction_26.map();
           if (isDirty_mapRef2RefFlowFunction_26) {
-            binaryMapToRefFlowFunction_43.inputUpdated(mapRef2RefFlowFunction_26);
-            mapRef2RefFlowFunction_56.inputUpdated(mapRef2RefFlowFunction_26);
+            binaryMapToRefFlowFunction_32.input2Updated(mapRef2RefFlowFunction_26);
+            binaryMapToRefFlowFunction_44.inputUpdated(mapRef2RefFlowFunction_26);
+            mapRef2RefFlowFunction_57.inputUpdated(mapRef2RefFlowFunction_26);
           }
         }
-        if (guardCheck_binaryMapToRefFlowFunction_43()) {
-          isDirty_binaryMapToRefFlowFunction_43 = binaryMapToRefFlowFunction_43.map();
-          if (isDirty_binaryMapToRefFlowFunction_43) {
-            mapRef2RefFlowFunction_45.inputUpdated(binaryMapToRefFlowFunction_43);
+        if (guardCheck_binaryMapToRefFlowFunction_32()) {
+          isDirty_binaryMapToRefFlowFunction_32 = binaryMapToRefFlowFunction_32.map();
+          if (isDirty_binaryMapToRefFlowFunction_32) {
+            mapRef2RefFlowFunction_34.inputUpdated(binaryMapToRefFlowFunction_32);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_45()) {
-          isDirty_mapRef2RefFlowFunction_45 = mapRef2RefFlowFunction_45.map();
-          if (isDirty_mapRef2RefFlowFunction_45) {
-            mapRef2RefFlowFunction_47.inputUpdated(mapRef2RefFlowFunction_45);
-            mapRef2RefFlowFunction_68.inputUpdated(mapRef2RefFlowFunction_45);
+        if (guardCheck_mapRef2RefFlowFunction_34()) {
+          isDirty_mapRef2RefFlowFunction_34 = mapRef2RefFlowFunction_34.map();
+          if (isDirty_mapRef2RefFlowFunction_34) {
+            binaryMapToRefFlowFunction_36.input2Updated(mapRef2RefFlowFunction_34);
+            binaryMapToRefFlowFunction_44.input2Updated(mapRef2RefFlowFunction_34);
+            mapRef2RefFlowFunction_61.inputUpdated(mapRef2RefFlowFunction_34);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_47()) {
-          isDirty_mapRef2RefFlowFunction_47 = mapRef2RefFlowFunction_47.map();
-          if (isDirty_mapRef2RefFlowFunction_47) {
-            tradeFees.inputUpdated(mapRef2RefFlowFunction_47);
+        if (guardCheck_binaryMapToRefFlowFunction_36()) {
+          isDirty_binaryMapToRefFlowFunction_36 = binaryMapToRefFlowFunction_36.map();
+          if (isDirty_binaryMapToRefFlowFunction_36) {
+            mapRef2RefFlowFunction_38.inputUpdated(binaryMapToRefFlowFunction_36);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_56()) {
-          isDirty_mapRef2RefFlowFunction_56 = mapRef2RefFlowFunction_56.map();
-          if (isDirty_mapRef2RefFlowFunction_56) {
-            feePositionMap.inputUpdated(mapRef2RefFlowFunction_56);
+        if (guardCheck_binaryMapToRefFlowFunction_44()) {
+          isDirty_binaryMapToRefFlowFunction_44 = binaryMapToRefFlowFunction_44.map();
+          if (isDirty_binaryMapToRefFlowFunction_44) {
+            mapRef2RefFlowFunction_46.inputUpdated(binaryMapToRefFlowFunction_44);
+          }
+        }
+        if (guardCheck_mapRef2RefFlowFunction_38()) {
+          isDirty_mapRef2RefFlowFunction_38 = mapRef2RefFlowFunction_38.map();
+          if (isDirty_mapRef2RefFlowFunction_38) {
+            mapRef2RefFlowFunction_40.inputUpdated(mapRef2RefFlowFunction_38);
+            mapRef2RefFlowFunction_65.inputUpdated(mapRef2RefFlowFunction_38);
+          }
+        }
+        if (guardCheck_mapRef2RefFlowFunction_40()) {
+          isDirty_mapRef2RefFlowFunction_40 = mapRef2RefFlowFunction_40.map();
+          if (isDirty_mapRef2RefFlowFunction_40) {
+            pnl.inputUpdated(mapRef2RefFlowFunction_40);
+          }
+        }
+        if (guardCheck_mapRef2RefFlowFunction_46()) {
+          isDirty_mapRef2RefFlowFunction_46 = mapRef2RefFlowFunction_46.map();
+          if (isDirty_mapRef2RefFlowFunction_46) {
+            mapRef2RefFlowFunction_48.inputUpdated(mapRef2RefFlowFunction_46);
+            mapRef2RefFlowFunction_69.inputUpdated(mapRef2RefFlowFunction_46);
+          }
+        }
+        if (guardCheck_mapRef2RefFlowFunction_48()) {
+          isDirty_mapRef2RefFlowFunction_48 = mapRef2RefFlowFunction_48.map();
+          if (isDirty_mapRef2RefFlowFunction_48) {
+            tradeFees.inputUpdated(mapRef2RefFlowFunction_48);
+          }
+        }
+        if (guardCheck_mapRef2RefFlowFunction_57()) {
+          isDirty_mapRef2RefFlowFunction_57 = mapRef2RefFlowFunction_57.map();
+          if (isDirty_mapRef2RefFlowFunction_57) {
+            feePositionMap.inputUpdated(mapRef2RefFlowFunction_57);
           }
         }
         if (guardCheck_feePositionMap()) {
           isDirty_feePositionMap = feePositionMap.map();
           if (isDirty_feePositionMap) {
-            pushFlowFunction_58.inputUpdated(feePositionMap);
+            pushFlowFunction_59.inputUpdated(feePositionMap);
           }
         }
-        if (guardCheck_mapRef2RefFlowFunction_68()) {
-          isDirty_mapRef2RefFlowFunction_68 = mapRef2RefFlowFunction_68.map();
-          if (isDirty_mapRef2RefFlowFunction_68) {
-            mtmFeePositionMap.inputUpdated(mapRef2RefFlowFunction_68);
+        if (guardCheck_mapRef2RefFlowFunction_61()) {
+          isDirty_mapRef2RefFlowFunction_61 = mapRef2RefFlowFunction_61.map();
+          if (isDirty_mapRef2RefFlowFunction_61) {
+            rates.inputUpdated(mapRef2RefFlowFunction_61);
+          }
+        }
+        if (guardCheck_mapRef2RefFlowFunction_65()) {
+          isDirty_mapRef2RefFlowFunction_65 = mapRef2RefFlowFunction_65.map();
+          if (isDirty_mapRef2RefFlowFunction_65) {
+            mtmPositionMap.inputUpdated(mapRef2RefFlowFunction_65);
+          }
+        }
+        if (guardCheck_mapRef2RefFlowFunction_69()) {
+          isDirty_mapRef2RefFlowFunction_69 = mapRef2RefFlowFunction_69.map();
+          if (isDirty_mapRef2RefFlowFunction_69) {
+            mtmFeePositionMap.inputUpdated(mapRef2RefFlowFunction_69);
           }
         }
         if (guardCheck_mtmFeePositionMap()) {
           isDirty_mtmFeePositionMap = mtmFeePositionMap.map();
           if (isDirty_mtmFeePositionMap) {
-            pushFlowFunction_70.inputUpdated(mtmFeePositionMap);
+            pushFlowFunction_71.inputUpdated(mtmFeePositionMap);
           }
         }
         if (guardCheck_mtmPositionMap()) {
           isDirty_mtmPositionMap = mtmPositionMap.map();
           if (isDirty_mtmPositionMap) {
-            pushFlowFunction_66.inputUpdated(mtmPositionMap);
+            pushFlowFunction_67.inputUpdated(mtmPositionMap);
           }
         }
         if (guardCheck_pnl()) {
           isDirty_pnl = pnl.map();
           if (isDirty_pnl) {
-            pushFlowFunction_72.inputUpdated(pnl);
+            pushFlowFunction_73.inputUpdated(pnl);
             netPnl.inputUpdated(pnl);
           }
         }
         if (guardCheck_positionMap()) {
           isDirty_positionMap = positionMap.map();
           if (isDirty_positionMap) {
-            pushFlowFunction_54.inputUpdated(positionMap);
+            pushFlowFunction_55.inputUpdated(positionMap);
           }
         }
-        if (guardCheck_pushFlowFunction_54()) {
-          isDirty_pushFlowFunction_54 = pushFlowFunction_54.push();
+        if (guardCheck_pushFlowFunction_55()) {
+          isDirty_pushFlowFunction_55 = pushFlowFunction_55.push();
         }
-        if (guardCheck_pushFlowFunction_58()) {
-          isDirty_pushFlowFunction_58 = pushFlowFunction_58.push();
+        if (guardCheck_pushFlowFunction_59()) {
+          isDirty_pushFlowFunction_59 = pushFlowFunction_59.push();
         }
-        if (guardCheck_pushFlowFunction_66()) {
-          isDirty_pushFlowFunction_66 = pushFlowFunction_66.push();
-        }
-        if (guardCheck_pushFlowFunction_70()) {
-          isDirty_pushFlowFunction_70 = pushFlowFunction_70.push();
-        }
-        if (guardCheck_pushFlowFunction_72()) {
-          isDirty_pushFlowFunction_72 = pushFlowFunction_72.push();
-        }
-        if (guardCheck_rates()) {
-          isDirty_rates = rates.map();
-          if (isDirty_rates) {
-            pushFlowFunction_62.inputUpdated(rates);
-          }
-        }
-        if (guardCheck_pushFlowFunction_62()) {
-          isDirty_pushFlowFunction_62 = pushFlowFunction_62.push();
-        }
-        if (guardCheck_tradeFees()) {
-          isDirty_tradeFees = tradeFees.map();
-          if (isDirty_tradeFees) {
-            netPnl.input2Updated(tradeFees);
-            pushFlowFunction_71.inputUpdated(tradeFees);
-          }
-        }
-        if (guardCheck_netPnl()) {
-          isDirty_netPnl = netPnl.map();
-          if (isDirty_netPnl) {
-            pushFlowFunction_73.inputUpdated(netPnl);
-          }
+        if (guardCheck_pushFlowFunction_67()) {
+          isDirty_pushFlowFunction_67 = pushFlowFunction_67.push();
         }
         if (guardCheck_pushFlowFunction_71()) {
           isDirty_pushFlowFunction_71 = pushFlowFunction_71.push();
         }
         if (guardCheck_pushFlowFunction_73()) {
           isDirty_pushFlowFunction_73 = pushFlowFunction_73.push();
+        }
+        if (guardCheck_rates()) {
+          isDirty_rates = rates.map();
+          if (isDirty_rates) {
+            pushFlowFunction_63.inputUpdated(rates);
+          }
+        }
+        if (guardCheck_pushFlowFunction_63()) {
+          isDirty_pushFlowFunction_63 = pushFlowFunction_63.push();
+        }
+        if (guardCheck_tradeFees()) {
+          isDirty_tradeFees = tradeFees.map();
+          if (isDirty_tradeFees) {
+            netPnl.input2Updated(tradeFees);
+            pushFlowFunction_72.inputUpdated(tradeFees);
+          }
+        }
+        if (guardCheck_netPnl()) {
+          isDirty_netPnl = netPnl.map();
+          if (isDirty_netPnl) {
+            pushFlowFunction_74.inputUpdated(netPnl);
+          }
+        }
+        if (guardCheck_pushFlowFunction_72()) {
+          isDirty_pushFlowFunction_72 = pushFlowFunction_72.push();
+        }
+        if (guardCheck_pushFlowFunction_74()) {
+          isDirty_pushFlowFunction_74 = pushFlowFunction_74.push();
         }
         afterEvent();
         return;
@@ -1686,128 +1722,134 @@ public class FluxtionPnlCalculator
     if (guardCheck_binaryMapToRefFlowFunction_31()) {
       isDirty_binaryMapToRefFlowFunction_31 = binaryMapToRefFlowFunction_31.map();
       if (isDirty_binaryMapToRefFlowFunction_31) {
-        mapRef2RefFlowFunction_33.inputUpdated(binaryMapToRefFlowFunction_31);
+        binaryMapToRefFlowFunction_32.inputUpdated(binaryMapToRefFlowFunction_31);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_33()) {
-      isDirty_mapRef2RefFlowFunction_33 = mapRef2RefFlowFunction_33.map();
-      if (isDirty_mapRef2RefFlowFunction_33) {
-        binaryMapToRefFlowFunction_35.input2Updated(mapRef2RefFlowFunction_33);
-        mapRef2RefFlowFunction_60.inputUpdated(mapRef2RefFlowFunction_33);
-        binaryMapToRefFlowFunction_43.input2Updated(mapRef2RefFlowFunction_33);
+    if (guardCheck_binaryMapToRefFlowFunction_32()) {
+      isDirty_binaryMapToRefFlowFunction_32 = binaryMapToRefFlowFunction_32.map();
+      if (isDirty_binaryMapToRefFlowFunction_32) {
+        mapRef2RefFlowFunction_34.inputUpdated(binaryMapToRefFlowFunction_32);
       }
     }
-    if (guardCheck_binaryMapToRefFlowFunction_35()) {
-      isDirty_binaryMapToRefFlowFunction_35 = binaryMapToRefFlowFunction_35.map();
-      if (isDirty_binaryMapToRefFlowFunction_35) {
-        mapRef2RefFlowFunction_37.inputUpdated(binaryMapToRefFlowFunction_35);
+    if (guardCheck_mapRef2RefFlowFunction_34()) {
+      isDirty_mapRef2RefFlowFunction_34 = mapRef2RefFlowFunction_34.map();
+      if (isDirty_mapRef2RefFlowFunction_34) {
+        binaryMapToRefFlowFunction_36.input2Updated(mapRef2RefFlowFunction_34);
+        binaryMapToRefFlowFunction_44.input2Updated(mapRef2RefFlowFunction_34);
+        mapRef2RefFlowFunction_61.inputUpdated(mapRef2RefFlowFunction_34);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_37()) {
-      isDirty_mapRef2RefFlowFunction_37 = mapRef2RefFlowFunction_37.map();
-      if (isDirty_mapRef2RefFlowFunction_37) {
-        mapRef2RefFlowFunction_39.inputUpdated(mapRef2RefFlowFunction_37);
-        mapRef2RefFlowFunction_64.inputUpdated(mapRef2RefFlowFunction_37);
+    if (guardCheck_binaryMapToRefFlowFunction_36()) {
+      isDirty_binaryMapToRefFlowFunction_36 = binaryMapToRefFlowFunction_36.map();
+      if (isDirty_binaryMapToRefFlowFunction_36) {
+        mapRef2RefFlowFunction_38.inputUpdated(binaryMapToRefFlowFunction_36);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_39()) {
-      isDirty_mapRef2RefFlowFunction_39 = mapRef2RefFlowFunction_39.map();
-      if (isDirty_mapRef2RefFlowFunction_39) {
-        pnl.inputUpdated(mapRef2RefFlowFunction_39);
+    if (guardCheck_binaryMapToRefFlowFunction_44()) {
+      isDirty_binaryMapToRefFlowFunction_44 = binaryMapToRefFlowFunction_44.map();
+      if (isDirty_binaryMapToRefFlowFunction_44) {
+        mapRef2RefFlowFunction_46.inputUpdated(binaryMapToRefFlowFunction_44);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_60()) {
-      isDirty_mapRef2RefFlowFunction_60 = mapRef2RefFlowFunction_60.map();
-      if (isDirty_mapRef2RefFlowFunction_60) {
-        rates.inputUpdated(mapRef2RefFlowFunction_60);
+    if (guardCheck_mapRef2RefFlowFunction_38()) {
+      isDirty_mapRef2RefFlowFunction_38 = mapRef2RefFlowFunction_38.map();
+      if (isDirty_mapRef2RefFlowFunction_38) {
+        mapRef2RefFlowFunction_40.inputUpdated(mapRef2RefFlowFunction_38);
+        mapRef2RefFlowFunction_65.inputUpdated(mapRef2RefFlowFunction_38);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_64()) {
-      isDirty_mapRef2RefFlowFunction_64 = mapRef2RefFlowFunction_64.map();
-      if (isDirty_mapRef2RefFlowFunction_64) {
-        mtmPositionMap.inputUpdated(mapRef2RefFlowFunction_64);
+    if (guardCheck_mapRef2RefFlowFunction_40()) {
+      isDirty_mapRef2RefFlowFunction_40 = mapRef2RefFlowFunction_40.map();
+      if (isDirty_mapRef2RefFlowFunction_40) {
+        pnl.inputUpdated(mapRef2RefFlowFunction_40);
       }
     }
-    if (guardCheck_binaryMapToRefFlowFunction_43()) {
-      isDirty_binaryMapToRefFlowFunction_43 = binaryMapToRefFlowFunction_43.map();
-      if (isDirty_binaryMapToRefFlowFunction_43) {
-        mapRef2RefFlowFunction_45.inputUpdated(binaryMapToRefFlowFunction_43);
+    if (guardCheck_mapRef2RefFlowFunction_46()) {
+      isDirty_mapRef2RefFlowFunction_46 = mapRef2RefFlowFunction_46.map();
+      if (isDirty_mapRef2RefFlowFunction_46) {
+        mapRef2RefFlowFunction_48.inputUpdated(mapRef2RefFlowFunction_46);
+        mapRef2RefFlowFunction_69.inputUpdated(mapRef2RefFlowFunction_46);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_45()) {
-      isDirty_mapRef2RefFlowFunction_45 = mapRef2RefFlowFunction_45.map();
-      if (isDirty_mapRef2RefFlowFunction_45) {
-        mapRef2RefFlowFunction_47.inputUpdated(mapRef2RefFlowFunction_45);
-        mapRef2RefFlowFunction_68.inputUpdated(mapRef2RefFlowFunction_45);
+    if (guardCheck_mapRef2RefFlowFunction_48()) {
+      isDirty_mapRef2RefFlowFunction_48 = mapRef2RefFlowFunction_48.map();
+      if (isDirty_mapRef2RefFlowFunction_48) {
+        tradeFees.inputUpdated(mapRef2RefFlowFunction_48);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_47()) {
-      isDirty_mapRef2RefFlowFunction_47 = mapRef2RefFlowFunction_47.map();
-      if (isDirty_mapRef2RefFlowFunction_47) {
-        tradeFees.inputUpdated(mapRef2RefFlowFunction_47);
+    if (guardCheck_mapRef2RefFlowFunction_61()) {
+      isDirty_mapRef2RefFlowFunction_61 = mapRef2RefFlowFunction_61.map();
+      if (isDirty_mapRef2RefFlowFunction_61) {
+        rates.inputUpdated(mapRef2RefFlowFunction_61);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_68()) {
-      isDirty_mapRef2RefFlowFunction_68 = mapRef2RefFlowFunction_68.map();
-      if (isDirty_mapRef2RefFlowFunction_68) {
-        mtmFeePositionMap.inputUpdated(mapRef2RefFlowFunction_68);
+    if (guardCheck_mapRef2RefFlowFunction_65()) {
+      isDirty_mapRef2RefFlowFunction_65 = mapRef2RefFlowFunction_65.map();
+      if (isDirty_mapRef2RefFlowFunction_65) {
+        mtmPositionMap.inputUpdated(mapRef2RefFlowFunction_65);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_69()) {
+      isDirty_mapRef2RefFlowFunction_69 = mapRef2RefFlowFunction_69.map();
+      if (isDirty_mapRef2RefFlowFunction_69) {
+        mtmFeePositionMap.inputUpdated(mapRef2RefFlowFunction_69);
       }
     }
     if (guardCheck_mtmFeePositionMap()) {
       isDirty_mtmFeePositionMap = mtmFeePositionMap.map();
       if (isDirty_mtmFeePositionMap) {
-        pushFlowFunction_70.inputUpdated(mtmFeePositionMap);
+        pushFlowFunction_71.inputUpdated(mtmFeePositionMap);
       }
     }
     if (guardCheck_mtmPositionMap()) {
       isDirty_mtmPositionMap = mtmPositionMap.map();
       if (isDirty_mtmPositionMap) {
-        pushFlowFunction_66.inputUpdated(mtmPositionMap);
+        pushFlowFunction_67.inputUpdated(mtmPositionMap);
       }
     }
     if (guardCheck_pnl()) {
       isDirty_pnl = pnl.map();
       if (isDirty_pnl) {
-        pushFlowFunction_72.inputUpdated(pnl);
+        pushFlowFunction_73.inputUpdated(pnl);
         netPnl.inputUpdated(pnl);
       }
     }
-    if (guardCheck_pushFlowFunction_66()) {
-      isDirty_pushFlowFunction_66 = pushFlowFunction_66.push();
-    }
-    if (guardCheck_pushFlowFunction_70()) {
-      isDirty_pushFlowFunction_70 = pushFlowFunction_70.push();
-    }
-    if (guardCheck_pushFlowFunction_72()) {
-      isDirty_pushFlowFunction_72 = pushFlowFunction_72.push();
-    }
-    if (guardCheck_rates()) {
-      isDirty_rates = rates.map();
-      if (isDirty_rates) {
-        pushFlowFunction_62.inputUpdated(rates);
-      }
-    }
-    if (guardCheck_pushFlowFunction_62()) {
-      isDirty_pushFlowFunction_62 = pushFlowFunction_62.push();
-    }
-    if (guardCheck_tradeFees()) {
-      isDirty_tradeFees = tradeFees.map();
-      if (isDirty_tradeFees) {
-        netPnl.input2Updated(tradeFees);
-        pushFlowFunction_71.inputUpdated(tradeFees);
-      }
-    }
-    if (guardCheck_netPnl()) {
-      isDirty_netPnl = netPnl.map();
-      if (isDirty_netPnl) {
-        pushFlowFunction_73.inputUpdated(netPnl);
-      }
+    if (guardCheck_pushFlowFunction_67()) {
+      isDirty_pushFlowFunction_67 = pushFlowFunction_67.push();
     }
     if (guardCheck_pushFlowFunction_71()) {
       isDirty_pushFlowFunction_71 = pushFlowFunction_71.push();
     }
     if (guardCheck_pushFlowFunction_73()) {
       isDirty_pushFlowFunction_73 = pushFlowFunction_73.push();
+    }
+    if (guardCheck_rates()) {
+      isDirty_rates = rates.map();
+      if (isDirty_rates) {
+        pushFlowFunction_63.inputUpdated(rates);
+      }
+    }
+    if (guardCheck_pushFlowFunction_63()) {
+      isDirty_pushFlowFunction_63 = pushFlowFunction_63.push();
+    }
+    if (guardCheck_tradeFees()) {
+      isDirty_tradeFees = tradeFees.map();
+      if (isDirty_tradeFees) {
+        netPnl.input2Updated(tradeFees);
+        pushFlowFunction_72.inputUpdated(tradeFees);
+      }
+    }
+    if (guardCheck_netPnl()) {
+      isDirty_netPnl = netPnl.map();
+      if (isDirty_netPnl) {
+        pushFlowFunction_74.inputUpdated(netPnl);
+      }
+    }
+    if (guardCheck_pushFlowFunction_72()) {
+      isDirty_pushFlowFunction_72 = pushFlowFunction_72.push();
+    }
+    if (guardCheck_pushFlowFunction_74()) {
+      isDirty_pushFlowFunction_74 = pushFlowFunction_74.push();
     }
     afterEvent();
   }
@@ -1835,128 +1877,134 @@ public class FluxtionPnlCalculator
     if (guardCheck_binaryMapToRefFlowFunction_31()) {
       isDirty_binaryMapToRefFlowFunction_31 = binaryMapToRefFlowFunction_31.map();
       if (isDirty_binaryMapToRefFlowFunction_31) {
-        mapRef2RefFlowFunction_33.inputUpdated(binaryMapToRefFlowFunction_31);
+        binaryMapToRefFlowFunction_32.inputUpdated(binaryMapToRefFlowFunction_31);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_33()) {
-      isDirty_mapRef2RefFlowFunction_33 = mapRef2RefFlowFunction_33.map();
-      if (isDirty_mapRef2RefFlowFunction_33) {
-        binaryMapToRefFlowFunction_35.input2Updated(mapRef2RefFlowFunction_33);
-        mapRef2RefFlowFunction_60.inputUpdated(mapRef2RefFlowFunction_33);
-        binaryMapToRefFlowFunction_43.input2Updated(mapRef2RefFlowFunction_33);
+    if (guardCheck_binaryMapToRefFlowFunction_32()) {
+      isDirty_binaryMapToRefFlowFunction_32 = binaryMapToRefFlowFunction_32.map();
+      if (isDirty_binaryMapToRefFlowFunction_32) {
+        mapRef2RefFlowFunction_34.inputUpdated(binaryMapToRefFlowFunction_32);
       }
     }
-    if (guardCheck_binaryMapToRefFlowFunction_35()) {
-      isDirty_binaryMapToRefFlowFunction_35 = binaryMapToRefFlowFunction_35.map();
-      if (isDirty_binaryMapToRefFlowFunction_35) {
-        mapRef2RefFlowFunction_37.inputUpdated(binaryMapToRefFlowFunction_35);
+    if (guardCheck_mapRef2RefFlowFunction_34()) {
+      isDirty_mapRef2RefFlowFunction_34 = mapRef2RefFlowFunction_34.map();
+      if (isDirty_mapRef2RefFlowFunction_34) {
+        binaryMapToRefFlowFunction_36.input2Updated(mapRef2RefFlowFunction_34);
+        binaryMapToRefFlowFunction_44.input2Updated(mapRef2RefFlowFunction_34);
+        mapRef2RefFlowFunction_61.inputUpdated(mapRef2RefFlowFunction_34);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_37()) {
-      isDirty_mapRef2RefFlowFunction_37 = mapRef2RefFlowFunction_37.map();
-      if (isDirty_mapRef2RefFlowFunction_37) {
-        mapRef2RefFlowFunction_39.inputUpdated(mapRef2RefFlowFunction_37);
-        mapRef2RefFlowFunction_64.inputUpdated(mapRef2RefFlowFunction_37);
+    if (guardCheck_binaryMapToRefFlowFunction_36()) {
+      isDirty_binaryMapToRefFlowFunction_36 = binaryMapToRefFlowFunction_36.map();
+      if (isDirty_binaryMapToRefFlowFunction_36) {
+        mapRef2RefFlowFunction_38.inputUpdated(binaryMapToRefFlowFunction_36);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_39()) {
-      isDirty_mapRef2RefFlowFunction_39 = mapRef2RefFlowFunction_39.map();
-      if (isDirty_mapRef2RefFlowFunction_39) {
-        pnl.inputUpdated(mapRef2RefFlowFunction_39);
+    if (guardCheck_binaryMapToRefFlowFunction_44()) {
+      isDirty_binaryMapToRefFlowFunction_44 = binaryMapToRefFlowFunction_44.map();
+      if (isDirty_binaryMapToRefFlowFunction_44) {
+        mapRef2RefFlowFunction_46.inputUpdated(binaryMapToRefFlowFunction_44);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_60()) {
-      isDirty_mapRef2RefFlowFunction_60 = mapRef2RefFlowFunction_60.map();
-      if (isDirty_mapRef2RefFlowFunction_60) {
-        rates.inputUpdated(mapRef2RefFlowFunction_60);
+    if (guardCheck_mapRef2RefFlowFunction_38()) {
+      isDirty_mapRef2RefFlowFunction_38 = mapRef2RefFlowFunction_38.map();
+      if (isDirty_mapRef2RefFlowFunction_38) {
+        mapRef2RefFlowFunction_40.inputUpdated(mapRef2RefFlowFunction_38);
+        mapRef2RefFlowFunction_65.inputUpdated(mapRef2RefFlowFunction_38);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_64()) {
-      isDirty_mapRef2RefFlowFunction_64 = mapRef2RefFlowFunction_64.map();
-      if (isDirty_mapRef2RefFlowFunction_64) {
-        mtmPositionMap.inputUpdated(mapRef2RefFlowFunction_64);
+    if (guardCheck_mapRef2RefFlowFunction_40()) {
+      isDirty_mapRef2RefFlowFunction_40 = mapRef2RefFlowFunction_40.map();
+      if (isDirty_mapRef2RefFlowFunction_40) {
+        pnl.inputUpdated(mapRef2RefFlowFunction_40);
       }
     }
-    if (guardCheck_binaryMapToRefFlowFunction_43()) {
-      isDirty_binaryMapToRefFlowFunction_43 = binaryMapToRefFlowFunction_43.map();
-      if (isDirty_binaryMapToRefFlowFunction_43) {
-        mapRef2RefFlowFunction_45.inputUpdated(binaryMapToRefFlowFunction_43);
+    if (guardCheck_mapRef2RefFlowFunction_46()) {
+      isDirty_mapRef2RefFlowFunction_46 = mapRef2RefFlowFunction_46.map();
+      if (isDirty_mapRef2RefFlowFunction_46) {
+        mapRef2RefFlowFunction_48.inputUpdated(mapRef2RefFlowFunction_46);
+        mapRef2RefFlowFunction_69.inputUpdated(mapRef2RefFlowFunction_46);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_45()) {
-      isDirty_mapRef2RefFlowFunction_45 = mapRef2RefFlowFunction_45.map();
-      if (isDirty_mapRef2RefFlowFunction_45) {
-        mapRef2RefFlowFunction_47.inputUpdated(mapRef2RefFlowFunction_45);
-        mapRef2RefFlowFunction_68.inputUpdated(mapRef2RefFlowFunction_45);
+    if (guardCheck_mapRef2RefFlowFunction_48()) {
+      isDirty_mapRef2RefFlowFunction_48 = mapRef2RefFlowFunction_48.map();
+      if (isDirty_mapRef2RefFlowFunction_48) {
+        tradeFees.inputUpdated(mapRef2RefFlowFunction_48);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_47()) {
-      isDirty_mapRef2RefFlowFunction_47 = mapRef2RefFlowFunction_47.map();
-      if (isDirty_mapRef2RefFlowFunction_47) {
-        tradeFees.inputUpdated(mapRef2RefFlowFunction_47);
+    if (guardCheck_mapRef2RefFlowFunction_61()) {
+      isDirty_mapRef2RefFlowFunction_61 = mapRef2RefFlowFunction_61.map();
+      if (isDirty_mapRef2RefFlowFunction_61) {
+        rates.inputUpdated(mapRef2RefFlowFunction_61);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_68()) {
-      isDirty_mapRef2RefFlowFunction_68 = mapRef2RefFlowFunction_68.map();
-      if (isDirty_mapRef2RefFlowFunction_68) {
-        mtmFeePositionMap.inputUpdated(mapRef2RefFlowFunction_68);
+    if (guardCheck_mapRef2RefFlowFunction_65()) {
+      isDirty_mapRef2RefFlowFunction_65 = mapRef2RefFlowFunction_65.map();
+      if (isDirty_mapRef2RefFlowFunction_65) {
+        mtmPositionMap.inputUpdated(mapRef2RefFlowFunction_65);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_69()) {
+      isDirty_mapRef2RefFlowFunction_69 = mapRef2RefFlowFunction_69.map();
+      if (isDirty_mapRef2RefFlowFunction_69) {
+        mtmFeePositionMap.inputUpdated(mapRef2RefFlowFunction_69);
       }
     }
     if (guardCheck_mtmFeePositionMap()) {
       isDirty_mtmFeePositionMap = mtmFeePositionMap.map();
       if (isDirty_mtmFeePositionMap) {
-        pushFlowFunction_70.inputUpdated(mtmFeePositionMap);
+        pushFlowFunction_71.inputUpdated(mtmFeePositionMap);
       }
     }
     if (guardCheck_mtmPositionMap()) {
       isDirty_mtmPositionMap = mtmPositionMap.map();
       if (isDirty_mtmPositionMap) {
-        pushFlowFunction_66.inputUpdated(mtmPositionMap);
+        pushFlowFunction_67.inputUpdated(mtmPositionMap);
       }
     }
     if (guardCheck_pnl()) {
       isDirty_pnl = pnl.map();
       if (isDirty_pnl) {
-        pushFlowFunction_72.inputUpdated(pnl);
+        pushFlowFunction_73.inputUpdated(pnl);
         netPnl.inputUpdated(pnl);
       }
     }
-    if (guardCheck_pushFlowFunction_66()) {
-      isDirty_pushFlowFunction_66 = pushFlowFunction_66.push();
-    }
-    if (guardCheck_pushFlowFunction_70()) {
-      isDirty_pushFlowFunction_70 = pushFlowFunction_70.push();
-    }
-    if (guardCheck_pushFlowFunction_72()) {
-      isDirty_pushFlowFunction_72 = pushFlowFunction_72.push();
-    }
-    if (guardCheck_rates()) {
-      isDirty_rates = rates.map();
-      if (isDirty_rates) {
-        pushFlowFunction_62.inputUpdated(rates);
-      }
-    }
-    if (guardCheck_pushFlowFunction_62()) {
-      isDirty_pushFlowFunction_62 = pushFlowFunction_62.push();
-    }
-    if (guardCheck_tradeFees()) {
-      isDirty_tradeFees = tradeFees.map();
-      if (isDirty_tradeFees) {
-        netPnl.input2Updated(tradeFees);
-        pushFlowFunction_71.inputUpdated(tradeFees);
-      }
-    }
-    if (guardCheck_netPnl()) {
-      isDirty_netPnl = netPnl.map();
-      if (isDirty_netPnl) {
-        pushFlowFunction_73.inputUpdated(netPnl);
-      }
+    if (guardCheck_pushFlowFunction_67()) {
+      isDirty_pushFlowFunction_67 = pushFlowFunction_67.push();
     }
     if (guardCheck_pushFlowFunction_71()) {
       isDirty_pushFlowFunction_71 = pushFlowFunction_71.push();
     }
     if (guardCheck_pushFlowFunction_73()) {
       isDirty_pushFlowFunction_73 = pushFlowFunction_73.push();
+    }
+    if (guardCheck_rates()) {
+      isDirty_rates = rates.map();
+      if (isDirty_rates) {
+        pushFlowFunction_63.inputUpdated(rates);
+      }
+    }
+    if (guardCheck_pushFlowFunction_63()) {
+      isDirty_pushFlowFunction_63 = pushFlowFunction_63.push();
+    }
+    if (guardCheck_tradeFees()) {
+      isDirty_tradeFees = tradeFees.map();
+      if (isDirty_tradeFees) {
+        netPnl.input2Updated(tradeFees);
+        pushFlowFunction_72.inputUpdated(tradeFees);
+      }
+    }
+    if (guardCheck_netPnl()) {
+      isDirty_netPnl = netPnl.map();
+      if (isDirty_netPnl) {
+        pushFlowFunction_74.inputUpdated(netPnl);
+      }
+    }
+    if (guardCheck_pushFlowFunction_72()) {
+      isDirty_pushFlowFunction_72 = pushFlowFunction_72.push();
+    }
+    if (guardCheck_pushFlowFunction_74()) {
+      isDirty_pushFlowFunction_74 = pushFlowFunction_74.push();
     }
     afterEvent();
   }
@@ -2026,14 +2074,14 @@ public class FluxtionPnlCalculator
       isDirty_mapRef2RefFlowFunction_19 = mapRef2RefFlowFunction_19.map();
       if (isDirty_mapRef2RefFlowFunction_19) {
         binaryMapToRefFlowFunction_31.input2Updated(mapRef2RefFlowFunction_19);
-        binaryMapToRefFlowFunction_35.inputUpdated(mapRef2RefFlowFunction_19);
-        mapRef2RefFlowFunction_52.inputUpdated(mapRef2RefFlowFunction_19);
+        mapRef2RefFlowFunction_53.inputUpdated(mapRef2RefFlowFunction_19);
+        binaryMapToRefFlowFunction_36.inputUpdated(mapRef2RefFlowFunction_19);
       }
     }
     if (guardCheck_binaryMapToRefFlowFunction_31()) {
       isDirty_binaryMapToRefFlowFunction_31 = binaryMapToRefFlowFunction_31.map();
       if (isDirty_binaryMapToRefFlowFunction_31) {
-        mapRef2RefFlowFunction_33.inputUpdated(binaryMapToRefFlowFunction_31);
+        binaryMapToRefFlowFunction_32.inputUpdated(binaryMapToRefFlowFunction_31);
       }
     }
     if (guardCheck_mapRef2RefFlowFunction_20()) {
@@ -2042,49 +2090,10 @@ public class FluxtionPnlCalculator
         mergeFlowFunction_22.inputStreamUpdated(mapRef2RefFlowFunction_20);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_33()) {
-      isDirty_mapRef2RefFlowFunction_33 = mapRef2RefFlowFunction_33.map();
-      if (isDirty_mapRef2RefFlowFunction_33) {
-        binaryMapToRefFlowFunction_35.input2Updated(mapRef2RefFlowFunction_33);
-        mapRef2RefFlowFunction_60.inputUpdated(mapRef2RefFlowFunction_33);
-        binaryMapToRefFlowFunction_43.input2Updated(mapRef2RefFlowFunction_33);
-      }
-    }
-    if (guardCheck_binaryMapToRefFlowFunction_35()) {
-      isDirty_binaryMapToRefFlowFunction_35 = binaryMapToRefFlowFunction_35.map();
-      if (isDirty_binaryMapToRefFlowFunction_35) {
-        mapRef2RefFlowFunction_37.inputUpdated(binaryMapToRefFlowFunction_35);
-      }
-    }
-    if (guardCheck_mapRef2RefFlowFunction_37()) {
-      isDirty_mapRef2RefFlowFunction_37 = mapRef2RefFlowFunction_37.map();
-      if (isDirty_mapRef2RefFlowFunction_37) {
-        mapRef2RefFlowFunction_39.inputUpdated(mapRef2RefFlowFunction_37);
-        mapRef2RefFlowFunction_64.inputUpdated(mapRef2RefFlowFunction_37);
-      }
-    }
-    if (guardCheck_mapRef2RefFlowFunction_39()) {
-      isDirty_mapRef2RefFlowFunction_39 = mapRef2RefFlowFunction_39.map();
-      if (isDirty_mapRef2RefFlowFunction_39) {
-        pnl.inputUpdated(mapRef2RefFlowFunction_39);
-      }
-    }
-    if (guardCheck_mapRef2RefFlowFunction_52()) {
-      isDirty_mapRef2RefFlowFunction_52 = mapRef2RefFlowFunction_52.map();
-      if (isDirty_mapRef2RefFlowFunction_52) {
-        positionMap.inputUpdated(mapRef2RefFlowFunction_52);
-      }
-    }
-    if (guardCheck_mapRef2RefFlowFunction_60()) {
-      isDirty_mapRef2RefFlowFunction_60 = mapRef2RefFlowFunction_60.map();
-      if (isDirty_mapRef2RefFlowFunction_60) {
-        rates.inputUpdated(mapRef2RefFlowFunction_60);
-      }
-    }
-    if (guardCheck_mapRef2RefFlowFunction_64()) {
-      isDirty_mapRef2RefFlowFunction_64 = mapRef2RefFlowFunction_64.map();
-      if (isDirty_mapRef2RefFlowFunction_64) {
-        mtmPositionMap.inputUpdated(mapRef2RefFlowFunction_64);
+    if (guardCheck_mapRef2RefFlowFunction_53()) {
+      isDirty_mapRef2RefFlowFunction_53 = mapRef2RefFlowFunction_53.map();
+      if (isDirty_mapRef2RefFlowFunction_53) {
+        positionMap.inputUpdated(mapRef2RefFlowFunction_53);
       }
     }
     if (guardCheck_mergeFlowFunction_22()) {
@@ -2102,114 +2111,160 @@ public class FluxtionPnlCalculator
     if (guardCheck_mapRef2RefFlowFunction_26()) {
       isDirty_mapRef2RefFlowFunction_26 = mapRef2RefFlowFunction_26.map();
       if (isDirty_mapRef2RefFlowFunction_26) {
-        binaryMapToRefFlowFunction_43.inputUpdated(mapRef2RefFlowFunction_26);
-        mapRef2RefFlowFunction_56.inputUpdated(mapRef2RefFlowFunction_26);
+        binaryMapToRefFlowFunction_32.input2Updated(mapRef2RefFlowFunction_26);
+        binaryMapToRefFlowFunction_44.inputUpdated(mapRef2RefFlowFunction_26);
+        mapRef2RefFlowFunction_57.inputUpdated(mapRef2RefFlowFunction_26);
       }
     }
-    if (guardCheck_binaryMapToRefFlowFunction_43()) {
-      isDirty_binaryMapToRefFlowFunction_43 = binaryMapToRefFlowFunction_43.map();
-      if (isDirty_binaryMapToRefFlowFunction_43) {
-        mapRef2RefFlowFunction_45.inputUpdated(binaryMapToRefFlowFunction_43);
+    if (guardCheck_binaryMapToRefFlowFunction_32()) {
+      isDirty_binaryMapToRefFlowFunction_32 = binaryMapToRefFlowFunction_32.map();
+      if (isDirty_binaryMapToRefFlowFunction_32) {
+        mapRef2RefFlowFunction_34.inputUpdated(binaryMapToRefFlowFunction_32);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_45()) {
-      isDirty_mapRef2RefFlowFunction_45 = mapRef2RefFlowFunction_45.map();
-      if (isDirty_mapRef2RefFlowFunction_45) {
-        mapRef2RefFlowFunction_47.inputUpdated(mapRef2RefFlowFunction_45);
-        mapRef2RefFlowFunction_68.inputUpdated(mapRef2RefFlowFunction_45);
+    if (guardCheck_mapRef2RefFlowFunction_34()) {
+      isDirty_mapRef2RefFlowFunction_34 = mapRef2RefFlowFunction_34.map();
+      if (isDirty_mapRef2RefFlowFunction_34) {
+        binaryMapToRefFlowFunction_36.input2Updated(mapRef2RefFlowFunction_34);
+        binaryMapToRefFlowFunction_44.input2Updated(mapRef2RefFlowFunction_34);
+        mapRef2RefFlowFunction_61.inputUpdated(mapRef2RefFlowFunction_34);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_47()) {
-      isDirty_mapRef2RefFlowFunction_47 = mapRef2RefFlowFunction_47.map();
-      if (isDirty_mapRef2RefFlowFunction_47) {
-        tradeFees.inputUpdated(mapRef2RefFlowFunction_47);
+    if (guardCheck_binaryMapToRefFlowFunction_36()) {
+      isDirty_binaryMapToRefFlowFunction_36 = binaryMapToRefFlowFunction_36.map();
+      if (isDirty_binaryMapToRefFlowFunction_36) {
+        mapRef2RefFlowFunction_38.inputUpdated(binaryMapToRefFlowFunction_36);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_56()) {
-      isDirty_mapRef2RefFlowFunction_56 = mapRef2RefFlowFunction_56.map();
-      if (isDirty_mapRef2RefFlowFunction_56) {
-        feePositionMap.inputUpdated(mapRef2RefFlowFunction_56);
+    if (guardCheck_binaryMapToRefFlowFunction_44()) {
+      isDirty_binaryMapToRefFlowFunction_44 = binaryMapToRefFlowFunction_44.map();
+      if (isDirty_binaryMapToRefFlowFunction_44) {
+        mapRef2RefFlowFunction_46.inputUpdated(binaryMapToRefFlowFunction_44);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_38()) {
+      isDirty_mapRef2RefFlowFunction_38 = mapRef2RefFlowFunction_38.map();
+      if (isDirty_mapRef2RefFlowFunction_38) {
+        mapRef2RefFlowFunction_40.inputUpdated(mapRef2RefFlowFunction_38);
+        mapRef2RefFlowFunction_65.inputUpdated(mapRef2RefFlowFunction_38);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_40()) {
+      isDirty_mapRef2RefFlowFunction_40 = mapRef2RefFlowFunction_40.map();
+      if (isDirty_mapRef2RefFlowFunction_40) {
+        pnl.inputUpdated(mapRef2RefFlowFunction_40);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_46()) {
+      isDirty_mapRef2RefFlowFunction_46 = mapRef2RefFlowFunction_46.map();
+      if (isDirty_mapRef2RefFlowFunction_46) {
+        mapRef2RefFlowFunction_48.inputUpdated(mapRef2RefFlowFunction_46);
+        mapRef2RefFlowFunction_69.inputUpdated(mapRef2RefFlowFunction_46);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_48()) {
+      isDirty_mapRef2RefFlowFunction_48 = mapRef2RefFlowFunction_48.map();
+      if (isDirty_mapRef2RefFlowFunction_48) {
+        tradeFees.inputUpdated(mapRef2RefFlowFunction_48);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_57()) {
+      isDirty_mapRef2RefFlowFunction_57 = mapRef2RefFlowFunction_57.map();
+      if (isDirty_mapRef2RefFlowFunction_57) {
+        feePositionMap.inputUpdated(mapRef2RefFlowFunction_57);
       }
     }
     if (guardCheck_feePositionMap()) {
       isDirty_feePositionMap = feePositionMap.map();
       if (isDirty_feePositionMap) {
-        pushFlowFunction_58.inputUpdated(feePositionMap);
+        pushFlowFunction_59.inputUpdated(feePositionMap);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_68()) {
-      isDirty_mapRef2RefFlowFunction_68 = mapRef2RefFlowFunction_68.map();
-      if (isDirty_mapRef2RefFlowFunction_68) {
-        mtmFeePositionMap.inputUpdated(mapRef2RefFlowFunction_68);
+    if (guardCheck_mapRef2RefFlowFunction_61()) {
+      isDirty_mapRef2RefFlowFunction_61 = mapRef2RefFlowFunction_61.map();
+      if (isDirty_mapRef2RefFlowFunction_61) {
+        rates.inputUpdated(mapRef2RefFlowFunction_61);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_65()) {
+      isDirty_mapRef2RefFlowFunction_65 = mapRef2RefFlowFunction_65.map();
+      if (isDirty_mapRef2RefFlowFunction_65) {
+        mtmPositionMap.inputUpdated(mapRef2RefFlowFunction_65);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_69()) {
+      isDirty_mapRef2RefFlowFunction_69 = mapRef2RefFlowFunction_69.map();
+      if (isDirty_mapRef2RefFlowFunction_69) {
+        mtmFeePositionMap.inputUpdated(mapRef2RefFlowFunction_69);
       }
     }
     if (guardCheck_mtmFeePositionMap()) {
       isDirty_mtmFeePositionMap = mtmFeePositionMap.map();
       if (isDirty_mtmFeePositionMap) {
-        pushFlowFunction_70.inputUpdated(mtmFeePositionMap);
+        pushFlowFunction_71.inputUpdated(mtmFeePositionMap);
       }
     }
     if (guardCheck_mtmPositionMap()) {
       isDirty_mtmPositionMap = mtmPositionMap.map();
       if (isDirty_mtmPositionMap) {
-        pushFlowFunction_66.inputUpdated(mtmPositionMap);
+        pushFlowFunction_67.inputUpdated(mtmPositionMap);
       }
     }
     if (guardCheck_pnl()) {
       isDirty_pnl = pnl.map();
       if (isDirty_pnl) {
-        pushFlowFunction_72.inputUpdated(pnl);
+        pushFlowFunction_73.inputUpdated(pnl);
         netPnl.inputUpdated(pnl);
       }
     }
     if (guardCheck_positionMap()) {
       isDirty_positionMap = positionMap.map();
       if (isDirty_positionMap) {
-        pushFlowFunction_54.inputUpdated(positionMap);
+        pushFlowFunction_55.inputUpdated(positionMap);
       }
     }
-    if (guardCheck_pushFlowFunction_54()) {
-      isDirty_pushFlowFunction_54 = pushFlowFunction_54.push();
+    if (guardCheck_pushFlowFunction_55()) {
+      isDirty_pushFlowFunction_55 = pushFlowFunction_55.push();
     }
-    if (guardCheck_pushFlowFunction_58()) {
-      isDirty_pushFlowFunction_58 = pushFlowFunction_58.push();
+    if (guardCheck_pushFlowFunction_59()) {
+      isDirty_pushFlowFunction_59 = pushFlowFunction_59.push();
     }
-    if (guardCheck_pushFlowFunction_66()) {
-      isDirty_pushFlowFunction_66 = pushFlowFunction_66.push();
-    }
-    if (guardCheck_pushFlowFunction_70()) {
-      isDirty_pushFlowFunction_70 = pushFlowFunction_70.push();
-    }
-    if (guardCheck_pushFlowFunction_72()) {
-      isDirty_pushFlowFunction_72 = pushFlowFunction_72.push();
-    }
-    if (guardCheck_rates()) {
-      isDirty_rates = rates.map();
-      if (isDirty_rates) {
-        pushFlowFunction_62.inputUpdated(rates);
-      }
-    }
-    if (guardCheck_pushFlowFunction_62()) {
-      isDirty_pushFlowFunction_62 = pushFlowFunction_62.push();
-    }
-    if (guardCheck_tradeFees()) {
-      isDirty_tradeFees = tradeFees.map();
-      if (isDirty_tradeFees) {
-        netPnl.input2Updated(tradeFees);
-        pushFlowFunction_71.inputUpdated(tradeFees);
-      }
-    }
-    if (guardCheck_netPnl()) {
-      isDirty_netPnl = netPnl.map();
-      if (isDirty_netPnl) {
-        pushFlowFunction_73.inputUpdated(netPnl);
-      }
+    if (guardCheck_pushFlowFunction_67()) {
+      isDirty_pushFlowFunction_67 = pushFlowFunction_67.push();
     }
     if (guardCheck_pushFlowFunction_71()) {
       isDirty_pushFlowFunction_71 = pushFlowFunction_71.push();
     }
     if (guardCheck_pushFlowFunction_73()) {
       isDirty_pushFlowFunction_73 = pushFlowFunction_73.push();
+    }
+    if (guardCheck_rates()) {
+      isDirty_rates = rates.map();
+      if (isDirty_rates) {
+        pushFlowFunction_63.inputUpdated(rates);
+      }
+    }
+    if (guardCheck_pushFlowFunction_63()) {
+      isDirty_pushFlowFunction_63 = pushFlowFunction_63.push();
+    }
+    if (guardCheck_tradeFees()) {
+      isDirty_tradeFees = tradeFees.map();
+      if (isDirty_tradeFees) {
+        netPnl.input2Updated(tradeFees);
+        pushFlowFunction_72.inputUpdated(tradeFees);
+      }
+    }
+    if (guardCheck_netPnl()) {
+      isDirty_netPnl = netPnl.map();
+      if (isDirty_netPnl) {
+        pushFlowFunction_74.inputUpdated(netPnl);
+      }
+    }
+    if (guardCheck_pushFlowFunction_72()) {
+      isDirty_pushFlowFunction_72 = pushFlowFunction_72.push();
+    }
+    if (guardCheck_pushFlowFunction_74()) {
+      isDirty_pushFlowFunction_74 = pushFlowFunction_74.push();
     }
     afterEvent();
   }
@@ -2243,77 +2298,151 @@ public class FluxtionPnlCalculator
     if (guardCheck_mapRef2RefFlowFunction_26()) {
       isDirty_mapRef2RefFlowFunction_26 = mapRef2RefFlowFunction_26.map();
       if (isDirty_mapRef2RefFlowFunction_26) {
-        binaryMapToRefFlowFunction_43.inputUpdated(mapRef2RefFlowFunction_26);
-        mapRef2RefFlowFunction_56.inputUpdated(mapRef2RefFlowFunction_26);
+        binaryMapToRefFlowFunction_32.input2Updated(mapRef2RefFlowFunction_26);
+        binaryMapToRefFlowFunction_44.inputUpdated(mapRef2RefFlowFunction_26);
+        mapRef2RefFlowFunction_57.inputUpdated(mapRef2RefFlowFunction_26);
       }
     }
-    if (guardCheck_binaryMapToRefFlowFunction_43()) {
-      isDirty_binaryMapToRefFlowFunction_43 = binaryMapToRefFlowFunction_43.map();
-      if (isDirty_binaryMapToRefFlowFunction_43) {
-        mapRef2RefFlowFunction_45.inputUpdated(binaryMapToRefFlowFunction_43);
+    if (guardCheck_binaryMapToRefFlowFunction_32()) {
+      isDirty_binaryMapToRefFlowFunction_32 = binaryMapToRefFlowFunction_32.map();
+      if (isDirty_binaryMapToRefFlowFunction_32) {
+        mapRef2RefFlowFunction_34.inputUpdated(binaryMapToRefFlowFunction_32);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_45()) {
-      isDirty_mapRef2RefFlowFunction_45 = mapRef2RefFlowFunction_45.map();
-      if (isDirty_mapRef2RefFlowFunction_45) {
-        mapRef2RefFlowFunction_47.inputUpdated(mapRef2RefFlowFunction_45);
-        mapRef2RefFlowFunction_68.inputUpdated(mapRef2RefFlowFunction_45);
+    if (guardCheck_mapRef2RefFlowFunction_34()) {
+      isDirty_mapRef2RefFlowFunction_34 = mapRef2RefFlowFunction_34.map();
+      if (isDirty_mapRef2RefFlowFunction_34) {
+        binaryMapToRefFlowFunction_36.input2Updated(mapRef2RefFlowFunction_34);
+        binaryMapToRefFlowFunction_44.input2Updated(mapRef2RefFlowFunction_34);
+        mapRef2RefFlowFunction_61.inputUpdated(mapRef2RefFlowFunction_34);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_47()) {
-      isDirty_mapRef2RefFlowFunction_47 = mapRef2RefFlowFunction_47.map();
-      if (isDirty_mapRef2RefFlowFunction_47) {
-        tradeFees.inputUpdated(mapRef2RefFlowFunction_47);
+    if (guardCheck_binaryMapToRefFlowFunction_36()) {
+      isDirty_binaryMapToRefFlowFunction_36 = binaryMapToRefFlowFunction_36.map();
+      if (isDirty_binaryMapToRefFlowFunction_36) {
+        mapRef2RefFlowFunction_38.inputUpdated(binaryMapToRefFlowFunction_36);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_56()) {
-      isDirty_mapRef2RefFlowFunction_56 = mapRef2RefFlowFunction_56.map();
-      if (isDirty_mapRef2RefFlowFunction_56) {
-        feePositionMap.inputUpdated(mapRef2RefFlowFunction_56);
+    if (guardCheck_binaryMapToRefFlowFunction_44()) {
+      isDirty_binaryMapToRefFlowFunction_44 = binaryMapToRefFlowFunction_44.map();
+      if (isDirty_binaryMapToRefFlowFunction_44) {
+        mapRef2RefFlowFunction_46.inputUpdated(binaryMapToRefFlowFunction_44);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_38()) {
+      isDirty_mapRef2RefFlowFunction_38 = mapRef2RefFlowFunction_38.map();
+      if (isDirty_mapRef2RefFlowFunction_38) {
+        mapRef2RefFlowFunction_40.inputUpdated(mapRef2RefFlowFunction_38);
+        mapRef2RefFlowFunction_65.inputUpdated(mapRef2RefFlowFunction_38);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_40()) {
+      isDirty_mapRef2RefFlowFunction_40 = mapRef2RefFlowFunction_40.map();
+      if (isDirty_mapRef2RefFlowFunction_40) {
+        pnl.inputUpdated(mapRef2RefFlowFunction_40);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_46()) {
+      isDirty_mapRef2RefFlowFunction_46 = mapRef2RefFlowFunction_46.map();
+      if (isDirty_mapRef2RefFlowFunction_46) {
+        mapRef2RefFlowFunction_48.inputUpdated(mapRef2RefFlowFunction_46);
+        mapRef2RefFlowFunction_69.inputUpdated(mapRef2RefFlowFunction_46);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_48()) {
+      isDirty_mapRef2RefFlowFunction_48 = mapRef2RefFlowFunction_48.map();
+      if (isDirty_mapRef2RefFlowFunction_48) {
+        tradeFees.inputUpdated(mapRef2RefFlowFunction_48);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_57()) {
+      isDirty_mapRef2RefFlowFunction_57 = mapRef2RefFlowFunction_57.map();
+      if (isDirty_mapRef2RefFlowFunction_57) {
+        feePositionMap.inputUpdated(mapRef2RefFlowFunction_57);
       }
     }
     if (guardCheck_feePositionMap()) {
       isDirty_feePositionMap = feePositionMap.map();
       if (isDirty_feePositionMap) {
-        pushFlowFunction_58.inputUpdated(feePositionMap);
+        pushFlowFunction_59.inputUpdated(feePositionMap);
       }
     }
-    if (guardCheck_mapRef2RefFlowFunction_68()) {
-      isDirty_mapRef2RefFlowFunction_68 = mapRef2RefFlowFunction_68.map();
-      if (isDirty_mapRef2RefFlowFunction_68) {
-        mtmFeePositionMap.inputUpdated(mapRef2RefFlowFunction_68);
+    if (guardCheck_mapRef2RefFlowFunction_61()) {
+      isDirty_mapRef2RefFlowFunction_61 = mapRef2RefFlowFunction_61.map();
+      if (isDirty_mapRef2RefFlowFunction_61) {
+        rates.inputUpdated(mapRef2RefFlowFunction_61);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_65()) {
+      isDirty_mapRef2RefFlowFunction_65 = mapRef2RefFlowFunction_65.map();
+      if (isDirty_mapRef2RefFlowFunction_65) {
+        mtmPositionMap.inputUpdated(mapRef2RefFlowFunction_65);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_69()) {
+      isDirty_mapRef2RefFlowFunction_69 = mapRef2RefFlowFunction_69.map();
+      if (isDirty_mapRef2RefFlowFunction_69) {
+        mtmFeePositionMap.inputUpdated(mapRef2RefFlowFunction_69);
       }
     }
     if (guardCheck_mtmFeePositionMap()) {
       isDirty_mtmFeePositionMap = mtmFeePositionMap.map();
       if (isDirty_mtmFeePositionMap) {
-        pushFlowFunction_70.inputUpdated(mtmFeePositionMap);
+        pushFlowFunction_71.inputUpdated(mtmFeePositionMap);
       }
     }
-    if (guardCheck_pushFlowFunction_58()) {
-      isDirty_pushFlowFunction_58 = pushFlowFunction_58.push();
-    }
-    if (guardCheck_pushFlowFunction_70()) {
-      isDirty_pushFlowFunction_70 = pushFlowFunction_70.push();
-    }
-    if (guardCheck_tradeFees()) {
-      isDirty_tradeFees = tradeFees.map();
-      if (isDirty_tradeFees) {
-        netPnl.input2Updated(tradeFees);
-        pushFlowFunction_71.inputUpdated(tradeFees);
+    if (guardCheck_mtmPositionMap()) {
+      isDirty_mtmPositionMap = mtmPositionMap.map();
+      if (isDirty_mtmPositionMap) {
+        pushFlowFunction_67.inputUpdated(mtmPositionMap);
       }
     }
-    if (guardCheck_netPnl()) {
-      isDirty_netPnl = netPnl.map();
-      if (isDirty_netPnl) {
-        pushFlowFunction_73.inputUpdated(netPnl);
+    if (guardCheck_pnl()) {
+      isDirty_pnl = pnl.map();
+      if (isDirty_pnl) {
+        pushFlowFunction_73.inputUpdated(pnl);
+        netPnl.inputUpdated(pnl);
       }
+    }
+    if (guardCheck_pushFlowFunction_59()) {
+      isDirty_pushFlowFunction_59 = pushFlowFunction_59.push();
+    }
+    if (guardCheck_pushFlowFunction_67()) {
+      isDirty_pushFlowFunction_67 = pushFlowFunction_67.push();
     }
     if (guardCheck_pushFlowFunction_71()) {
       isDirty_pushFlowFunction_71 = pushFlowFunction_71.push();
     }
     if (guardCheck_pushFlowFunction_73()) {
       isDirty_pushFlowFunction_73 = pushFlowFunction_73.push();
+    }
+    if (guardCheck_rates()) {
+      isDirty_rates = rates.map();
+      if (isDirty_rates) {
+        pushFlowFunction_63.inputUpdated(rates);
+      }
+    }
+    if (guardCheck_pushFlowFunction_63()) {
+      isDirty_pushFlowFunction_63 = pushFlowFunction_63.push();
+    }
+    if (guardCheck_tradeFees()) {
+      isDirty_tradeFees = tradeFees.map();
+      if (isDirty_tradeFees) {
+        netPnl.input2Updated(tradeFees);
+        pushFlowFunction_72.inputUpdated(tradeFees);
+      }
+    }
+    if (guardCheck_netPnl()) {
+      isDirty_netPnl = netPnl.map();
+      if (isDirty_netPnl) {
+        pushFlowFunction_74.inputUpdated(netPnl);
+      }
+    }
+    if (guardCheck_pushFlowFunction_72()) {
+      isDirty_pushFlowFunction_72 = pushFlowFunction_72.push();
+    }
+    if (guardCheck_pushFlowFunction_74()) {
+      isDirty_pushFlowFunction_74 = pushFlowFunction_74.push();
     }
     afterEvent();
   }
@@ -2369,15 +2498,16 @@ public class FluxtionPnlCalculator
   private void initialiseAuditor(Auditor auditor) {
     auditor.init();
     auditor.nodeRegistered(callbackDispatcher, "callbackDispatcher");
-    auditor.nodeRegistered(callbackImpl_74, "callbackImpl_74");
     auditor.nodeRegistered(callbackImpl_75, "callbackImpl_75");
-    auditor.nodeRegistered(doubleSumFlowFunction_194, "doubleSumFlowFunction_194");
-    auditor.nodeRegistered(doubleSumFlowFunction_282, "doubleSumFlowFunction_282");
+    auditor.nodeRegistered(callbackImpl_76, "callbackImpl_76");
+    auditor.nodeRegistered(doubleSumFlowFunction_220, "doubleSumFlowFunction_220");
+    auditor.nodeRegistered(doubleSumFlowFunction_320, "doubleSumFlowFunction_320");
     auditor.nodeRegistered(binaryMapToRefFlowFunction_11, "binaryMapToRefFlowFunction_11");
     auditor.nodeRegistered(binaryMapToRefFlowFunction_15, "binaryMapToRefFlowFunction_15");
     auditor.nodeRegistered(binaryMapToRefFlowFunction_31, "binaryMapToRefFlowFunction_31");
-    auditor.nodeRegistered(binaryMapToRefFlowFunction_35, "binaryMapToRefFlowFunction_35");
-    auditor.nodeRegistered(binaryMapToRefFlowFunction_43, "binaryMapToRefFlowFunction_43");
+    auditor.nodeRegistered(binaryMapToRefFlowFunction_32, "binaryMapToRefFlowFunction_32");
+    auditor.nodeRegistered(binaryMapToRefFlowFunction_36, "binaryMapToRefFlowFunction_36");
+    auditor.nodeRegistered(binaryMapToRefFlowFunction_44, "binaryMapToRefFlowFunction_44");
     auditor.nodeRegistered(netPnl, "netPnl");
     auditor.nodeRegistered(filterFlowFunction_28, "filterFlowFunction_28");
     auditor.nodeRegistered(flatMapFlowFunction_1, "flatMapFlowFunction_1");
@@ -2394,16 +2524,16 @@ public class FluxtionPnlCalculator
     auditor.nodeRegistered(mapRef2RefFlowFunction_24, "mapRef2RefFlowFunction_24");
     auditor.nodeRegistered(mapRef2RefFlowFunction_26, "mapRef2RefFlowFunction_26");
     auditor.nodeRegistered(mapRef2RefFlowFunction_30, "mapRef2RefFlowFunction_30");
-    auditor.nodeRegistered(mapRef2RefFlowFunction_33, "mapRef2RefFlowFunction_33");
-    auditor.nodeRegistered(mapRef2RefFlowFunction_37, "mapRef2RefFlowFunction_37");
-    auditor.nodeRegistered(mapRef2RefFlowFunction_39, "mapRef2RefFlowFunction_39");
-    auditor.nodeRegistered(mapRef2RefFlowFunction_45, "mapRef2RefFlowFunction_45");
-    auditor.nodeRegistered(mapRef2RefFlowFunction_47, "mapRef2RefFlowFunction_47");
-    auditor.nodeRegistered(mapRef2RefFlowFunction_52, "mapRef2RefFlowFunction_52");
-    auditor.nodeRegistered(mapRef2RefFlowFunction_56, "mapRef2RefFlowFunction_56");
-    auditor.nodeRegistered(mapRef2RefFlowFunction_60, "mapRef2RefFlowFunction_60");
-    auditor.nodeRegistered(mapRef2RefFlowFunction_64, "mapRef2RefFlowFunction_64");
-    auditor.nodeRegistered(mapRef2RefFlowFunction_68, "mapRef2RefFlowFunction_68");
+    auditor.nodeRegistered(mapRef2RefFlowFunction_34, "mapRef2RefFlowFunction_34");
+    auditor.nodeRegistered(mapRef2RefFlowFunction_38, "mapRef2RefFlowFunction_38");
+    auditor.nodeRegistered(mapRef2RefFlowFunction_40, "mapRef2RefFlowFunction_40");
+    auditor.nodeRegistered(mapRef2RefFlowFunction_46, "mapRef2RefFlowFunction_46");
+    auditor.nodeRegistered(mapRef2RefFlowFunction_48, "mapRef2RefFlowFunction_48");
+    auditor.nodeRegistered(mapRef2RefFlowFunction_53, "mapRef2RefFlowFunction_53");
+    auditor.nodeRegistered(mapRef2RefFlowFunction_57, "mapRef2RefFlowFunction_57");
+    auditor.nodeRegistered(mapRef2RefFlowFunction_61, "mapRef2RefFlowFunction_61");
+    auditor.nodeRegistered(mapRef2RefFlowFunction_65, "mapRef2RefFlowFunction_65");
+    auditor.nodeRegistered(mapRef2RefFlowFunction_69, "mapRef2RefFlowFunction_69");
     auditor.nodeRegistered(mtmFeePositionMap, "mtmFeePositionMap");
     auditor.nodeRegistered(mtmPositionMap, "mtmPositionMap");
     auditor.nodeRegistered(pnl, "pnl");
@@ -2412,17 +2542,17 @@ public class FluxtionPnlCalculator
     auditor.nodeRegistered(tradeFees, "tradeFees");
     auditor.nodeRegistered(mergeFlowFunction_2, "mergeFlowFunction_2");
     auditor.nodeRegistered(mergeFlowFunction_22, "mergeFlowFunction_22");
-    auditor.nodeRegistered(pushFlowFunction_54, "pushFlowFunction_54");
-    auditor.nodeRegistered(pushFlowFunction_58, "pushFlowFunction_58");
-    auditor.nodeRegistered(pushFlowFunction_62, "pushFlowFunction_62");
-    auditor.nodeRegistered(pushFlowFunction_66, "pushFlowFunction_66");
-    auditor.nodeRegistered(pushFlowFunction_70, "pushFlowFunction_70");
+    auditor.nodeRegistered(pushFlowFunction_55, "pushFlowFunction_55");
+    auditor.nodeRegistered(pushFlowFunction_59, "pushFlowFunction_59");
+    auditor.nodeRegistered(pushFlowFunction_63, "pushFlowFunction_63");
+    auditor.nodeRegistered(pushFlowFunction_67, "pushFlowFunction_67");
     auditor.nodeRegistered(pushFlowFunction_71, "pushFlowFunction_71");
     auditor.nodeRegistered(pushFlowFunction_72, "pushFlowFunction_72");
     auditor.nodeRegistered(pushFlowFunction_73, "pushFlowFunction_73");
-    auditor.nodeRegistered(emptyGroupBy_99, "emptyGroupBy_99");
-    auditor.nodeRegistered(emptyGroupBy_109, "emptyGroupBy_109");
-    auditor.nodeRegistered(emptyGroupBy_132, "emptyGroupBy_132");
+    auditor.nodeRegistered(pushFlowFunction_74, "pushFlowFunction_74");
+    auditor.nodeRegistered(emptyGroupBy_100, "emptyGroupBy_100");
+    auditor.nodeRegistered(emptyGroupBy_110, "emptyGroupBy_110");
+    auditor.nodeRegistered(emptyGroupBy_149, "emptyGroupBy_149");
     auditor.nodeRegistered(groupByFlowFunctionWrapper_4, "groupByFlowFunctionWrapper_4");
     auditor.nodeRegistered(groupByFlowFunctionWrapper_6, "groupByFlowFunctionWrapper_6");
     auditor.nodeRegistered(groupByFlowFunctionWrapper_8, "groupByFlowFunctionWrapper_8");
@@ -2430,24 +2560,24 @@ public class FluxtionPnlCalculator
     auditor.nodeRegistered(groupByFlowFunctionWrapper_29, "groupByFlowFunctionWrapper_29");
     auditor.nodeRegistered(groupByMapFlowFunction_12, "groupByMapFlowFunction_12");
     auditor.nodeRegistered(groupByMapFlowFunction_16, "groupByMapFlowFunction_16");
-    auditor.nodeRegistered(groupByMapFlowFunction_36, "groupByMapFlowFunction_36");
-    auditor.nodeRegistered(groupByMapFlowFunction_44, "groupByMapFlowFunction_44");
-    auditor.nodeRegistered(groupByMapFlowFunction_51, "groupByMapFlowFunction_51");
-    auditor.nodeRegistered(groupByMapFlowFunction_55, "groupByMapFlowFunction_55");
-    auditor.nodeRegistered(groupByMapFlowFunction_59, "groupByMapFlowFunction_59");
-    auditor.nodeRegistered(groupByMapFlowFunction_63, "groupByMapFlowFunction_63");
-    auditor.nodeRegistered(groupByMapFlowFunction_67, "groupByMapFlowFunction_67");
-    auditor.nodeRegistered(groupByReduceFlowFunction_38, "groupByReduceFlowFunction_38");
-    auditor.nodeRegistered(groupByReduceFlowFunction_46, "groupByReduceFlowFunction_46");
-    auditor.nodeRegistered(leftJoin_34, "leftJoin_34");
-    auditor.nodeRegistered(leftJoin_42, "leftJoin_42");
+    auditor.nodeRegistered(groupByMapFlowFunction_37, "groupByMapFlowFunction_37");
+    auditor.nodeRegistered(groupByMapFlowFunction_45, "groupByMapFlowFunction_45");
+    auditor.nodeRegistered(groupByMapFlowFunction_52, "groupByMapFlowFunction_52");
+    auditor.nodeRegistered(groupByMapFlowFunction_56, "groupByMapFlowFunction_56");
+    auditor.nodeRegistered(groupByMapFlowFunction_60, "groupByMapFlowFunction_60");
+    auditor.nodeRegistered(groupByMapFlowFunction_64, "groupByMapFlowFunction_64");
+    auditor.nodeRegistered(groupByMapFlowFunction_68, "groupByMapFlowFunction_68");
+    auditor.nodeRegistered(groupByReduceFlowFunction_39, "groupByReduceFlowFunction_39");
+    auditor.nodeRegistered(groupByReduceFlowFunction_47, "groupByReduceFlowFunction_47");
+    auditor.nodeRegistered(leftJoin_35, "leftJoin_35");
+    auditor.nodeRegistered(leftJoin_43, "leftJoin_43");
     auditor.nodeRegistered(outerJoin_10, "outerJoin_10");
     auditor.nodeRegistered(outerJoin_14, "outerJoin_14");
     auditor.nodeRegistered(defaultValue_18, "defaultValue_18");
     auditor.nodeRegistered(defaultValue_25, "defaultValue_25");
-    auditor.nodeRegistered(defaultValue_32, "defaultValue_32");
-    auditor.nodeRegistered(defaultValue_40, "defaultValue_40");
-    auditor.nodeRegistered(defaultValue_48, "defaultValue_48");
+    auditor.nodeRegistered(defaultValue_33, "defaultValue_33");
+    auditor.nodeRegistered(defaultValue_41, "defaultValue_41");
+    auditor.nodeRegistered(defaultValue_49, "defaultValue_49");
     auditor.nodeRegistered(subscriptionManager, "subscriptionManager");
     auditor.nodeRegistered(handlerMidPrice, "handlerMidPrice");
     auditor.nodeRegistered(handlerMtmInstrument, "handlerMtmInstrument");
@@ -2468,8 +2598,8 @@ public class FluxtionPnlCalculator
     auditor.nodeRegistered(tradeFeesListener, "tradeFeesListener");
     auditor.nodeRegistered(derivedRateNode_27, "derivedRateNode_27");
     auditor.nodeRegistered(symbolLookupNode_0, "symbolLookupNode_0");
-    auditor.nodeRegistered(double_220, "double_220");
-    auditor.nodeRegistered(double_302, "double_302");
+    auditor.nodeRegistered(double_249, "double_249");
+    auditor.nodeRegistered(double_343, "double_343");
   }
 
   private void beforeServiceCall(String functionDescription) {
@@ -2495,10 +2625,11 @@ public class FluxtionPnlCalculator
     isDirty_binaryMapToRefFlowFunction_11 = false;
     isDirty_binaryMapToRefFlowFunction_15 = false;
     isDirty_binaryMapToRefFlowFunction_31 = false;
-    isDirty_binaryMapToRefFlowFunction_35 = false;
-    isDirty_binaryMapToRefFlowFunction_43 = false;
-    isDirty_callbackImpl_74 = false;
+    isDirty_binaryMapToRefFlowFunction_32 = false;
+    isDirty_binaryMapToRefFlowFunction_36 = false;
+    isDirty_binaryMapToRefFlowFunction_44 = false;
     isDirty_callbackImpl_75 = false;
+    isDirty_callbackImpl_76 = false;
     isDirty_clock = false;
     isDirty_derivedRateNode_27 = false;
     isDirty_feePositionMap = false;
@@ -2523,16 +2654,16 @@ public class FluxtionPnlCalculator
     isDirty_mapRef2RefFlowFunction_24 = false;
     isDirty_mapRef2RefFlowFunction_26 = false;
     isDirty_mapRef2RefFlowFunction_30 = false;
-    isDirty_mapRef2RefFlowFunction_33 = false;
-    isDirty_mapRef2RefFlowFunction_37 = false;
-    isDirty_mapRef2RefFlowFunction_39 = false;
-    isDirty_mapRef2RefFlowFunction_45 = false;
-    isDirty_mapRef2RefFlowFunction_47 = false;
-    isDirty_mapRef2RefFlowFunction_52 = false;
-    isDirty_mapRef2RefFlowFunction_56 = false;
-    isDirty_mapRef2RefFlowFunction_60 = false;
-    isDirty_mapRef2RefFlowFunction_64 = false;
-    isDirty_mapRef2RefFlowFunction_68 = false;
+    isDirty_mapRef2RefFlowFunction_34 = false;
+    isDirty_mapRef2RefFlowFunction_38 = false;
+    isDirty_mapRef2RefFlowFunction_40 = false;
+    isDirty_mapRef2RefFlowFunction_46 = false;
+    isDirty_mapRef2RefFlowFunction_48 = false;
+    isDirty_mapRef2RefFlowFunction_53 = false;
+    isDirty_mapRef2RefFlowFunction_57 = false;
+    isDirty_mapRef2RefFlowFunction_61 = false;
+    isDirty_mapRef2RefFlowFunction_65 = false;
+    isDirty_mapRef2RefFlowFunction_69 = false;
     isDirty_mergeFlowFunction_2 = false;
     isDirty_mergeFlowFunction_22 = false;
     isDirty_mtmFeePositionMap = false;
@@ -2540,14 +2671,14 @@ public class FluxtionPnlCalculator
     isDirty_netPnl = false;
     isDirty_pnl = false;
     isDirty_positionMap = false;
-    isDirty_pushFlowFunction_54 = false;
-    isDirty_pushFlowFunction_58 = false;
-    isDirty_pushFlowFunction_62 = false;
-    isDirty_pushFlowFunction_66 = false;
-    isDirty_pushFlowFunction_70 = false;
+    isDirty_pushFlowFunction_55 = false;
+    isDirty_pushFlowFunction_59 = false;
+    isDirty_pushFlowFunction_63 = false;
+    isDirty_pushFlowFunction_67 = false;
     isDirty_pushFlowFunction_71 = false;
     isDirty_pushFlowFunction_72 = false;
     isDirty_pushFlowFunction_73 = false;
+    isDirty_pushFlowFunction_74 = false;
     isDirty_rates = false;
     isDirty_tradeFees = false;
   }
@@ -2587,11 +2718,13 @@ public class FluxtionPnlCalculator
       dirtyFlagSupplierMap.put(
           binaryMapToRefFlowFunction_31, () -> isDirty_binaryMapToRefFlowFunction_31);
       dirtyFlagSupplierMap.put(
-          binaryMapToRefFlowFunction_35, () -> isDirty_binaryMapToRefFlowFunction_35);
+          binaryMapToRefFlowFunction_32, () -> isDirty_binaryMapToRefFlowFunction_32);
       dirtyFlagSupplierMap.put(
-          binaryMapToRefFlowFunction_43, () -> isDirty_binaryMapToRefFlowFunction_43);
-      dirtyFlagSupplierMap.put(callbackImpl_74, () -> isDirty_callbackImpl_74);
+          binaryMapToRefFlowFunction_36, () -> isDirty_binaryMapToRefFlowFunction_36);
+      dirtyFlagSupplierMap.put(
+          binaryMapToRefFlowFunction_44, () -> isDirty_binaryMapToRefFlowFunction_44);
       dirtyFlagSupplierMap.put(callbackImpl_75, () -> isDirty_callbackImpl_75);
+      dirtyFlagSupplierMap.put(callbackImpl_76, () -> isDirty_callbackImpl_76);
       dirtyFlagSupplierMap.put(clock, () -> isDirty_clock);
       dirtyFlagSupplierMap.put(derivedRateNode_27, () -> isDirty_derivedRateNode_27);
       dirtyFlagSupplierMap.put(feePositionMap, () -> isDirty_feePositionMap);
@@ -2615,17 +2748,17 @@ public class FluxtionPnlCalculator
       dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_24, () -> isDirty_mapRef2RefFlowFunction_24);
       dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_26, () -> isDirty_mapRef2RefFlowFunction_26);
       dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_30, () -> isDirty_mapRef2RefFlowFunction_30);
-      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_33, () -> isDirty_mapRef2RefFlowFunction_33);
-      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_37, () -> isDirty_mapRef2RefFlowFunction_37);
-      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_39, () -> isDirty_mapRef2RefFlowFunction_39);
-      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_45, () -> isDirty_mapRef2RefFlowFunction_45);
-      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_47, () -> isDirty_mapRef2RefFlowFunction_47);
+      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_34, () -> isDirty_mapRef2RefFlowFunction_34);
+      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_38, () -> isDirty_mapRef2RefFlowFunction_38);
+      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_40, () -> isDirty_mapRef2RefFlowFunction_40);
+      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_46, () -> isDirty_mapRef2RefFlowFunction_46);
+      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_48, () -> isDirty_mapRef2RefFlowFunction_48);
       dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_5, () -> isDirty_mapRef2RefFlowFunction_5);
-      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_52, () -> isDirty_mapRef2RefFlowFunction_52);
-      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_56, () -> isDirty_mapRef2RefFlowFunction_56);
-      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_60, () -> isDirty_mapRef2RefFlowFunction_60);
-      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_64, () -> isDirty_mapRef2RefFlowFunction_64);
-      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_68, () -> isDirty_mapRef2RefFlowFunction_68);
+      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_53, () -> isDirty_mapRef2RefFlowFunction_53);
+      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_57, () -> isDirty_mapRef2RefFlowFunction_57);
+      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_61, () -> isDirty_mapRef2RefFlowFunction_61);
+      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_65, () -> isDirty_mapRef2RefFlowFunction_65);
+      dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_69, () -> isDirty_mapRef2RefFlowFunction_69);
       dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_7, () -> isDirty_mapRef2RefFlowFunction_7);
       dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_9, () -> isDirty_mapRef2RefFlowFunction_9);
       dirtyFlagSupplierMap.put(mergeFlowFunction_2, () -> isDirty_mergeFlowFunction_2);
@@ -2635,14 +2768,14 @@ public class FluxtionPnlCalculator
       dirtyFlagSupplierMap.put(netPnl, () -> isDirty_netPnl);
       dirtyFlagSupplierMap.put(pnl, () -> isDirty_pnl);
       dirtyFlagSupplierMap.put(positionMap, () -> isDirty_positionMap);
-      dirtyFlagSupplierMap.put(pushFlowFunction_54, () -> isDirty_pushFlowFunction_54);
-      dirtyFlagSupplierMap.put(pushFlowFunction_58, () -> isDirty_pushFlowFunction_58);
-      dirtyFlagSupplierMap.put(pushFlowFunction_62, () -> isDirty_pushFlowFunction_62);
-      dirtyFlagSupplierMap.put(pushFlowFunction_66, () -> isDirty_pushFlowFunction_66);
-      dirtyFlagSupplierMap.put(pushFlowFunction_70, () -> isDirty_pushFlowFunction_70);
+      dirtyFlagSupplierMap.put(pushFlowFunction_55, () -> isDirty_pushFlowFunction_55);
+      dirtyFlagSupplierMap.put(pushFlowFunction_59, () -> isDirty_pushFlowFunction_59);
+      dirtyFlagSupplierMap.put(pushFlowFunction_63, () -> isDirty_pushFlowFunction_63);
+      dirtyFlagSupplierMap.put(pushFlowFunction_67, () -> isDirty_pushFlowFunction_67);
       dirtyFlagSupplierMap.put(pushFlowFunction_71, () -> isDirty_pushFlowFunction_71);
       dirtyFlagSupplierMap.put(pushFlowFunction_72, () -> isDirty_pushFlowFunction_72);
       dirtyFlagSupplierMap.put(pushFlowFunction_73, () -> isDirty_pushFlowFunction_73);
+      dirtyFlagSupplierMap.put(pushFlowFunction_74, () -> isDirty_pushFlowFunction_74);
       dirtyFlagSupplierMap.put(rates, () -> isDirty_rates);
       dirtyFlagSupplierMap.put(tradeFees, () -> isDirty_tradeFees);
     }
@@ -2659,11 +2792,13 @@ public class FluxtionPnlCalculator
       dirtyFlagUpdateMap.put(
           binaryMapToRefFlowFunction_31, (b) -> isDirty_binaryMapToRefFlowFunction_31 = b);
       dirtyFlagUpdateMap.put(
-          binaryMapToRefFlowFunction_35, (b) -> isDirty_binaryMapToRefFlowFunction_35 = b);
+          binaryMapToRefFlowFunction_32, (b) -> isDirty_binaryMapToRefFlowFunction_32 = b);
       dirtyFlagUpdateMap.put(
-          binaryMapToRefFlowFunction_43, (b) -> isDirty_binaryMapToRefFlowFunction_43 = b);
-      dirtyFlagUpdateMap.put(callbackImpl_74, (b) -> isDirty_callbackImpl_74 = b);
+          binaryMapToRefFlowFunction_36, (b) -> isDirty_binaryMapToRefFlowFunction_36 = b);
+      dirtyFlagUpdateMap.put(
+          binaryMapToRefFlowFunction_44, (b) -> isDirty_binaryMapToRefFlowFunction_44 = b);
       dirtyFlagUpdateMap.put(callbackImpl_75, (b) -> isDirty_callbackImpl_75 = b);
+      dirtyFlagUpdateMap.put(callbackImpl_76, (b) -> isDirty_callbackImpl_76 = b);
       dirtyFlagUpdateMap.put(clock, (b) -> isDirty_clock = b);
       dirtyFlagUpdateMap.put(derivedRateNode_27, (b) -> isDirty_derivedRateNode_27 = b);
       dirtyFlagUpdateMap.put(feePositionMap, (b) -> isDirty_feePositionMap = b);
@@ -2697,26 +2832,26 @@ public class FluxtionPnlCalculator
       dirtyFlagUpdateMap.put(
           mapRef2RefFlowFunction_30, (b) -> isDirty_mapRef2RefFlowFunction_30 = b);
       dirtyFlagUpdateMap.put(
-          mapRef2RefFlowFunction_33, (b) -> isDirty_mapRef2RefFlowFunction_33 = b);
+          mapRef2RefFlowFunction_34, (b) -> isDirty_mapRef2RefFlowFunction_34 = b);
       dirtyFlagUpdateMap.put(
-          mapRef2RefFlowFunction_37, (b) -> isDirty_mapRef2RefFlowFunction_37 = b);
+          mapRef2RefFlowFunction_38, (b) -> isDirty_mapRef2RefFlowFunction_38 = b);
       dirtyFlagUpdateMap.put(
-          mapRef2RefFlowFunction_39, (b) -> isDirty_mapRef2RefFlowFunction_39 = b);
+          mapRef2RefFlowFunction_40, (b) -> isDirty_mapRef2RefFlowFunction_40 = b);
       dirtyFlagUpdateMap.put(
-          mapRef2RefFlowFunction_45, (b) -> isDirty_mapRef2RefFlowFunction_45 = b);
+          mapRef2RefFlowFunction_46, (b) -> isDirty_mapRef2RefFlowFunction_46 = b);
       dirtyFlagUpdateMap.put(
-          mapRef2RefFlowFunction_47, (b) -> isDirty_mapRef2RefFlowFunction_47 = b);
+          mapRef2RefFlowFunction_48, (b) -> isDirty_mapRef2RefFlowFunction_48 = b);
       dirtyFlagUpdateMap.put(mapRef2RefFlowFunction_5, (b) -> isDirty_mapRef2RefFlowFunction_5 = b);
       dirtyFlagUpdateMap.put(
-          mapRef2RefFlowFunction_52, (b) -> isDirty_mapRef2RefFlowFunction_52 = b);
+          mapRef2RefFlowFunction_53, (b) -> isDirty_mapRef2RefFlowFunction_53 = b);
       dirtyFlagUpdateMap.put(
-          mapRef2RefFlowFunction_56, (b) -> isDirty_mapRef2RefFlowFunction_56 = b);
+          mapRef2RefFlowFunction_57, (b) -> isDirty_mapRef2RefFlowFunction_57 = b);
       dirtyFlagUpdateMap.put(
-          mapRef2RefFlowFunction_60, (b) -> isDirty_mapRef2RefFlowFunction_60 = b);
+          mapRef2RefFlowFunction_61, (b) -> isDirty_mapRef2RefFlowFunction_61 = b);
       dirtyFlagUpdateMap.put(
-          mapRef2RefFlowFunction_64, (b) -> isDirty_mapRef2RefFlowFunction_64 = b);
+          mapRef2RefFlowFunction_65, (b) -> isDirty_mapRef2RefFlowFunction_65 = b);
       dirtyFlagUpdateMap.put(
-          mapRef2RefFlowFunction_68, (b) -> isDirty_mapRef2RefFlowFunction_68 = b);
+          mapRef2RefFlowFunction_69, (b) -> isDirty_mapRef2RefFlowFunction_69 = b);
       dirtyFlagUpdateMap.put(mapRef2RefFlowFunction_7, (b) -> isDirty_mapRef2RefFlowFunction_7 = b);
       dirtyFlagUpdateMap.put(mapRef2RefFlowFunction_9, (b) -> isDirty_mapRef2RefFlowFunction_9 = b);
       dirtyFlagUpdateMap.put(mergeFlowFunction_2, (b) -> isDirty_mergeFlowFunction_2 = b);
@@ -2726,14 +2861,14 @@ public class FluxtionPnlCalculator
       dirtyFlagUpdateMap.put(netPnl, (b) -> isDirty_netPnl = b);
       dirtyFlagUpdateMap.put(pnl, (b) -> isDirty_pnl = b);
       dirtyFlagUpdateMap.put(positionMap, (b) -> isDirty_positionMap = b);
-      dirtyFlagUpdateMap.put(pushFlowFunction_54, (b) -> isDirty_pushFlowFunction_54 = b);
-      dirtyFlagUpdateMap.put(pushFlowFunction_58, (b) -> isDirty_pushFlowFunction_58 = b);
-      dirtyFlagUpdateMap.put(pushFlowFunction_62, (b) -> isDirty_pushFlowFunction_62 = b);
-      dirtyFlagUpdateMap.put(pushFlowFunction_66, (b) -> isDirty_pushFlowFunction_66 = b);
-      dirtyFlagUpdateMap.put(pushFlowFunction_70, (b) -> isDirty_pushFlowFunction_70 = b);
+      dirtyFlagUpdateMap.put(pushFlowFunction_55, (b) -> isDirty_pushFlowFunction_55 = b);
+      dirtyFlagUpdateMap.put(pushFlowFunction_59, (b) -> isDirty_pushFlowFunction_59 = b);
+      dirtyFlagUpdateMap.put(pushFlowFunction_63, (b) -> isDirty_pushFlowFunction_63 = b);
+      dirtyFlagUpdateMap.put(pushFlowFunction_67, (b) -> isDirty_pushFlowFunction_67 = b);
       dirtyFlagUpdateMap.put(pushFlowFunction_71, (b) -> isDirty_pushFlowFunction_71 = b);
       dirtyFlagUpdateMap.put(pushFlowFunction_72, (b) -> isDirty_pushFlowFunction_72 = b);
       dirtyFlagUpdateMap.put(pushFlowFunction_73, (b) -> isDirty_pushFlowFunction_73 = b);
+      dirtyFlagUpdateMap.put(pushFlowFunction_74, (b) -> isDirty_pushFlowFunction_74 = b);
       dirtyFlagUpdateMap.put(rates, (b) -> isDirty_rates = b);
       dirtyFlagUpdateMap.put(tradeFees, (b) -> isDirty_tradeFees = b);
     }
@@ -2756,12 +2891,18 @@ public class FluxtionPnlCalculator
         | isDirty_mapRef2RefFlowFunction_30;
   }
 
-  private boolean guardCheck_binaryMapToRefFlowFunction_35() {
-    return isDirty_mapRef2RefFlowFunction_19 | isDirty_mapRef2RefFlowFunction_33;
+  private boolean guardCheck_binaryMapToRefFlowFunction_32() {
+    return isDirty_binaryMapToRefFlowFunction_31
+        | isDirty_derivedRateNode_27
+        | isDirty_mapRef2RefFlowFunction_26;
   }
 
-  private boolean guardCheck_binaryMapToRefFlowFunction_43() {
-    return isDirty_mapRef2RefFlowFunction_26 | isDirty_mapRef2RefFlowFunction_33;
+  private boolean guardCheck_binaryMapToRefFlowFunction_36() {
+    return isDirty_mapRef2RefFlowFunction_19 | isDirty_mapRef2RefFlowFunction_34;
+  }
+
+  private boolean guardCheck_binaryMapToRefFlowFunction_44() {
+    return isDirty_mapRef2RefFlowFunction_26 | isDirty_mapRef2RefFlowFunction_34;
   }
 
   private boolean guardCheck_netPnl() {
@@ -2773,15 +2914,15 @@ public class FluxtionPnlCalculator
   }
 
   private boolean guardCheck_flatMapFlowFunction_1() {
-    return isDirty_callbackImpl_74;
-  }
-
-  private boolean guardCheck_flatMapFlowFunction_3() {
     return isDirty_callbackImpl_75;
   }
 
+  private boolean guardCheck_flatMapFlowFunction_3() {
+    return isDirty_callbackImpl_76;
+  }
+
   private boolean guardCheck_feePositionMap() {
-    return isDirty_mapRef2RefFlowFunction_56;
+    return isDirty_mapRef2RefFlowFunction_57;
   }
 
   private boolean guardCheck_mapRef2RefFlowFunction_5() {
@@ -2830,68 +2971,68 @@ public class FluxtionPnlCalculator
     return isDirty_filterFlowFunction_28 | isDirty_handlerMtmInstrument;
   }
 
-  private boolean guardCheck_mapRef2RefFlowFunction_33() {
-    return isDirty_binaryMapToRefFlowFunction_31;
+  private boolean guardCheck_mapRef2RefFlowFunction_34() {
+    return isDirty_binaryMapToRefFlowFunction_32;
   }
 
-  private boolean guardCheck_mapRef2RefFlowFunction_37() {
-    return isDirty_binaryMapToRefFlowFunction_35 | isDirty_handlerSignal_positionUpdate;
+  private boolean guardCheck_mapRef2RefFlowFunction_38() {
+    return isDirty_binaryMapToRefFlowFunction_36 | isDirty_handlerSignal_positionUpdate;
   }
 
-  private boolean guardCheck_mapRef2RefFlowFunction_39() {
-    return isDirty_mapRef2RefFlowFunction_37;
+  private boolean guardCheck_mapRef2RefFlowFunction_40() {
+    return isDirty_mapRef2RefFlowFunction_38;
   }
 
-  private boolean guardCheck_mapRef2RefFlowFunction_45() {
-    return isDirty_binaryMapToRefFlowFunction_43 | isDirty_handlerSignal_positionUpdate;
+  private boolean guardCheck_mapRef2RefFlowFunction_46() {
+    return isDirty_binaryMapToRefFlowFunction_44 | isDirty_handlerSignal_positionUpdate;
   }
 
-  private boolean guardCheck_mapRef2RefFlowFunction_47() {
-    return isDirty_mapRef2RefFlowFunction_45;
+  private boolean guardCheck_mapRef2RefFlowFunction_48() {
+    return isDirty_mapRef2RefFlowFunction_46;
   }
 
-  private boolean guardCheck_mapRef2RefFlowFunction_52() {
+  private boolean guardCheck_mapRef2RefFlowFunction_53() {
     return isDirty_mapRef2RefFlowFunction_19;
   }
 
-  private boolean guardCheck_mapRef2RefFlowFunction_56() {
+  private boolean guardCheck_mapRef2RefFlowFunction_57() {
     return isDirty_mapRef2RefFlowFunction_26;
   }
 
-  private boolean guardCheck_mapRef2RefFlowFunction_60() {
-    return isDirty_mapRef2RefFlowFunction_33;
+  private boolean guardCheck_mapRef2RefFlowFunction_61() {
+    return isDirty_mapRef2RefFlowFunction_34;
   }
 
-  private boolean guardCheck_mapRef2RefFlowFunction_64() {
-    return isDirty_mapRef2RefFlowFunction_37;
+  private boolean guardCheck_mapRef2RefFlowFunction_65() {
+    return isDirty_mapRef2RefFlowFunction_38;
   }
 
-  private boolean guardCheck_mapRef2RefFlowFunction_68() {
-    return isDirty_mapRef2RefFlowFunction_45;
+  private boolean guardCheck_mapRef2RefFlowFunction_69() {
+    return isDirty_mapRef2RefFlowFunction_46;
   }
 
   private boolean guardCheck_mtmFeePositionMap() {
-    return isDirty_mapRef2RefFlowFunction_68;
+    return isDirty_mapRef2RefFlowFunction_69;
   }
 
   private boolean guardCheck_mtmPositionMap() {
-    return isDirty_mapRef2RefFlowFunction_64;
+    return isDirty_mapRef2RefFlowFunction_65;
   }
 
   private boolean guardCheck_pnl() {
-    return isDirty_handlerSignal_positionUpdate | isDirty_mapRef2RefFlowFunction_39;
+    return isDirty_handlerSignal_positionUpdate | isDirty_mapRef2RefFlowFunction_40;
   }
 
   private boolean guardCheck_positionMap() {
-    return isDirty_mapRef2RefFlowFunction_52;
+    return isDirty_mapRef2RefFlowFunction_53;
   }
 
   private boolean guardCheck_rates() {
-    return isDirty_mapRef2RefFlowFunction_60;
+    return isDirty_mapRef2RefFlowFunction_61;
   }
 
   private boolean guardCheck_tradeFees() {
-    return isDirty_handlerSignal_positionUpdate | isDirty_mapRef2RefFlowFunction_47;
+    return isDirty_handlerSignal_positionUpdate | isDirty_mapRef2RefFlowFunction_48;
   }
 
   private boolean guardCheck_mergeFlowFunction_2() {
@@ -2902,35 +3043,35 @@ public class FluxtionPnlCalculator
     return isDirty_mapRef2RefFlowFunction_20 | isDirty_mapRef2RefFlowFunction_21;
   }
 
-  private boolean guardCheck_pushFlowFunction_54() {
+  private boolean guardCheck_pushFlowFunction_55() {
     return isDirty_positionMap;
   }
 
-  private boolean guardCheck_pushFlowFunction_58() {
+  private boolean guardCheck_pushFlowFunction_59() {
     return isDirty_feePositionMap;
   }
 
-  private boolean guardCheck_pushFlowFunction_62() {
+  private boolean guardCheck_pushFlowFunction_63() {
     return isDirty_rates;
   }
 
-  private boolean guardCheck_pushFlowFunction_66() {
+  private boolean guardCheck_pushFlowFunction_67() {
     return isDirty_mtmPositionMap;
   }
 
-  private boolean guardCheck_pushFlowFunction_70() {
+  private boolean guardCheck_pushFlowFunction_71() {
     return isDirty_mtmFeePositionMap;
   }
 
-  private boolean guardCheck_pushFlowFunction_71() {
+  private boolean guardCheck_pushFlowFunction_72() {
     return isDirty_tradeFees;
   }
 
-  private boolean guardCheck_pushFlowFunction_72() {
+  private boolean guardCheck_pushFlowFunction_73() {
     return isDirty_pnl;
   }
 
-  private boolean guardCheck_pushFlowFunction_73() {
+  private boolean guardCheck_pushFlowFunction_74() {
     return isDirty_netPnl;
   }
 
@@ -2943,35 +3084,35 @@ public class FluxtionPnlCalculator
   }
 
   private boolean guardCheck_feePositionListener() {
-    return isDirty_pushFlowFunction_58;
+    return isDirty_pushFlowFunction_59;
   }
 
   private boolean guardCheck_mtmFeePositionListener() {
-    return isDirty_pushFlowFunction_70;
+    return isDirty_pushFlowFunction_71;
   }
 
   private boolean guardCheck_mtmPositionListener() {
-    return isDirty_pushFlowFunction_66;
+    return isDirty_pushFlowFunction_67;
   }
 
   private boolean guardCheck_netPnlListener() {
-    return isDirty_pushFlowFunction_73;
+    return isDirty_pushFlowFunction_74;
   }
 
   private boolean guardCheck_pnlListener() {
-    return isDirty_pushFlowFunction_72;
+    return isDirty_pushFlowFunction_73;
   }
 
   private boolean guardCheck_positionListener() {
-    return isDirty_pushFlowFunction_54;
+    return isDirty_pushFlowFunction_55;
   }
 
   private boolean guardCheck_rateListener() {
-    return isDirty_pushFlowFunction_62;
+    return isDirty_pushFlowFunction_63;
   }
 
   private boolean guardCheck_tradeFeesListener() {
-    return isDirty_pushFlowFunction_71;
+    return isDirty_pushFlowFunction_72;
   }
 
   @Override
