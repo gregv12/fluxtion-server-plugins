@@ -114,6 +114,16 @@ public class PnlCalculator {
         return this;
     }
 
+    public PnlCalculator addTradeFeesPositionMapListener(Consumer<Map<String, Double>> pnlConsumer) {
+        fluxtionPnlCalculator.addSink("feePositionListener", pnlConsumer);
+        return this;
+    }
+
+    public PnlCalculator addTradeFeesMtmPositionMapListener(Consumer<Map<String, Double>> pnlConsumer) {
+        fluxtionPnlCalculator.addSink("mtmFeePositionListener", pnlConsumer);
+        return this;
+    }
+
     public PnlCalculator addPositionListener(Consumer<Map<String, Double>> positionListener) {
         fluxtionPnlCalculator.addSink("positionListener", positionListener);
         return this;

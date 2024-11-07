@@ -44,6 +44,8 @@ public class PnlMain {
                 .addPnlListener(PnlMain::pnlUpdate)
                 .addNetPnlListener(PnlMain::netPnlUpdate)
                 .addTradeFeesListener(PnlMain::tradeFeesUpdate)
+                .addTradeFeesPositionMapListener(PnlMain::tradeFeesPositionUpdate)
+                .addTradeFeesMtmPositionMapListener(PnlMain::tradeFeesMtmPositionUpdate)
                 .addPositionListener(PnlMain::positionUpdate)
                 .addRateListener(PnlMain::rateUpdate)
                 .addMtmPositionListener(PnlMain::mtmPositionUpdate);
@@ -113,6 +115,14 @@ public class PnlMain {
         System.out.println("get tradeFees   - " + pnlCalculator.tradeFees());
         System.out.println("get pnl         - " + pnlCalculator.pnl());
         System.out.println("get netPnl      - " + pnlCalculator.netPnl());
+    }
+
+    private static void tradeFeesMtmPositionUpdate(Map<String, Double> positionMap) {
+        System.out.println("Callback:FeeMtmPosition -> " + positionMap + " (USD)");
+    }
+
+    private static void tradeFeesPositionUpdate(Map<String, Double> positionMap) {
+        System.out.println("Callback:FeePosition -> " + positionMap + " (USD)");
     }
 
     private static void mtmPositionUpdate(Map<String, Double> positionMap) {

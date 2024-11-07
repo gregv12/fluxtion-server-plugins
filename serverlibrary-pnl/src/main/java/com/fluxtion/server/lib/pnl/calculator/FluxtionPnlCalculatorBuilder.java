@@ -14,6 +14,7 @@ import com.fluxtion.compiler.builder.dataflow.GroupByFlowBuilder;
 import com.fluxtion.compiler.builder.dataflow.JoinFlowBuilder;
 import com.fluxtion.runtime.dataflow.aggregate.function.primitive.DoubleSumFlowFunction;
 import com.fluxtion.runtime.dataflow.groupby.GroupBy;
+import com.fluxtion.runtime.dataflow.helpers.Aggregates;
 import com.fluxtion.runtime.dataflow.helpers.Mappers;
 import com.fluxtion.runtime.event.Signal;
 import com.fluxtion.server.lib.pnl.*;
@@ -37,8 +38,10 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     protected FlowBuilder<Trade> tradeStream;
     protected GroupByFlowBuilder<Instrument, Double> snapshotPositionMap;
     protected GroupByFlowBuilder<Instrument, Double> positionMap;
+    private GroupByFlowBuilder<Instrument, Double> feePositionMp;
     protected GroupByFlowBuilder<Instrument, Double> rateMap;
     protected GroupByFlowBuilder<Instrument, Double> mtmPositionMap;
+    protected GroupByFlowBuilder<Instrument, Double> mtmFeePositionMap;
     protected FlowBuilder<Double> feeStream;
     protected FlowBuilder<Double> pnl;
     protected FlowBuilder<Double> netPnl;
@@ -53,7 +56,6 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         this.eventProcessorConfig = eventProcessorConfig;
         buildSharedNodes();
         buildTradeStream();
-        buildTradeFees();
         buildPositionMap();
         buildRateMap();
         buildMarkToMarket();
@@ -84,17 +86,6 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .merge(batchTradeStream);
     }
 
-    private void buildTradeFees() {
-        feeStream = tradeStream
-                .map(Trade::getFee)
-                .merge(DataFlow.subscribe(TradeBatch.class).map(TradeBatch::getFee))
-                .aggregate(DoubleSumFlowFunction::new)
-                .defaultValue(0.0)
-                .resetTrigger(positionSnapshotReset)
-                .map(MathUtil::round8dp)
-                .publishTriggerOverride(positionUpdateEob);
-    }
-
     private void buildPositionMap() {
         //Asset position map created by PositionSnapshot
         snapshotPositionMap = DataFlow.subscribe(PositionSnapshot.class)
@@ -120,6 +111,13 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .mapValues(MathUtil::addPositions)
                 .defaultValue(GroupBy.emptyCollection())
                 .updateTrigger(positionUpdateEob);
+
+        feePositionMp = tradeStream.map(MathUtil::feePositionTrade)
+                .merge(DataFlow.subscribe(TradeBatch.class).map(MathUtil::feePositionBatch))
+                .groupBy(InstrumentPosition::instrument, InstrumentPosition::position, Aggregates.doubleSumFactory())
+                .defaultValue(GroupBy.emptyCollection())
+                .publishTriggerOverride(positionUpdateEob)
+                .updateTrigger(positionUpdateEob);
     }
 
     private void buildRateMap() {
@@ -130,6 +128,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .groupBy(derivedRateNode::getMtmContraInstrument, derivedRateNode::getMtMRate)
                 .resetTrigger(DataFlow.subscribe(MtmInstrument.class))
                 .mapBiFunction(derivedRateNode::addDerived, positionMap)
+//                .mapBiFunction(derivedRateNode::addDerived, feePositionMp)
                 .defaultValue(GroupBy.emptyCollection());
     }
 
@@ -146,14 +145,21 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .updateTrigger(positionUpdateEob)
                 .id("pnl");
 
+        //mtm fees
+        mtmFeePositionMap = JoinFlowBuilder.leftJoin(feePositionMp, rateMap)
+                .mapValues(MathUtil::mtmPositions)
+                .updateTrigger(positionUpdateEob);
+
+        feeStream = mtmFeePositionMap
+                .reduceValues(DoubleSumFlowFunction::new)
+                .defaultValue(0.0)
+                .updateTrigger(positionUpdateEob);
 
         netPnl = pnl.mapBiFunction(Mappers::subtractDoubles, feeStream)
-                .updateTrigger(positionUpdateEob)
-                .id("netPnl");
+                .updateTrigger(positionUpdateEob);
     }
 
     private void buildSinkOutputs() {
-
         //register position map sink endpoint
         positionMap
                 .mapKeys(Instrument::instrumentName)
@@ -161,10 +167,12 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .id("positionMap")
                 .sink("positionListener");
 
-        //register fee sink endpoint
-        feeStream
-                .id("tradeFees")
-                .sink("tradeFeesListener");
+        //register fee position map sink endpoint
+        feePositionMp
+                .mapKeys(Instrument::instrumentName)
+                .map(GroupBy::toMap)
+                .id("feePositionMap")
+                .sink("feePositionListener");
 
         //register rate map sink endpoint
         rateMap
@@ -180,10 +188,26 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .id("mtmPositionMap")
                 .sink("mtmPositionListener");
 
-        //register aggregate pnl sink endpoint
-        pnl.sink("pnlListener");
+        //register mtm fee position end point
+        mtmFeePositionMap
+                .mapKeys(Instrument::instrumentName)
+                .map(GroupBy::toMap)
+                .id("mtmFeePositionMap")
+                .sink("mtmFeePositionListener");
+
+        //register fee sink endpoint
+        feeStream
+                .id("tradeFees")
+                .sink("tradeFeesListener");
 
         //register aggregate pnl sink endpoint
-        netPnl.sink("netPnlListener");
+        pnl
+                .id("pnl")
+                .sink("pnlListener");
+
+        //register aggregate pnl sink endpoint
+        netPnl
+                .id("netPnl")
+                .sink("netPnlListener");
     }
 }

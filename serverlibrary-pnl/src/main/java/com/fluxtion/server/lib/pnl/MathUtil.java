@@ -41,4 +41,12 @@ public interface MathUtil {
     static double mergeRates(Tuple<Double, Double> tuple) {
         return tuple.getFirst() == null ? tuple.getSecond() : tuple.getFirst();
     }
+
+    static InstrumentPosition feePositionTrade(Trade trade) {
+        return new InstrumentPosition(trade.getFeeInstrument(), trade.getFee());
+    }
+
+    static InstrumentPosition feePositionBatch(TradeBatch trade) {
+        return new InstrumentPosition(trade.getFeeInstrument(), trade.getFee());
+    }
 }
