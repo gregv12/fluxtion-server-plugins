@@ -15,6 +15,23 @@ public class Trade {
     double dealtVolume;
     double contraVolume;
     double fee;
+    Instrument feeInstrument;
+
+    public Trade(Symbol symbol, double dealtVolume, double contraVolume, double fee) {
+        this.symbol = symbol;
+        this.dealtVolume = dealtVolume;
+        this.contraVolume = contraVolume;
+        this.fee = fee;
+        this.feeInstrument = Instrument.INSTRUMENT_USD;
+    }
+
+    public Trade(Symbol symbol, double dealtVolume, double contraVolume, double fee, Instrument feeInstrument) {
+        this.symbol = symbol;
+        this.dealtVolume = dealtVolume;
+        this.contraVolume = contraVolume;
+        this.fee = fee;
+        this.feeInstrument = feeInstrument;
+    }
 
     public Instrument getDealtInstrument() {
         return symbol.dealtInstrument();

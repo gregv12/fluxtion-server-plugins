@@ -76,7 +76,7 @@ public class DerivedRateNode {
         return midPrice.getRateForInstrument(mtmInstrument);
     }
 
-    public GroupBy<Instrument, Double> addDerived(
+    public GroupBy<Instrument, Double> trimDerivedRates(
             GroupBy<Instrument, Double> rateMapGroupBy,
             GroupBy<Instrument, Double> positionMapGroupBy) {
 
@@ -86,6 +86,28 @@ public class DerivedRateNode {
         derivedRates.fromMap(rateMap);
         Map<Instrument, Double> derivedRateMap = derivedRates.toMap();
         derivedRateMap.put(mtmInstrument, 1.0);
+
+        positionMap.keySet().forEach(
+                i -> {
+                    derivedRateMap.computeIfAbsent(i, positionInstrument -> {
+                        if (graph.containsVertex(positionInstrument) & graph.containsVertex(mtmInstrument)) {
+                            GraphPath<Instrument, DefaultWeightedEdge> path = shortestPath.getPath(positionInstrument, mtmInstrument);
+                            double log10Rate = shortestPath.getPathWeight(positionInstrument, mtmInstrument);
+                            return Double.isInfinite(log10Rate) ? Double.NaN : Math.pow(10, log10Rate);
+                        }
+                        return Double.NaN;
+                    });
+                }
+        );
+        return derivedRates;
+    }
+
+    public GroupBy<Instrument, Double> addMissingDerivedRates(
+            GroupBy<Instrument, Double> rateMapGroupBy,
+            GroupBy<Instrument, Double> positionMapGroupBy) {
+
+        Map<Instrument, Double> positionMap = positionMapGroupBy.toMap();
+        Map<Instrument, Double> derivedRateMap = derivedRates.toMap();
 
         positionMap.keySet().forEach(
                 i -> {
