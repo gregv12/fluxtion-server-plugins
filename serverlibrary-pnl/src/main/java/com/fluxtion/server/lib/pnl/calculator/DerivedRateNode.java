@@ -65,7 +65,7 @@ public class DerivedRateNode {
     }
 
     public boolean isMtmSymbol(MidPrice midPrice) {
-        return midPrice.getOppositeInstrument(mtmInstrument) != null;
+        return midPrice != null && midPrice.getOppositeInstrument(mtmInstrument) != null;
     }
 
     public Instrument getMtmContraInstrument(MidPrice midPrice) {

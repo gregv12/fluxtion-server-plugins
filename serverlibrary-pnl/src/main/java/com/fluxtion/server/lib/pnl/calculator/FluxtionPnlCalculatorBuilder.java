@@ -45,6 +45,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     protected FlowBuilder<Double> feeStream;
     protected FlowBuilder<Double> pnl;
     protected FlowBuilder<Double> netPnl;
+    protected MarkToMarket markToMarket;
 
     public static void buildLookup(EventProcessorConfig config) {
         FluxtionPnlCalculatorBuilder calculatorBuilder = new FluxtionPnlCalculatorBuilder();
@@ -76,6 +77,8 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         //signal listeners for batch and reset triggering
         positionUpdateEob = DataFlow.subscribeToSignal("positionUpdate");
         positionSnapshotReset = DataFlow.subscribeToSignal("positionSnapshotReset");
+        //
+        markToMarket = new MarkToMarket();
     }
 
     private void buildTradeStream() {
@@ -93,6 +96,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .groupBy(InstrumentPosition::instrument, InstrumentPosition::position)
                 .resetTrigger(positionSnapshotReset)
                 .publishTriggerOverride(positionUpdateEob);
+
 
         //create a map of asset positions by instrument, map updates on every Booking request, merge with position snapshot
         positionMap = JoinFlowBuilder.outerJoin(
@@ -142,8 +146,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         pnl = mtmPositionMap
                 .reduceValues(DoubleSumFlowFunction::new)
                 .defaultValue(Double.NaN)
-                .updateTrigger(positionUpdateEob)
-                .id("pnl");
+                .updateTrigger(positionUpdateEob);
 
         //mtm fees
         mtmFeePositionMap = JoinFlowBuilder.leftJoin(feePositionMp, rateMap)
@@ -164,6 +167,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         positionMap
                 .mapKeys(Instrument::instrumentName)
                 .map(GroupBy::toMap)
+                .push(markToMarket::setPositionMap)
                 .id("positionMap")
                 .sink("positionListener");
 
@@ -171,6 +175,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         feePositionMp
                 .mapKeys(Instrument::instrumentName)
                 .map(GroupBy::toMap)
+                .push(markToMarket::setFeesPositionMap)
                 .id("feePositionMap")
                 .sink("feePositionListener");
 
@@ -185,6 +190,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         mtmPositionMap
                 .mapKeys(Instrument::instrumentName)
                 .map(GroupBy::toMap)
+                .push(markToMarket::setMtmPositionMap)
                 .id("mtmPositionMap")
                 .sink("mtmPositionListener");
 
@@ -192,21 +198,25 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         mtmFeePositionMap
                 .mapKeys(Instrument::instrumentName)
                 .map(GroupBy::toMap)
+                .push(markToMarket::setFeesMtmPositionMap)
                 .id("mtmFeePositionMap")
                 .sink("mtmFeePositionListener");
 
         //register fee sink endpoint
         feeStream
+                .push(markToMarket::setFees)
                 .id("tradeFees")
                 .sink("tradeFeesListener");
 
         //register aggregate pnl sink endpoint
         pnl
+                .push(markToMarket::setTradePnl)
                 .id("pnl")
                 .sink("pnlListener");
 
         //register aggregate pnl sink endpoint
         netPnl
+                .push(markToMarket::setPnlNetFees)
                 .id("netPnl")
                 .sink("netPnlListener");
     }

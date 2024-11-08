@@ -98,7 +98,6 @@ public class PnlMain {
         );
         System.out.println("--- finish price trade batch ----\n");
 
-
         pnlCalculator.setMtmInstrument(moca);
         System.out.println("--- finish change mtm to MOCA ----\n");
 
@@ -131,6 +130,10 @@ public class PnlMain {
 
     private static void positionUpdate(Map<String, Double> positionMap) {
         System.out.println("Callback:Position    -> " + positionMap);
+    }
+
+    private static void symbolPositionUpdate(String symbol, Map<String, Double> positionMap) {
+        System.out.println("Callback:Position    -> " + positionMap + " symbol: " + symbol);
     }
 
     private static void rateUpdate(Map<String, Double> positionMap) {
