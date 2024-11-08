@@ -99,54 +99,26 @@ public class PnlCalculator {
         return processTradeBatch(tradeToBatchFunction.apply(trade));
     }
 
-    public PnlCalculator addPnlListener(Consumer<Double> pnlConsumer) {
-        fluxtionPnlCalculator.addSink("pnlListener", pnlConsumer);
+    public PnlCalculator addAggregateMtMListener(Consumer<NetMarkToMarket> mtMConsumer) {
+        fluxtionPnlCalculator.addSink("globalNetMtmListener", mtMConsumer);
         return this;
     }
 
-    public PnlCalculator addNetPnlListener(Consumer<Double> pnlConsumer) {
-        fluxtionPnlCalculator.addSink("netPnlListener", pnlConsumer);
+
+    public PnlCalculator addInstrumentMtMListener(Consumer<Map<Instrument, NetMarkToMarket>> mtMConsumer) {
+        fluxtionPnlCalculator.addSink("instrumentNetMtmListener", mtMConsumer);
         return this;
     }
 
-    public PnlCalculator addTradeFeesListener(Consumer<Double> pnlConsumer) {
-        fluxtionPnlCalculator.addSink("tradeFeesListener", pnlConsumer);
-        return this;
-    }
 
-    public PnlCalculator addTradeFeesPositionMapListener(Consumer<Map<String, Double>> pnlConsumer) {
-        fluxtionPnlCalculator.addSink("feePositionListener", pnlConsumer);
-        return this;
-    }
-
-    public PnlCalculator addTradeFeesMtmPositionMapListener(Consumer<Map<String, Double>> pnlConsumer) {
-        fluxtionPnlCalculator.addSink("mtmFeePositionListener", pnlConsumer);
-        return this;
-    }
-
-    public PnlCalculator addPositionListener(Consumer<Map<String, Double>> positionListener) {
-        fluxtionPnlCalculator.addSink("positionListener", positionListener);
-        return this;
-    }
-
-    public PnlCalculator addMtmPositionListener(Consumer<Map<String, Double>> positionListener) {
-        fluxtionPnlCalculator.addSink("mtmPositionListener", positionListener);
-        return this;
-    }
-
-    public PnlCalculator addRateListener(Consumer<Map<String, Double>> rateListener) {
-        fluxtionPnlCalculator.addSink("rateListener", rateListener);
-        return this;
+    @SneakyThrows
+    public NetMarkToMarket aggregateMtm() {
+        return fluxtionPnlCalculator.getStreamed("globalNetMtm");
     }
 
     @SneakyThrows
-    public Map<String, Double> positionMap() {
-        return fluxtionPnlCalculator.getStreamed("positionMap");
-    }
-
-    @SneakyThrows
-    public Map<String, Double> mtmPositionMap() {
-        return fluxtionPnlCalculator.getStreamed("mtmPositionMap");
+    public Map<Instrument, NetMarkToMarket> instrumentMtm() {
+        return fluxtionPnlCalculator.getStreamed("instrumentNetMtm");
     }
 
     @SneakyThrows
@@ -156,16 +128,16 @@ public class PnlCalculator {
 
     @SneakyThrows
     public Double tradeFees() {
-        return fluxtionPnlCalculator.getStreamed("tradeFees");
+        return aggregateMtm().fees();
     }
 
     @SneakyThrows
     public Double pnl() {
-        return fluxtionPnlCalculator.getStreamed("pnl");
+        return aggregateMtm().tradePnl();
     }
 
     @SneakyThrows
     public Double netPnl() {
-        return fluxtionPnlCalculator.getStreamed("netPnl");
+        return aggregateMtm().pnlNetFees();
     }
 }

@@ -23,12 +23,13 @@ public class DerivedTest {
     public static final Instrument CHF = new Instrument("CHF");
     public static final Instrument JPY = new Instrument("JPY");
     public static final Instrument GBP = new Instrument("GBP");
-    private final static Symbol symbolEURUSD = new Symbol("EURUSD", EUR, USD);
-    private final static Symbol symbolEURCHF = new Symbol("EURCHF", EUR, CHF);
-    private final static Symbol symbolUSDCHF = new Symbol("USDCHF", USD, CHF);
-    private final static Symbol symbolEURJPY = new Symbol("EURJPY", EUR, JPY);
-    private final static Symbol symbolUSDJPY = new Symbol("USDJPY", USD, JPY);
-    private final static Symbol symbolGBPUSD = new Symbol("GBPUSD", GBP, USD);
+    public final static Symbol symbolEURUSD = new Symbol("EURUSD", EUR, USD);
+    public final static Symbol symbolEURCHF = new Symbol("EURCHF", EUR, CHF);
+    public final static Symbol symbolUSDCHF = new Symbol("USDCHF", USD, CHF);
+    public final static Symbol symbolCHFUSD = new Symbol("CHFUSD", CHF, USD);
+    public final static Symbol symbolEURJPY = new Symbol("EURJPY", EUR, JPY);
+    public final static Symbol symbolUSDJPY = new Symbol("USDJPY", USD, JPY);
+    public final static Symbol symbolGBPUSD = new Symbol("GBPUSD", GBP, USD);
 
     @Test
     public void testCrossRate() {
@@ -77,7 +78,7 @@ public class DerivedTest {
 
 //        System.out.println("\n send trade");
         pnlCalculator.processTrade(new Trade(symbolEURCHF, 10, -12.5, 0));
-        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
+        Assertions.assertEquals(0, pnlCalculator.pnl());
 
 //        System.out.println("\nsend EURUSD rate");
         pnlCalculator.priceUpdate("EURUSD", 1.5);
@@ -114,16 +115,16 @@ public class DerivedTest {
         pnlCalculator.addSymbol(symbolEURCHF);
         pnlCalculator.addSymbol(symbolGBPUSD);
         pnlCalculator.processTrade(new Trade(symbolEURCHF, 10, -12.5, 10, Instrument.INSTRUMENT_GBP));
-        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
-        Assertions.assertTrue(Double.isNaN(pnlCalculator.tradeFees()));
-        Assertions.assertTrue(Double.isNaN(pnlCalculator.netPnl()));
+        Assertions.assertEquals(0, pnlCalculator.pnl());
+        Assertions.assertEquals(0, pnlCalculator.tradeFees());
+        Assertions.assertEquals(0, pnlCalculator.netPnl());
         System.out.println("----- trade complete -------");
 
 
         pnlCalculator.priceUpdate("EURCHF", 1.2);
-        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
-        Assertions.assertTrue(Double.isNaN(pnlCalculator.tradeFees()));
-        Assertions.assertTrue(Double.isNaN(pnlCalculator.netPnl()));
+        Assertions.assertEquals(0, pnlCalculator.pnl());
+        Assertions.assertEquals(0, pnlCalculator.tradeFees());
+        Assertions.assertEquals(0, pnlCalculator.netPnl());
         System.out.println("----- EURCHF rate complete -------");
 
 

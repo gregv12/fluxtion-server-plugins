@@ -41,16 +41,11 @@ public class PnlMain {
                 .priceUpdate("MOCA-USD", 0.5)
                 .priceUpdate("USDT-USD", 1)
                 //add listeners
-                .addPnlListener(PnlMain::pnlUpdate)
-                .addNetPnlListener(PnlMain::netPnlUpdate)
-                .addTradeFeesListener(PnlMain::tradeFeesUpdate)
-                .addTradeFeesPositionMapListener(PnlMain::tradeFeesPositionUpdate)
-                .addTradeFeesMtmPositionMapListener(PnlMain::tradeFeesMtmPositionUpdate)
-                .addPositionListener(PnlMain::positionUpdate)
-                .addRateListener(PnlMain::rateUpdate)
-                .addMtmPositionListener(PnlMain::mtmPositionUpdate);
+                .addAggregateMtMListener(PnlMain::aggregateMtMListener)
+                .addInstrumentMtMListener(PnlMain::instrumentMtmListener)
+        ;
 
-        System.out.println("ratesMap - " + pnlCalculator.ratesMap());
+//        System.out.println("ratesMap - " + pnlCalculator.ratesMap());
         System.out.println("--- finish bootstrap rates ----\n");
 
         pnlCalculator.positionSnapshot(PositionSnapshot.of(
@@ -107,49 +102,21 @@ public class PnlMain {
         pnlCalculator.addSymbol(new Symbol("GBPUSD", Instrument.INSTRUMENT_GBP, Instrument.INSTRUMENT_USD));
         pnlCalculator.priceUpdate("GBPUSD", 1.234);
 
-        System.out.println("--- getters ---");
-        System.out.println("get rates       - " + pnlCalculator.ratesMap());
-        System.out.println("get position    - " + pnlCalculator.positionMap());
-        System.out.println("get mtmPosition - " + pnlCalculator.mtmPositionMap() + " (MOCA)");
-        System.out.println("get tradeFees   - " + pnlCalculator.tradeFees());
-        System.out.println("get pnl         - " + pnlCalculator.pnl());
-        System.out.println("get netPnl      - " + pnlCalculator.netPnl());
+//        System.out.println("--- getters ---");
+//        System.out.println("get rates       - " + pnlCalculator.ratesMap());
+//        System.out.println("get position    - " + pnlCalculator.positionMap());
+//        System.out.println("get mtmPosition - " + pnlCalculator.mtmPositionMap() + " (MOCA)");
+//        System.out.println("get tradeFees   - " + pnlCalculator.tradeFees());
+//        System.out.println("get pnl         - " + pnlCalculator.pnl());
+//        System.out.println("get netPnl      - " + pnlCalculator.netPnl());
     }
 
-    private static void tradeFeesMtmPositionUpdate(Map<String, Double> positionMap) {
-        System.out.println("Callback:FeeMtmPosition -> " + positionMap + " (USD)");
+    private static void instrumentMtmListener(Map<Instrument, NetMarkToMarket> instrumentNetMarkToMarketMap) {
+        System.out.println("Callback:instrumentMtMListener -> " + instrumentNetMarkToMarketMap);
     }
 
-    private static void tradeFeesPositionUpdate(Map<String, Double> positionMap) {
-        System.out.println("Callback:FeePosition -> " + positionMap + " (USD)");
-    }
-
-    private static void mtmPositionUpdate(Map<String, Double> positionMap) {
-        System.out.println("Callback:MtmPosition -> " + positionMap + " (USD)");
-    }
-
-    private static void positionUpdate(Map<String, Double> positionMap) {
-        System.out.println("Callback:Position    -> " + positionMap);
-    }
-
-    private static void symbolPositionUpdate(String symbol, Map<String, Double> positionMap) {
-        System.out.println("Callback:Position    -> " + positionMap + " symbol: " + symbol);
-    }
-
-    private static void rateUpdate(Map<String, Double> positionMap) {
-        System.out.println("Callback:Rates       -> " + positionMap);
-    }
-
-    public static void tradeFeesUpdate(double tradeFees) {
-        System.out.println("Callback:TradeFees   -> " + tradeFees);
-    }
-
-    public static void pnlUpdate(double pnl) {
-        System.out.println("Callback:Pnl         -> " + pnl);
-    }
-
-    public static void netPnlUpdate(double pnl) {
-        System.out.println("Callback:NetPnl      -> " + pnl);
+    private static void aggregateMtMListener(NetMarkToMarket positionMap) {
+        System.out.println("Callback:aggregateMtMListener -> " + positionMap);
     }
 
     public static String input = """

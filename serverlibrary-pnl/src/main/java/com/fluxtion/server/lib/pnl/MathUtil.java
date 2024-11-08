@@ -26,16 +26,10 @@ public interface MathUtil {
         return round(amount, 8);
     }
 
-    static double addPositions(Tuple<Double, Double> tuple) {
-        double position1 = tuple.getFirst() == null ? 0 : tuple.getFirst();
-        double position2 = tuple.getSecond() == null ? 0 : tuple.getSecond();
+    static double addPositions(Double pos1, Double pos2) {
+        double position1 = pos1 == null ? 0 : pos1;
+        double position2 = pos2 == null ? 0 : pos2;
         return MathUtil.round(position1 + position2, 8);
-    }
-
-    static double mtmPositions(Tuple<Double, Double> tuple) {
-        double position1 = tuple.getFirst() == null ? 0 : tuple.getFirst();
-        double rate = tuple.getSecond() == null ? Double.NaN : tuple.getSecond();
-        return Double.isNaN(rate) ? Double.NaN : MathUtil.round(position1 * rate, 8);
     }
 
     static double mergeRates(Tuple<Double, Double> tuple) {
