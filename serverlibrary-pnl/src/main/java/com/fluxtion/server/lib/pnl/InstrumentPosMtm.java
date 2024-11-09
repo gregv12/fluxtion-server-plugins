@@ -45,8 +45,15 @@ public class InstrumentPosMtm {
     public InstrumentPosMtm combine(InstrumentPosMtm from) {
         if (from != null) {
             this.tradePnl += from.tradePnl;
-            this.positionMap.putAll(from.positionMap);
-            this.mtmPositionsMap.putAll(from.mtmPositionsMap);
+
+            from.positionMap.forEach((key, value) -> {
+                positionMap.merge(key, value, Double::sum);
+            });
+
+            from.mtmPositionsMap.forEach((key, value) -> {
+                mtmPositionsMap.merge(key, value, Double::sum);
+            });
+
             this.bookName = bookName == null ? from.bookName : bookName;
         }
         return this;

@@ -35,8 +35,15 @@ public class FeeInstrumentPosMtm {
     public FeeInstrumentPosMtm combine(FeeInstrumentPosMtm from) {
         if (from != null) {
             this.fees += from.fees;
-            this.feesPositionMap.putAll(from.feesPositionMap);
-            this.feesMtmPositionMap.putAll(from.feesMtmPositionMap);
+
+            from.feesPositionMap.forEach((key, value) -> {
+                feesPositionMap.merge(key, value, Double::sum);
+            });
+
+            from.feesMtmPositionMap.forEach((key, value) -> {
+                feesMtmPositionMap.merge(key, value, Double::sum);
+            });
+
             this.bookName = bookName == null ? from.bookName : bookName;
         }
         return this;

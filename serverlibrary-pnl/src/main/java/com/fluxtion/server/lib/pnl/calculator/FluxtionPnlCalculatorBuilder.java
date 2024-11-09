@@ -81,18 +81,18 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     private void buildPositionMap() {
         //position by instrument aggregates dealt and contra quantities
         dealtAndContraInstPosition = tradeStream
-                .groupBy(Trade::getDealtInstrument, InstrumentPosMtmAggregate::dealt)
+                .groupBy(Trade::getDealtInstrument, SingleInstrumentPosMtmAggregate::dealt)
                 .resetTrigger(positionSnapshotReset);
         contraAndDealtInstPosition = tradeStream
-                .groupBy(Trade::getDealtInstrument, InstrumentPosMtmAggregate::contra)
+                .groupBy(Trade::getContraInstrument, SingleInstrumentPosMtmAggregate::contra)
                 .resetTrigger(positionSnapshotReset);
 
         //position by instrument aggregates single side, either dealt and contra quantity
         dealtOnlyInstPosition = tradeStream
-                .groupBy(Trade::getDealtInstrument, SingleInstrumentPosMtmAggregate::dealt)
+                .groupBy(Trade::getDealtInstrument, InstrumentPosMtmAggregate::dealt)
                 .resetTrigger(positionSnapshotReset);
         contraOnlyInstPosition = tradeStream
-                .groupBy(Trade::getDealtInstrument, SingleInstrumentPosMtmAggregate::contra)
+                .groupBy(Trade::getContraInstrument, InstrumentPosMtmAggregate::contra)
                 .resetTrigger(positionSnapshotReset);
     }
 

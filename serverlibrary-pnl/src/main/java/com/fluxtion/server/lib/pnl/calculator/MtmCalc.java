@@ -65,6 +65,7 @@ public class MtmCalc {
             instrumentPosMtm.combine(m.instrumentMtm());
             feesMtm.combine(m.feesMtm());
         });
+        instrumentPosMtm.setBookName("global");
 
         NetMarkToMarket sumMtm = new NetMarkToMarket(instrumentPosMtm, feesMtm);
         return sumMtm;

@@ -127,16 +127,16 @@ public class FluxtionPnlCalculator
   private final DefaultValue defaultValue_45 = new DefaultValue<>(emptyGroupBy_231);
   private final GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_3 =
       new GroupByFlowFunctionWrapper<>(
-          Trade::getDealtInstrument, Mappers::identity, InstrumentPosMtmAggregate::dealt);
+          Trade::getDealtInstrument, Mappers::identity, SingleInstrumentPosMtmAggregate::dealt);
   private final GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_5 =
       new GroupByFlowFunctionWrapper<>(
-          Trade::getDealtInstrument, Mappers::identity, InstrumentPosMtmAggregate::contra);
+          Trade::getContraInstrument, Mappers::identity, SingleInstrumentPosMtmAggregate::contra);
   private final GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_7 =
       new GroupByFlowFunctionWrapper<>(
-          Trade::getDealtInstrument, Mappers::identity, SingleInstrumentPosMtmAggregate::dealt);
+          Trade::getDealtInstrument, Mappers::identity, InstrumentPosMtmAggregate::dealt);
   private final GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_9 =
       new GroupByFlowFunctionWrapper<>(
-          Trade::getDealtInstrument, Mappers::identity, SingleInstrumentPosMtmAggregate::contra);
+          Trade::getContraInstrument, Mappers::identity, InstrumentPosMtmAggregate::contra);
   private final GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_11 =
       new GroupByFlowFunctionWrapper<>(
           Trade::getDealtInstrument, Mappers::identity, FeeInstrumentPosMtmAggregate::new);

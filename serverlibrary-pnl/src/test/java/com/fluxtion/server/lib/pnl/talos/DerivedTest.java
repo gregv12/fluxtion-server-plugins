@@ -5,14 +5,20 @@
 
 package com.fluxtion.server.lib.pnl.talos;
 
-import com.fluxtion.server.lib.pnl.MidPrice;
-import com.fluxtion.server.lib.pnl.PnlCalculator;
-import com.fluxtion.server.lib.pnl.Trade;
+import com.fluxtion.server.lib.pnl.*;
 import com.fluxtion.server.lib.pnl.calculator.DerivedRateNode;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import static com.fluxtion.server.lib.pnl.refdata.Instrument.INSTRUMENT_USD;
+import static com.fluxtion.server.lib.pnl.refdata.Instrument.INSTRUMENT_USDT;
 
 public class DerivedTest {
 
@@ -28,6 +34,30 @@ public class DerivedTest {
     public final static Symbol symbolEURJPY = new Symbol("EURJPY", EUR, JPY);
     public final static Symbol symbolUSDJPY = new Symbol("USDJPY", USD, JPY);
     public final static Symbol symbolGBPUSD = new Symbol("GBPUSD", GBP, USD);
+    public final static Symbol symbolEURGBP = new Symbol("EURGBP", EUR, GBP);
+    private PnlCalculator pnlCalculator;
+    private final boolean log = false;
+    private final List<NetMarkToMarket> mtmUpdates = new ArrayList<>();
+    private final List<Map<Instrument, NetMarkToMarket>> mtmInstUpdates = new ArrayList<>();
+
+    @BeforeEach
+    public void setUp() {
+        pnlCalculator = new PnlCalculator();
+        mtmUpdates.clear();
+        mtmInstUpdates.clear();
+        pnlCalculator.addAggregateMtMListener(m -> {
+            mtmUpdates.add(m);
+            if (log) {
+                System.out.println("\n-------callback aggregate -------\n" + m);
+            }
+        });
+        pnlCalculator.addInstrumentMtMListener(m -> {
+            mtmInstUpdates.add(m);
+            if (log) {
+                System.out.println("\n-------callback instrument -------\n" + m);
+            }
+        });
+    }
 
     @Test
     public void testCrossRate() {
@@ -43,9 +73,6 @@ public class DerivedTest {
 
     @Test
     public void testCalculator() {
-        PnlCalculator pnlCalculator = new PnlCalculator();
-//        pnlCalculator.addAggregateMtMListener(m -> System.out.println("\n-------callback aggregate -------\n" + m));
-//        pnlCalculator.addInstrumentMtMListener(m -> System.out.println("\n-------callback instrument -------\n" + m));
         pnlCalculator.addSymbol(symbolEURUSD);
 
         pnlCalculator.priceUpdate("EURCHF", 1.2);
@@ -74,6 +101,63 @@ public class DerivedTest {
         pnlCalculator.addSymbol(symbolEURJPY);
         pnlCalculator.priceUpdate("EURJPY", 200);
         Assertions.assertEquals(-83.333, pnlCalculator.pnl(), 0.001);
+    }
+
+    @Test
+    public void testPositionSnapshot() {
+        pnlCalculator.positionSnapshot(PositionSnapshot.of(
+                new InstrumentPosition(EUR, 50),
+                new InstrumentPosition(GBP, 12_000),
+                new InstrumentPosition(INSTRUMENT_USD, 800),
+                new InstrumentPosition(INSTRUMENT_USDT, 1500),
+                new InstrumentPosition(INSTRUMENT_USD, 200)
+        ));
+
+        Assertions.assertEquals(1, mtmInstUpdates.size());
+        Assertions.assertEquals(0, mtmInstUpdates.getFirst().size());
+        Assertions.assertEquals(1, mtmUpdates.size());
+
+        NetMarkToMarket mtm = mtmUpdates.getFirst();
+        Map<Instrument, Double> positionMap = mtm.instrumentMtm().getPositionMap();
+        Assertions.assertEquals(50, positionMap.get(EUR));
+        Assertions.assertEquals(12_000, positionMap.get(GBP));
+        Assertions.assertEquals(1500, positionMap.get(INSTRUMENT_USDT));
+        Assertions.assertEquals(200, positionMap.get(INSTRUMENT_USD));
+    }
+
+    @Test
+    public void testTradeBatch() {
+        pnlCalculator.processTradeBatch(
+                TradeBatch.of(200,
+//                        new Trade(symbolEURUSD, 500, -1100, 13),
+//                        new Trade(symbolGBPUSD, -2500, 1300, 13),
+//                        new Trade(symbolEURJPY, -400, 80000, 13),
+                        new Trade(symbolEURJPY, -400, 80000, 13),
+                        new Trade(symbolEURUSD, 500, -1100, 13),
+                        new Trade(symbolUSDCHF, 500, -1100, 13),
+                        new Trade(symbolEURGBP, 1200, -1000, 13),
+                        new Trade(symbolGBPUSD, 1500, -700, 13)
+                )
+        );
+
+//        pnlCalculator.processTrade(new Trade(symbolEURJPY, -400, 80000, 13));
+//        pnlCalculator.processTrade(new Trade(symbolEURUSD, 500, -1100, 13));
+//        pnlCalculator.processTrade(new Trade(symbolUSDCHF, 600, -1100, 13));
+//        pnlCalculator.processTrade(new Trade(symbolGBPUSD, 1500, -700, 13));
+//        pnlCalculator.processTrade(new Trade(symbolEURUSD, 500, -1100, 13));
+//        pnlCalculator.processTrade(new Trade(symbolEURUSD, 500, -1100, 13));
+//        pnlCalculator.processTrade(new Trade(symbolEURGBP, 1200, -1000, 13));
+//        pnlCalculator.processTrade(new Trade(symbolEURGBP, 1200, -1000, 13));
+
+//        Assertions.assertEquals(1, mtmInstUpdates.size());
+//        Assertions.assertEquals(2, mtmInstUpdates.getFirst().size());
+//        Assertions.assertEquals(1, mtmUpdates.size());
+
+//        NetMarkToMarket mtm = mtmUpdates.getFirst();
+//        Map<Instrument, Double> positionMap = mtm.instrumentMtm().getPositionMap();
+//        Assertions.assertEquals(500, positionMap.get(EUR));
+//        Assertions.assertEquals(-2_500, positionMap.get(GBP));
+//        Assertions.assertEquals(200, positionMap.get(USD));
     }
 
     @Test
