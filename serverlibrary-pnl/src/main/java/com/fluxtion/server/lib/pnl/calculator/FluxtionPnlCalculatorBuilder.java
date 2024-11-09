@@ -29,9 +29,9 @@ import lombok.Getter;
 public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
 
     private EventProcessorConfig eventProcessorConfig;
-    protected FlowBuilder<Signal> positionUpdateEob;
-    protected FlowBuilder<Signal> positionSnapshotReset;
-    protected FlowBuilder<Trade> tradeStream;
+    private FlowBuilder<Signal> positionUpdateEob;
+    private FlowBuilder<Signal> positionSnapshotReset;
+    private FlowBuilder<Trade> tradeStream;
     private GroupByFlowBuilder<Instrument, FeeInstrumentPosMtm> instrumentFeeMap;
     private GroupByFlowBuilder<Instrument, InstrumentPosMtm> dealtAndContraInstPosition;
     private GroupByFlowBuilder<Instrument, InstrumentPosMtm> contraAndDealtInstPosition;
@@ -67,7 +67,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     private void buildSharedNodes() {
         positionUpdateEob = DataFlow.subscribeToSignal("positionUpdate");
         positionSnapshotReset = DataFlow.subscribeToSignal("positionSnapshotReset");
-        derivedRateNode = new DerivedRateNode();
+        derivedRateNode = eventProcessorConfig.addNode(new DerivedRateNode(), "derivedRateNode");
     }
 
     private void buildTradeStream() {
@@ -87,8 +87,8 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .resetTrigger(positionSnapshotReset);
 
         //position by instrument aggregates single side, either dealt and contra quantity
-        dealtOnlyInstPosition = tradeStream.
-                groupBy(Trade::getDealtInstrument, SingleInstrumentPosMtmAggregate::dealt)
+        dealtOnlyInstPosition = tradeStream
+                .groupBy(Trade::getDealtInstrument, SingleInstrumentPosMtmAggregate::dealt)
                 .resetTrigger(positionSnapshotReset);
         contraOnlyInstPosition = tradeStream
                 .groupBy(Trade::getDealtInstrument, SingleInstrumentPosMtmAggregate::contra)

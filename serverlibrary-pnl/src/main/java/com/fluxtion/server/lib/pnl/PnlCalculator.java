@@ -6,6 +6,7 @@
 package com.fluxtion.server.lib.pnl;
 
 
+import com.fluxtion.server.lib.pnl.calculator.DerivedRateNode;
 import com.fluxtion.server.lib.pnl.calculator.FluxtionPnlCalculator;
 import com.fluxtion.server.lib.pnl.refdata.InMemorySymbolLookup;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
@@ -111,12 +112,10 @@ public class PnlCalculator {
         return this;
     }
 
-
     public PnlCalculator addInstrumentMtMListener(Consumer<Map<Instrument, NetMarkToMarket>> mtMConsumer) {
         fluxtionPnlCalculator.addSink("instrumentNetMtmListener", mtMConsumer);
         return this;
     }
-
 
     @SneakyThrows
     public NetMarkToMarket aggregateMtm() {
@@ -124,13 +123,20 @@ public class PnlCalculator {
     }
 
     @SneakyThrows
-    public Map<Instrument, NetMarkToMarket> instrumentMtm() {
+    public Map<Instrument, NetMarkToMarket> instrumentMtmMap() {
         return fluxtionPnlCalculator.getStreamed("instrumentNetMtm");
     }
 
     @SneakyThrows
-    public Map<String, Double> ratesMap() {
-        return fluxtionPnlCalculator.getStreamed("rates");
+    public Double getRateToMtmBase(Instrument instrument) {
+        DerivedRateNode derivedRateNode = fluxtionPnlCalculator.getNodeById("derivedRateNode");
+        return derivedRateNode.getRateForInstrument(instrument);
+    }
+
+    @SneakyThrows
+    public Instrument getMtmBaseInstrument() {
+        DerivedRateNode derivedRateNode = fluxtionPnlCalculator.getNodeById("derivedRateNode");
+        return derivedRateNode.getMtmInstrument();
     }
 
     @SneakyThrows
