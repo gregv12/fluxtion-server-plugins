@@ -13,16 +13,16 @@ public class FeeInstrumentPosMtmAggregate implements AggregateFlowFunction<Trade
     private FeeInstrumentPosMtm feeInstrumentPosMtm = new FeeInstrumentPosMtm();
 
     @Override
-    public FeeInstrumentPosMtm get() {
-        return feeInstrumentPosMtm;
-    }
-
-    @Override
     public FeeInstrumentPosMtm aggregate(Trade input) {
         final String bookName = input.getFeeInstrument().instrumentName();
         final double feePosition = input.getFee();
         feeInstrumentPosMtm.setBookName(bookName);
         feeInstrumentPosMtm.getFeesPositionMap().compute(input.getFeeInstrument(), (s, d) -> d == null ? feePosition : d + feePosition);
+        return feeInstrumentPosMtm;
+    }
+
+    @Override
+    public FeeInstrumentPosMtm get() {
         return feeInstrumentPosMtm;
     }
 

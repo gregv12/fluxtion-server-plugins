@@ -11,6 +11,11 @@ import com.fluxtion.server.lib.pnl.Trade;
 
 public class SingleInstrumentPosMtmAggregate implements AggregateFlowFunction<Trade, InstrumentPosMtm, SingleInstrumentPosMtmAggregate> {
     private InstrumentPosMtm instrumentPosMtm = new InstrumentPosMtm();
+    private final boolean dealtSide;
+
+    public SingleInstrumentPosMtmAggregate(boolean dealtSide) {
+        this.dealtSide = dealtSide;
+    }
 
     public static SingleInstrumentPosMtmAggregate dealt() {
         return new SingleInstrumentPosMtmAggregate(true);
@@ -18,17 +23,6 @@ public class SingleInstrumentPosMtmAggregate implements AggregateFlowFunction<Tr
 
     public static SingleInstrumentPosMtmAggregate contra() {
         return new SingleInstrumentPosMtmAggregate(false);
-    }
-
-    public SingleInstrumentPosMtmAggregate(boolean dealtSide) {
-        this.dealtSide = dealtSide;
-    }
-
-    private final boolean dealtSide;
-
-    @Override
-    public InstrumentPosMtm get() {
-        return instrumentPosMtm;
     }
 
     @Override
@@ -42,6 +36,11 @@ public class SingleInstrumentPosMtmAggregate implements AggregateFlowFunction<Tr
             final double contraPosition = input.getContraVolume();
             instrumentPosMtm.getPositionMap().compute(input.getContraInstrument(), (s, d) -> d == null ? contraPosition : d + contraPosition);
         }
+        return instrumentPosMtm;
+    }
+
+    @Override
+    public InstrumentPosMtm get() {
         return instrumentPosMtm;
     }
 
