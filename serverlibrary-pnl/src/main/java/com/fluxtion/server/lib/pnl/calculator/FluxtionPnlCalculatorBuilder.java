@@ -39,9 +39,10 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     private GroupByFlowBuilder<Instrument, InstrumentPosMtm> contraOnlyInstPosition;
     private DerivedRateNode derivedRateNode;
 
-    public static void buildLookup(EventProcessorConfig config) {
+    public static FluxtionPnlCalculatorBuilder buildPnlCalculator(EventProcessorConfig config) {
         FluxtionPnlCalculatorBuilder calculatorBuilder = new FluxtionPnlCalculatorBuilder();
         calculatorBuilder.buildGraph(config);
+        return calculatorBuilder;
     }
 
     @Override
