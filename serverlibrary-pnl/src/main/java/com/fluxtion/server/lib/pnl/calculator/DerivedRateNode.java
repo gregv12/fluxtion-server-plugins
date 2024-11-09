@@ -47,8 +47,8 @@ public class DerivedRateNode {
 
     @OnEventHandler
     public boolean midRate(MidPrice midPrice) {
-        Instrument dealtInstrument = midPrice.getSymbol().dealtInstrument();
-        Instrument contraInstrument = midPrice.getSymbol().contraInstrument();
+        Instrument dealtInstrument = midPrice.dealtInstrument();
+        Instrument contraInstrument = midPrice.contraInstrument();
 
         //no self cycles allowed
         if (dealtInstrument == contraInstrument | dealtInstrument == null | contraInstrument == null) {
