@@ -8,8 +8,8 @@ package com.fluxtion.server.lib.pnl.calculator;
 
 import com.fluxtion.runtime.annotations.OnEventHandler;
 import com.fluxtion.runtime.annotations.builder.FluxtionIgnore;
-import com.fluxtion.runtime.dataflow.groupby.GroupBy;
-import com.fluxtion.runtime.dataflow.groupby.GroupByHashMap;
+import com.fluxtion.server.lib.pnl.FeeInstrumentPosMtm;
+import com.fluxtion.server.lib.pnl.InstrumentPosMtm;
 import com.fluxtion.server.lib.pnl.MidPrice;
 import com.fluxtion.server.lib.pnl.MtmInstrument;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
@@ -18,23 +18,30 @@ import org.jgrapht.GraphPath;
 import org.jgrapht.graph.DefaultDirectedWeightedGraph;
 import org.jgrapht.graph.DefaultWeightedEdge;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Data
 public class DerivedRateNode {
 
+    private Instrument mtmInstrument = Instrument.INSTRUMENT_USD;
+    @FluxtionIgnore
+    private Map<Instrument, Double> directMtmRatesByInstrument = new HashMap<>();
+    @FluxtionIgnore
+    private Map<Instrument, Double> derivedMtmRatesByInstrument = new HashMap<>();
     @FluxtionIgnore
     private final DefaultDirectedWeightedGraph<Instrument, DefaultWeightedEdge> graph = new DefaultDirectedWeightedGraph<>(DefaultWeightedEdge.class);
     @FluxtionIgnore
-    private final GroupByHashMap<Instrument, Double> derivedRates = new GroupByHashMap<>();
-    @FluxtionIgnore
     private final BellmanFordShortestPath<Instrument, DefaultWeightedEdge> shortestPath = new BellmanFordShortestPath<>(graph);
-    private Instrument mtmInstrument = Instrument.INSTRUMENT_USD;
 
     @OnEventHandler
     public boolean updateMtmInstrument(MtmInstrument mtmInstrumentUpdate) {
         boolean change = mtmInstrument != mtmInstrumentUpdate.instrument();
-        mtmInstrument = mtmInstrumentUpdate.instrument();
+        if (change) {
+            mtmInstrument = mtmInstrumentUpdate.instrument();
+            directMtmRatesByInstrument.clear();
+            derivedMtmRatesByInstrument.clear();
+        }
         return change;
     }
 
@@ -46,6 +53,11 @@ public class DerivedRateNode {
         //no self cycles allowed
         if (dealtInstrument == contraInstrument | dealtInstrument == null | contraInstrument == null) {
             return false;
+        }
+        derivedMtmRatesByInstrument.clear();
+        //add to directMtmRatesByInstrument
+        if (midPrice.getOppositeInstrument(mtmInstrument) != null) {
+            directMtmRatesByInstrument.put(midPrice.getOppositeInstrument(mtmInstrument), midPrice.getRateForInstrument(mtmInstrument));
         }
 
         double rate = midPrice.getRate();
@@ -64,32 +76,35 @@ public class DerivedRateNode {
         return false;
     }
 
-    public boolean isMtmSymbol(MidPrice midPrice) {
-        return midPrice != null && midPrice.getOppositeInstrument(mtmInstrument) != null;
+    public FeeInstrumentPosMtm calculateFeeMtm(FeeInstrumentPosMtm feeInstrumentPosMtm) {
+        Map<Instrument, Double> mtmPositionsMap = feeInstrumentPosMtm.resetMtm().getFeesMtmPositionMap();
+        feeInstrumentPosMtm.getFeesPositionMap()
+                .forEach((key, value) -> {
+                    mtmPositionsMap.put(key, value * getRateForInstrument(key));
+                });
+        feeInstrumentPosMtm.calcTradePnl();
+        return feeInstrumentPosMtm;
     }
 
-    public Instrument getMtmContraInstrument(MidPrice midPrice) {
-        return midPrice.getOppositeInstrument(mtmInstrument);
+    public InstrumentPosMtm calculateInstrumentPosMtm(InstrumentPosMtm instrumentPosMtm) {
+        Map<Instrument, Double> mtmPositionsMap = instrumentPosMtm.resetMtm().getMtmPositionsMap();
+        instrumentPosMtm.getPositionMap()
+                .forEach((key, value) -> {
+                    mtmPositionsMap.put(key, value * getRateForInstrument(key));
+                });
+        instrumentPosMtm.calcTradePnl();
+        return instrumentPosMtm;
     }
 
-    public double getMtMRate(MidPrice midPrice) {
-        return midPrice.getRateForInstrument(mtmInstrument);
-    }
-
-    public GroupBy<Instrument, Double> trimDerivedRates(
-            GroupBy<Instrument, Double> rateMapGroupBy,
-            GroupBy<Instrument, Double> positionMapGroupBy) {
-
-        Map<Instrument, Double> rateMap = rateMapGroupBy.toMap();
-        Map<Instrument, Double> positionMap = positionMapGroupBy.toMap();
-
-        derivedRates.fromMap(rateMap);
-        Map<Instrument, Double> derivedRateMap = derivedRates.toMap();
-        derivedRateMap.put(mtmInstrument, 1.0);
-
-        positionMap.keySet().forEach(
-                i -> {
-                    derivedRateMap.computeIfAbsent(i, positionInstrument -> {
+    public Double getRateForInstrument(Instrument instrument) {
+        if (instrument.equals(mtmInstrument)) {
+            return 1.0;
+        }
+        Double rate = directMtmRatesByInstrument.get(instrument);
+        if (rate == null) {
+            rate = derivedMtmRatesByInstrument.computeIfAbsent(
+                    instrument,
+                    positionInstrument -> {
                         if (graph.containsVertex(positionInstrument) & graph.containsVertex(mtmInstrument)) {
                             GraphPath<Instrument, DefaultWeightedEdge> path = shortestPath.getPath(positionInstrument, mtmInstrument);
                             double log10Rate = shortestPath.getPathWeight(positionInstrument, mtmInstrument);
@@ -97,31 +112,7 @@ public class DerivedRateNode {
                         }
                         return Double.NaN;
                     });
-                }
-        );
-        return derivedRates;
+        }
+        return rate;
     }
-
-    public GroupBy<Instrument, Double> addMissingDerivedRates(
-            GroupBy<Instrument, Double> rateMapGroupBy,
-            GroupBy<Instrument, Double> positionMapGroupBy) {
-
-        Map<Instrument, Double> positionMap = positionMapGroupBy.toMap();
-        Map<Instrument, Double> derivedRateMap = derivedRates.toMap();
-
-        positionMap.keySet().forEach(
-                i -> {
-                    derivedRateMap.computeIfAbsent(i, positionInstrument -> {
-                        if (graph.containsVertex(positionInstrument) & graph.containsVertex(mtmInstrument)) {
-                            GraphPath<Instrument, DefaultWeightedEdge> path = shortestPath.getPath(positionInstrument, mtmInstrument);
-                            double log10Rate = shortestPath.getPathWeight(positionInstrument, mtmInstrument);
-                            return Double.isInfinite(log10Rate) ? Double.NaN : Math.pow(10, log10Rate);
-                        }
-                        return Double.NaN;
-                    });
-                }
-        );
-        return derivedRates;
-    }
-
 }

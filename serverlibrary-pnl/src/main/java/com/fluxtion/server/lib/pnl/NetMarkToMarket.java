@@ -16,4 +16,8 @@ public record NetMarkToMarket(InstrumentPosMtm instrumentMtm, FeeInstrumentPosMt
         return new NetMarkToMarket(instrumentMtm, feesMtm == null ? new FeeInstrumentPosMtm() : feesMtm);
     }
 
+    public static NetMarkToMarket combine2(InstrumentPosMtm instrumentMtm, FeeInstrumentPosMtm feesMtm) {
+        return new NetMarkToMarket(instrumentMtm, feesMtm == null ? new FeeInstrumentPosMtm() : feesMtm);
+    }
+
 }

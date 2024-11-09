@@ -27,7 +27,6 @@ public class PnlCalculator {
     public PnlCalculator() {
         fluxtionPnlCalculator = new FluxtionPnlCalculator();
         fluxtionPnlCalculator.init();
-        fluxtionPnlCalculator.onEvent(symbolLookup);
         fluxtionPnlCalculator.start();
         positionReset();
     }
@@ -71,6 +70,14 @@ public class PnlCalculator {
     public PnlCalculator priceUpdate(String symbolName, double price) {
         Symbol symbol = symbolLookup.getSymbolForName(symbolName);
         return symbol == null ? this : priceUpdate(new MidPrice(symbol, price));
+    }
+
+    public PnlCalculator priceUpdate(MidPrice... midPrices) {
+        for (MidPrice midPrice : midPrices) {
+            fluxtionPnlCalculator.onEvent(midPrice);
+        }
+        fluxtionPnlCalculator.publishSignal("positionUpdate");
+        return this;
     }
 
     public PnlCalculator processTrade(Trade... trades) {
