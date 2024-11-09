@@ -98,6 +98,11 @@ public class DerivedTest {
 
 
         pnlCalculator.priceUpdate("EURUSD", 1.5);
+        //rates
+        Assertions.assertEquals(1.5, pnlCalculator.getRateToMtmBase(EUR));
+        Assertions.assertEquals(1.25, pnlCalculator.getRateToMtmBase(CHF));
+        Assertions.assertTrue(Double.isNaN(pnlCalculator.getRateToMtmBase(GBP)));
+        //mtm
         Assertions.assertEquals(-0.625, pnlCalculator.pnl(), 0.0000001);
         Assertions.assertTrue(Double.isNaN(pnlCalculator.tradeFees()));
         Assertions.assertTrue(Double.isNaN(pnlCalculator.netPnl()));
@@ -105,6 +110,11 @@ public class DerivedTest {
 
 
         pnlCalculator.priceUpdate("GBPUSD", 2);
+        //rates
+        Assertions.assertEquals(1.5, pnlCalculator.getRateToMtmBase(EUR));
+        Assertions.assertEquals(1.25, pnlCalculator.getRateToMtmBase(CHF));
+        Assertions.assertEquals(2.0, pnlCalculator.getRateToMtmBase(GBP));
+        //mtm
         Assertions.assertEquals(-0.625, pnlCalculator.pnl(), 0.0000001);
         Assertions.assertEquals(20, pnlCalculator.tradeFees(), 0.0000001);
         Assertions.assertEquals(-20.625, pnlCalculator.netPnl(), 0.0000001);

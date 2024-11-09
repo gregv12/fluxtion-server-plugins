@@ -67,7 +67,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     private void buildSharedNodes() {
         positionUpdateEob = DataFlow.subscribeToSignal("positionUpdate");
         positionSnapshotReset = DataFlow.subscribeToSignal("positionSnapshotReset");
-        derivedRateNode = new DerivedRateNode();
+        derivedRateNode = eventProcessorConfig.addNode(new DerivedRateNode(), "derivedRateNode");
     }
 
     private void buildTradeStream() {
@@ -87,8 +87,8 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .resetTrigger(positionSnapshotReset);
 
         //position by instrument aggregates single side, either dealt and contra quantity
-        dealtOnlyInstPosition = tradeStream.
-                groupBy(Trade::getDealtInstrument, SingleInstrumentPosMtmAggregate::dealt)
+        dealtOnlyInstPosition = tradeStream
+                .groupBy(Trade::getDealtInstrument, SingleInstrumentPosMtmAggregate::dealt)
                 .resetTrigger(positionSnapshotReset);
         contraOnlyInstPosition = tradeStream
                 .groupBy(Trade::getDealtInstrument, SingleInstrumentPosMtmAggregate::contra)
