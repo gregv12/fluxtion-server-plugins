@@ -14,6 +14,14 @@ public class MidPrice {
     Symbol symbol;
     double rate;
 
+    public Instrument dealtInstrument() {
+        return getSymbol().dealtInstrument();
+    }
+
+    public Instrument contraInstrument() {
+        return getSymbol().contraInstrument();
+    }
+
     public double getRateForInstrument(Instrument ccy) {
         if (symbol.dealtInstrument().equals(ccy)) {
             return 1 / rate;

@@ -5,16 +5,20 @@
 
 package com.fluxtion.server.lib.pnl.talos;
 
-import com.fluxtion.runtime.dataflow.groupby.GroupBy;
-import com.fluxtion.runtime.dataflow.groupby.GroupByHashMap;
-import com.fluxtion.server.lib.pnl.MidPrice;
-import com.fluxtion.server.lib.pnl.PnlCalculator;
-import com.fluxtion.server.lib.pnl.Trade;
+import com.fluxtion.server.lib.pnl.*;
 import com.fluxtion.server.lib.pnl.calculator.DerivedRateNode;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import static com.fluxtion.server.lib.pnl.refdata.Instrument.INSTRUMENT_USD;
+import static com.fluxtion.server.lib.pnl.refdata.Instrument.INSTRUMENT_USDT;
 
 public class DerivedTest {
 
@@ -23,49 +27,53 @@ public class DerivedTest {
     public static final Instrument CHF = new Instrument("CHF");
     public static final Instrument JPY = new Instrument("JPY");
     public static final Instrument GBP = new Instrument("GBP");
-    private final static Symbol symbolEURUSD = new Symbol("EURUSD", EUR, USD);
-    private final static Symbol symbolEURCHF = new Symbol("EURCHF", EUR, CHF);
-    private final static Symbol symbolUSDCHF = new Symbol("USDCHF", USD, CHF);
-    private final static Symbol symbolEURJPY = new Symbol("EURJPY", EUR, JPY);
-    private final static Symbol symbolUSDJPY = new Symbol("USDJPY", USD, JPY);
-    private final static Symbol symbolGBPUSD = new Symbol("GBPUSD", GBP, USD);
+    public final static Symbol symbolEURUSD = new Symbol("EURUSD", EUR, USD);
+    public final static Symbol symbolEURCHF = new Symbol("EURCHF", EUR, CHF);
+    public final static Symbol symbolUSDCHF = new Symbol("USDCHF", USD, CHF);
+    public final static Symbol symbolCHFUSD = new Symbol("CHFUSD", CHF, USD);
+    public final static Symbol symbolEURJPY = new Symbol("EURJPY", EUR, JPY);
+    public final static Symbol symbolUSDJPY = new Symbol("USDJPY", USD, JPY);
+    public final static Symbol symbolGBPUSD = new Symbol("GBPUSD", GBP, USD);
+    public final static Symbol symbolEURGBP = new Symbol("EURGBP", EUR, GBP);
+    private PnlCalculator pnlCalculator;
+    private final boolean log = false;
+    private final List<NetMarkToMarket> mtmUpdates = new ArrayList<>();
+    private final List<Map<Instrument, NetMarkToMarket>> mtmInstUpdates = new ArrayList<>();
+
+    @BeforeEach
+    public void setUp() {
+        pnlCalculator = new PnlCalculator();
+        mtmUpdates.clear();
+        mtmInstUpdates.clear();
+        pnlCalculator.addAggregateMtMListener(m -> {
+            mtmUpdates.add(m);
+            if (log) {
+                System.out.println("\n-------callback aggregate -------\n" + m);
+            }
+        });
+        pnlCalculator.addInstrumentMtMListener(m -> {
+            mtmInstUpdates.add(m);
+            if (log) {
+                System.out.println("\n-------callback instrument -------\n" + m);
+            }
+        });
+    }
 
     @Test
     public void testCrossRate() {
         DerivedRateNode derivedRateNode = new DerivedRateNode();
-        GroupByHashMap<Instrument, Double> rateMapGroupBy = new GroupByHashMap<>();
-        GroupByHashMap<Instrument, Double> positionMapGroupBy = new GroupByHashMap<>();
-
-        positionMapGroupBy.toMap().put(EUR, 500.0);
-
-        derivedRateNode.midRate(new MidPrice(symbolEURUSD, 2));
-
-        GroupBy<Instrument, Double> derivedRates = derivedRateNode.trimDerivedRates(rateMapGroupBy, positionMapGroupBy);
-        Assertions.assertEquals(2, derivedRates.toMap().size());
-        Assertions.assertEquals(2.0, derivedRates.toMap().get(EUR));
-//        System.out.println("no directs only:" + derivedRates.toMap());
-
         derivedRateNode.midRate(new MidPrice(symbolEURCHF, 0.5));
         derivedRateNode.midRate(new MidPrice(symbolUSDCHF, 1.0));
-        derivedRates = derivedRateNode.trimDerivedRates(rateMapGroupBy, positionMapGroupBy);
-        Assertions.assertEquals(2, derivedRates.toMap().size());
-        Assertions.assertEquals(0.5, derivedRates.toMap().get(EUR));
-//        System.out.println("add a cross only:" + derivedRates.toMap());
 
-        rateMapGroupBy.toMap().put(EUR, 1.6);
-        derivedRates = derivedRateNode.trimDerivedRates(rateMapGroupBy, positionMapGroupBy);
-        Assertions.assertEquals(2, derivedRates.toMap().size());
-        Assertions.assertEquals(1.6, derivedRates.toMap().get(EUR));
-//        System.out.println("directs only:" + derivedRates.toMap());
+        Assertions.assertEquals(0.5, derivedRateNode.getRateForInstrument(EUR));
+
+        derivedRateNode.midRate(new MidPrice(symbolEURUSD, 1.6));
+        Assertions.assertEquals(1.6, derivedRateNode.getRateForInstrument(EUR));
     }
 
     @Test
     public void testCalculator() {
-        PnlCalculator pnlCalculator = new PnlCalculator();
-//        pnlCalculator.addPositionListener(System.out::println);
-//        pnlCalculator.addMtmPositionListener(System.out::println);
-//        pnlCalculator.addRateListener(d -> System.out.println("rateMap:" + d));
-//        pnlCalculator.addPnlListener(d -> System.out.println("pnl:" + d));
+        setUp();
         pnlCalculator.addSymbol(symbolEURUSD);
 
         pnlCalculator.priceUpdate("EURCHF", 1.2);
@@ -75,19 +83,15 @@ public class DerivedTest {
 
         pnlCalculator.priceUpdate("EURCHF", 1.2);
 
-//        System.out.println("\n send trade");
         pnlCalculator.processTrade(new Trade(symbolEURCHF, 10, -12.5, 0));
         Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
 
-//        System.out.println("\nsend EURUSD rate");
         pnlCalculator.priceUpdate("EURUSD", 1.5);
         Assertions.assertEquals(-0.625, pnlCalculator.pnl(), 0.0000001);
 
-//        System.out.println("\n mtm CHF");
         pnlCalculator.setMtmInstrument(CHF);
         Assertions.assertEquals(-0.5, pnlCalculator.pnl(), 0.0000001);
 
-//        System.out.println("\n mtm JPY");
         pnlCalculator.setMtmInstrument(JPY);
         Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
 
@@ -97,18 +101,128 @@ public class DerivedTest {
     }
 
     @Test
+    public void testPositionSnapshot() {
+        setUp();
+        pnlCalculator.processTrade(new Trade(symbolUSDJPY, 100, -20000, 13));
+        Assertions.assertEquals(1, mtmInstUpdates.size());
+        Assertions.assertEquals(2, mtmInstUpdates.getFirst().size());
+        Assertions.assertEquals(1, mtmUpdates.size());
+
+        NetMarkToMarket mtm = mtmUpdates.getFirst();
+        Map<Instrument, Double> positionMap = mtm.instrumentMtm().getPositionMap();
+        Assertions.assertEquals(-20000, positionMap.get(JPY));
+        Assertions.assertEquals(100, positionMap.get(USD));
+
+        pnlCalculator.positionSnapshot(PositionSnapshot.of(
+                new InstrumentPosition(EUR, 50),
+                new InstrumentPosition(GBP, 12_000),
+                new InstrumentPosition(INSTRUMENT_USD, 800),
+                new InstrumentPosition(INSTRUMENT_USDT, 1500),
+                new InstrumentPosition(INSTRUMENT_USD, 200)
+        ));
+
+        Assertions.assertEquals(2, mtmInstUpdates.size());
+        Assertions.assertEquals(2, mtmInstUpdates.getFirst().size());
+        Assertions.assertEquals(2, mtmUpdates.size());
+
+        mtm = mtmUpdates.getLast();
+        positionMap = mtm.instrumentMtm().getPositionMap();
+        Assertions.assertEquals(50, positionMap.get(EUR));
+        Assertions.assertEquals(12_000, positionMap.get(GBP));
+        Assertions.assertEquals(-20000, positionMap.get(JPY));
+        Assertions.assertEquals(1500, positionMap.get(INSTRUMENT_USDT));
+        Assertions.assertEquals(200, positionMap.get(INSTRUMENT_USD));
+    }
+
+
+    @Test
+    public void testTrade() {
+        setUp();
+        pnlCalculator.processTrade(new Trade(symbolEURJPY, -400, 80000, 13));
+        pnlCalculator.processTrade(new Trade(symbolEURUSD, 500, -1100, 13));
+        pnlCalculator.processTrade(new Trade(symbolUSDCHF, 500, -1100, 13));
+        pnlCalculator.processTrade(new Trade(symbolEURGBP, 1200, -1000, 13));
+        pnlCalculator.processTrade(new Trade(symbolGBPUSD, 1500, -700, 13));
+
+
+        Assertions.assertEquals(5, mtmInstUpdates.size());
+        Assertions.assertEquals(5, mtmInstUpdates.getFirst().size());
+        Assertions.assertEquals(5, mtmUpdates.size());
+
+        Map<Instrument, Double> positionMapFirst = mtmUpdates.getFirst().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(-400, positionMapFirst.get(EUR));
+        Assertions.assertEquals(80000, positionMapFirst.get(JPY));
+
+        Map<Instrument, Double> positionMap = mtmUpdates.getLast().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(1300, positionMap.get(EUR));
+        Assertions.assertEquals(80000, positionMap.get(JPY));
+        Assertions.assertEquals(-1300, positionMap.get(USD));
+        Assertions.assertEquals(-1100, positionMap.get(CHF));
+        Assertions.assertEquals(500, positionMap.get(GBP));
+    }
+
+    @Test
+    public void testTradeBatch() {
+        setUp();
+        pnlCalculator.processTradeBatch(
+                TradeBatch.of(200,
+                        new Trade(symbolEURJPY, -400, 80000, 13),
+                        new Trade(symbolEURUSD, 500, -1100, 13),
+                        new Trade(symbolUSDCHF, 500, -1100, 13),
+                        new Trade(symbolEURGBP, 1200, -1000, 13),
+                        new Trade(symbolGBPUSD, 1500, -700, 13)
+                )
+        );
+
+        Assertions.assertEquals(1, mtmInstUpdates.size());
+        Assertions.assertEquals(5, mtmInstUpdates.getFirst().size());
+        Assertions.assertEquals(1, mtmUpdates.size());
+
+        Map<Instrument, Double> positionMap = mtmUpdates.getFirst().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(1300, positionMap.get(EUR));
+        Assertions.assertEquals(80000, positionMap.get(JPY));
+        Assertions.assertEquals(-1300, positionMap.get(USD));
+        Assertions.assertEquals(-1100, positionMap.get(CHF));
+        Assertions.assertEquals(500, positionMap.get(GBP));
+    }
+
+    @Test
+    public void testMtm() {
+        setUp();
+        pnlCalculator.processTradeBatch(
+                TradeBatch.of(200,
+                        new Trade(symbolEURUSD, 500, -1000, 13),
+                        new Trade(symbolGBPUSD, 1500, -2800, 13)
+                )
+        );
+
+
+        Map<Instrument, Double> positionMap = mtmUpdates.getFirst().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(500, positionMap.get(EUR));
+        Assertions.assertEquals(-3800, positionMap.get(USD));
+        Assertions.assertEquals(1500, positionMap.get(GBP));
+
+        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
+
+        pnlCalculator.priceUpdate(symbolGBPUSD, 2);
+        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
+
+        pnlCalculator.priceUpdate(symbolEURUSD, 1.5);
+        Assertions.assertEquals(-50, pnlCalculator.pnl(), 0.0000001);
+
+        //no CHF rate force pnl to NaN
+        pnlCalculator.processTrade(new Trade(symbolUSDCHF, 500, -1200, 13));
+        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
+
+        //calc x-rate for usdchf : chf * eurchf -> eur,  eur * eurusd -> usd
+        pnlCalculator.priceUpdate(symbolEURCHF, 3);
+        Assertions.assertEquals(-150, pnlCalculator.pnl(), 0.0000001);
+    }
+
+    @Test
     public void testFeesInDifferentInstrument() {
+        setUp();
         PnlCalculator pnlCalculator = new PnlCalculator();
-
-//        pnlCalculator.addRateListener(d -> System.out.println("rateMap:" + d));
-//        pnlCalculator.addPnlListener(d -> System.out.println("pnl:" + d));
-//        pnlCalculator.addNetPnlListener(d -> System.out.println("net pnl:" + d));
-//        pnlCalculator.addTradeFeesListener(d -> System.out.println("fees:" + d));
-//        pnlCalculator.addPositionListener(d -> System.out.println("positions:" + d));
-//        pnlCalculator.addMtmPositionListener(d -> System.out.println("mtm positions:" + d));
-//        pnlCalculator.addTradeFeesPositionMapListener(d -> System.out.println("fee positions:" + d));
-//        pnlCalculator.addTradeFeesMtmPositionMapListener(d -> System.out.println("fee mtm positions:" + d));
-
 
         pnlCalculator.addSymbol(symbolEURUSD);
         pnlCalculator.addSymbol(symbolEURCHF);
@@ -128,6 +242,11 @@ public class DerivedTest {
 
 
         pnlCalculator.priceUpdate("EURUSD", 1.5);
+        //rates
+        Assertions.assertEquals(1.5, pnlCalculator.getRateToMtmBase(EUR));
+        Assertions.assertEquals(1.25, pnlCalculator.getRateToMtmBase(CHF));
+        Assertions.assertTrue(Double.isNaN(pnlCalculator.getRateToMtmBase(GBP)));
+        //mtm
         Assertions.assertEquals(-0.625, pnlCalculator.pnl(), 0.0000001);
         Assertions.assertTrue(Double.isNaN(pnlCalculator.tradeFees()));
         Assertions.assertTrue(Double.isNaN(pnlCalculator.netPnl()));
@@ -135,6 +254,11 @@ public class DerivedTest {
 
 
         pnlCalculator.priceUpdate("GBPUSD", 2);
+        //rates
+        Assertions.assertEquals(1.5, pnlCalculator.getRateToMtmBase(EUR));
+        Assertions.assertEquals(1.25, pnlCalculator.getRateToMtmBase(CHF));
+        Assertions.assertEquals(2.0, pnlCalculator.getRateToMtmBase(GBP));
+        //mtm
         Assertions.assertEquals(-0.625, pnlCalculator.pnl(), 0.0000001);
         Assertions.assertEquals(20, pnlCalculator.tradeFees(), 0.0000001);
         Assertions.assertEquals(-20.625, pnlCalculator.netPnl(), 0.0000001);
