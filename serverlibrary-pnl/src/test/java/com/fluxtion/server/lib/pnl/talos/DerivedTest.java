@@ -73,6 +73,7 @@ public class DerivedTest {
 
     @Test
     public void testCalculator() {
+        setUp();
         pnlCalculator.addSymbol(symbolEURUSD);
 
         pnlCalculator.priceUpdate("EURCHF", 1.2);
@@ -101,6 +102,7 @@ public class DerivedTest {
 
     @Test
     public void testPositionSnapshot() {
+        setUp();
         pnlCalculator.processTrade(new Trade(symbolUSDJPY, 100, -20000, 13));
         Assertions.assertEquals(1, mtmInstUpdates.size());
         Assertions.assertEquals(2, mtmInstUpdates.getFirst().size());
@@ -135,7 +137,7 @@ public class DerivedTest {
 
     @Test
     public void testTrade() {
-
+        setUp();
         pnlCalculator.processTrade(new Trade(symbolEURJPY, -400, 80000, 13));
         pnlCalculator.processTrade(new Trade(symbolEURUSD, 500, -1100, 13));
         pnlCalculator.processTrade(new Trade(symbolUSDCHF, 500, -1100, 13));
@@ -161,6 +163,7 @@ public class DerivedTest {
 
     @Test
     public void testTradeBatch() {
+        setUp();
         pnlCalculator.processTradeBatch(
                 TradeBatch.of(200,
                         new Trade(symbolEURJPY, -400, 80000, 13),
@@ -185,6 +188,7 @@ public class DerivedTest {
 
     @Test
     public void testMtm() {
+        setUp();
         pnlCalculator.processTradeBatch(
                 TradeBatch.of(200,
                         new Trade(symbolEURUSD, 500, -1000, 13),
@@ -217,6 +221,7 @@ public class DerivedTest {
 
     @Test
     public void testFeesInDifferentInstrument() {
+        setUp();
         PnlCalculator pnlCalculator = new PnlCalculator();
 
         pnlCalculator.addSymbol(symbolEURUSD);
