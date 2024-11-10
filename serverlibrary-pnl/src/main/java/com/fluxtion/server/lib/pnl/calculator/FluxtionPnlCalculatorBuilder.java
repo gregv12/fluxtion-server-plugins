@@ -115,9 +115,9 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
 
         //global mtm for trading + snapshot positions
         var globalNetMtm = JoinFlowBuilder.outerJoin(dealtAndContraInstPosition, contraAndDealtInstPosition, InstrumentPosMtm::merge)
+                .outerJoin(snapshotPositionMap, InstrumentPosMtm::overwriteInstrumentPositionWithSnapshot)
                 .mapValues(derivedRateNode::calculateInstrumentPosMtm)
                 .updateTrigger(positionUpdateEob)
-                .outerJoin(snapshotPositionMap, InstrumentPosMtm::addInstrumentPosition)
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTriggerOverride(positionUpdateEob);
 

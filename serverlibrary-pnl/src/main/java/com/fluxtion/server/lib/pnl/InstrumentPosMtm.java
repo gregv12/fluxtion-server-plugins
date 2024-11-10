@@ -25,7 +25,7 @@ public class InstrumentPosMtm {
         return new InstrumentPosMtm(mtm1).combine(mtm2);
     }
 
-    public static InstrumentPosMtm addInstrumentPosition(InstrumentPosMtm instrumentPosMtm, InstrumentPosition instrumentPos) {
+    public static InstrumentPosMtm overwriteInstrumentPositionWithSnapshot(InstrumentPosMtm instrumentPosMtm, InstrumentPosition instrumentPos) {
         instrumentPosMtm = instrumentPosMtm == null ? new InstrumentPosMtm() : instrumentPosMtm;
         if (instrumentPos != null) {
             instrumentPosMtm.getPositionMap().put(instrumentPos.instrument(), instrumentPos.position());

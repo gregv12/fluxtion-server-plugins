@@ -82,19 +82,15 @@ public class DerivedTest {
 
         pnlCalculator.priceUpdate("EURCHF", 1.2);
 
-//        System.out.println("\n send trade");
         pnlCalculator.processTrade(new Trade(symbolEURCHF, 10, -12.5, 0));
         Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
 
-        System.out.println("\nsend EURUSD rate");
         pnlCalculator.priceUpdate("EURUSD", 1.5);
         Assertions.assertEquals(-0.625, pnlCalculator.pnl(), 0.0000001);
 
-//        System.out.println("\n mtm CHF");
         pnlCalculator.setMtmInstrument(CHF);
         Assertions.assertEquals(-0.5, pnlCalculator.pnl(), 0.0000001);
 
-//        System.out.println("\n mtm JPY");
         pnlCalculator.setMtmInstrument(JPY);
         Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
 
@@ -105,6 +101,16 @@ public class DerivedTest {
 
     @Test
     public void testPositionSnapshot() {
+        pnlCalculator.processTrade(new Trade(symbolUSDJPY, 100, -20000, 13));
+        Assertions.assertEquals(1, mtmInstUpdates.size());
+        Assertions.assertEquals(2, mtmInstUpdates.getFirst().size());
+        Assertions.assertEquals(1, mtmUpdates.size());
+
+        NetMarkToMarket mtm = mtmUpdates.getFirst();
+        Map<Instrument, Double> positionMap = mtm.instrumentMtm().getPositionMap();
+        Assertions.assertEquals(-20000, positionMap.get(JPY));
+        Assertions.assertEquals(100, positionMap.get(USD));
+
         pnlCalculator.positionSnapshot(PositionSnapshot.of(
                 new InstrumentPosition(EUR, 50),
                 new InstrumentPosition(GBP, 12_000),
@@ -113,25 +119,50 @@ public class DerivedTest {
                 new InstrumentPosition(INSTRUMENT_USD, 200)
         ));
 
-        Assertions.assertEquals(1, mtmInstUpdates.size());
-        Assertions.assertEquals(0, mtmInstUpdates.getFirst().size());
-        Assertions.assertEquals(1, mtmUpdates.size());
+        Assertions.assertEquals(2, mtmInstUpdates.size());
+        Assertions.assertEquals(2, mtmInstUpdates.getFirst().size());
+        Assertions.assertEquals(2, mtmUpdates.size());
 
-        NetMarkToMarket mtm = mtmUpdates.getFirst();
-        Map<Instrument, Double> positionMap = mtm.instrumentMtm().getPositionMap();
+        mtm = mtmUpdates.getLast();
+        positionMap = mtm.instrumentMtm().getPositionMap();
         Assertions.assertEquals(50, positionMap.get(EUR));
         Assertions.assertEquals(12_000, positionMap.get(GBP));
+        Assertions.assertEquals(-20000, positionMap.get(JPY));
         Assertions.assertEquals(1500, positionMap.get(INSTRUMENT_USDT));
         Assertions.assertEquals(200, positionMap.get(INSTRUMENT_USD));
+    }
+
+
+    @Test
+    public void testTrade() {
+
+        pnlCalculator.processTrade(new Trade(symbolEURJPY, -400, 80000, 13));
+        pnlCalculator.processTrade(new Trade(symbolEURUSD, 500, -1100, 13));
+        pnlCalculator.processTrade(new Trade(symbolUSDCHF, 500, -1100, 13));
+        pnlCalculator.processTrade(new Trade(symbolEURGBP, 1200, -1000, 13));
+        pnlCalculator.processTrade(new Trade(symbolGBPUSD, 1500, -700, 13));
+
+
+        Assertions.assertEquals(5, mtmInstUpdates.size());
+        Assertions.assertEquals(5, mtmInstUpdates.getFirst().size());
+        Assertions.assertEquals(5, mtmUpdates.size());
+
+        Map<Instrument, Double> positionMapFirst = mtmUpdates.getFirst().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(-400, positionMapFirst.get(EUR));
+        Assertions.assertEquals(80000, positionMapFirst.get(JPY));
+
+        Map<Instrument, Double> positionMap = mtmUpdates.getLast().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(1300, positionMap.get(EUR));
+        Assertions.assertEquals(80000, positionMap.get(JPY));
+        Assertions.assertEquals(-1300, positionMap.get(USD));
+        Assertions.assertEquals(-1100, positionMap.get(CHF));
+        Assertions.assertEquals(500, positionMap.get(GBP));
     }
 
     @Test
     public void testTradeBatch() {
         pnlCalculator.processTradeBatch(
                 TradeBatch.of(200,
-//                        new Trade(symbolEURUSD, 500, -1100, 13),
-//                        new Trade(symbolGBPUSD, -2500, 1300, 13),
-//                        new Trade(symbolEURJPY, -400, 80000, 13),
                         new Trade(symbolEURJPY, -400, 80000, 13),
                         new Trade(symbolEURUSD, 500, -1100, 13),
                         new Trade(symbolUSDCHF, 500, -1100, 13),
@@ -140,24 +171,48 @@ public class DerivedTest {
                 )
         );
 
-//        pnlCalculator.processTrade(new Trade(symbolEURJPY, -400, 80000, 13));
-//        pnlCalculator.processTrade(new Trade(symbolEURUSD, 500, -1100, 13));
-//        pnlCalculator.processTrade(new Trade(symbolUSDCHF, 600, -1100, 13));
-//        pnlCalculator.processTrade(new Trade(symbolGBPUSD, 1500, -700, 13));
-//        pnlCalculator.processTrade(new Trade(symbolEURUSD, 500, -1100, 13));
-//        pnlCalculator.processTrade(new Trade(symbolEURUSD, 500, -1100, 13));
-//        pnlCalculator.processTrade(new Trade(symbolEURGBP, 1200, -1000, 13));
-//        pnlCalculator.processTrade(new Trade(symbolEURGBP, 1200, -1000, 13));
+        Assertions.assertEquals(1, mtmInstUpdates.size());
+        Assertions.assertEquals(5, mtmInstUpdates.getFirst().size());
+        Assertions.assertEquals(1, mtmUpdates.size());
 
-//        Assertions.assertEquals(1, mtmInstUpdates.size());
-//        Assertions.assertEquals(2, mtmInstUpdates.getFirst().size());
-//        Assertions.assertEquals(1, mtmUpdates.size());
+        Map<Instrument, Double> positionMap = mtmUpdates.getFirst().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(1300, positionMap.get(EUR));
+        Assertions.assertEquals(80000, positionMap.get(JPY));
+        Assertions.assertEquals(-1300, positionMap.get(USD));
+        Assertions.assertEquals(-1100, positionMap.get(CHF));
+        Assertions.assertEquals(500, positionMap.get(GBP));
+    }
 
-//        NetMarkToMarket mtm = mtmUpdates.getFirst();
-//        Map<Instrument, Double> positionMap = mtm.instrumentMtm().getPositionMap();
-//        Assertions.assertEquals(500, positionMap.get(EUR));
-//        Assertions.assertEquals(-2_500, positionMap.get(GBP));
-//        Assertions.assertEquals(200, positionMap.get(USD));
+    @Test
+    public void testMtm() {
+        pnlCalculator.processTradeBatch(
+                TradeBatch.of(200,
+                        new Trade(symbolEURUSD, 500, -1000, 13),
+                        new Trade(symbolGBPUSD, 1500, -2800, 13)
+                )
+        );
+
+
+        Map<Instrument, Double> positionMap = mtmUpdates.getFirst().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(500, positionMap.get(EUR));
+        Assertions.assertEquals(-3800, positionMap.get(USD));
+        Assertions.assertEquals(1500, positionMap.get(GBP));
+
+        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
+
+        pnlCalculator.priceUpdate(symbolGBPUSD, 2);
+        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
+
+        pnlCalculator.priceUpdate(symbolEURUSD, 1.5);
+        Assertions.assertEquals(-50, pnlCalculator.pnl(), 0.0000001);
+
+        //no CHF rate force pnl to NaN
+        pnlCalculator.processTrade(new Trade(symbolUSDCHF, 500, -1200, 13));
+        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
+
+        //calc x-rate for usdchf : chf * eurchf -> eur,  eur * eurusd -> usd
+        pnlCalculator.priceUpdate(symbolEURCHF, 3);
+        Assertions.assertEquals(-150, pnlCalculator.pnl(), 0.0000001);
     }
 
     @Test

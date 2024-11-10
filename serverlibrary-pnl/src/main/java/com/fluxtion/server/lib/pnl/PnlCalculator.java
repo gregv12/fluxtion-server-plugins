@@ -73,6 +73,10 @@ public class PnlCalculator {
         return symbol == null ? this : priceUpdate(new MidPrice(symbol, price));
     }
 
+    public PnlCalculator priceUpdate(Symbol symbol, double price) {
+        return priceUpdate(new MidPrice(symbol, price));
+    }
+
     public PnlCalculator priceUpdate(MidPrice... midPrices) {
         for (MidPrice midPrice : midPrices) {
             fluxtionPnlCalculator.onEvent(midPrice);
