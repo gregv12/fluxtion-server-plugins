@@ -125,7 +125,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         JoinFlowBuilder.leftJoin(globalNetMtm, instrumentFeeMap, NetMarkToMarket::combine)
                 .updateTrigger(positionUpdateEob)
                 .map(GroupBy::toMap)
-                .map(MtmCalc::markToMarketSum)
+                .map(NetMarkToMarket::markToMarketSum)
                 .id("globalNetMtm")
                 .sink("globalNetMtmListener");
     }

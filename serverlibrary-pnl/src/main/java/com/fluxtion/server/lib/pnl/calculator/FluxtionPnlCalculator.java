@@ -260,7 +260,7 @@ public class FluxtionPnlCalculator
   private final MapRef2RefFlowFunction mapRef2RefFlowFunction_36 =
       new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_35, GroupBy<Object, Object>::toMap);
   public final MapRef2RefFlowFunction globalNetMtm =
-      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_36, MtmCalc::markToMarketSum);
+      new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_36, NetMarkToMarket::markToMarketSum);
   private final MapRef2RefFlowFunction mapRef2RefFlowFunction_42 =
       new MapRef2RefFlowFunction<>(
           binaryMapToRefFlowFunction_40, groupByMapFlowFunction_41::mapValues);
