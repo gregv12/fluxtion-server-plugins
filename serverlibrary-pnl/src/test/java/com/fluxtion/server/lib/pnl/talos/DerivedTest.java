@@ -220,6 +220,34 @@ public class DerivedTest {
     }
 
     @Test
+    public void testMtmMissingRateFOrZeroPosition() {
+        setUp();
+        pnlCalculator.processTradeBatch(
+                TradeBatch.of(200,
+                        new Trade(symbolEURUSD, 500, -1000, 13),
+                        new Trade(symbolGBPUSD, 1500, -2800, 13)
+                )
+        );
+
+        pnlCalculator.priceUpdate(symbolGBPUSD, 2);
+        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
+        Map<Instrument, Double> positionMap = mtmUpdates.getFirst().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(500, positionMap.get(EUR));
+        Assertions.assertEquals(-3800, positionMap.get(USD));
+        Assertions.assertEquals(1500, positionMap.get(GBP));
+
+        //clear EUR rate force pnl to NaN
+        pnlCalculator.processTrade(new Trade(symbolEURUSD, -500, +1100, 13));
+
+        positionMap = mtmUpdates.getLast().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(0, positionMap.get(EUR));
+        Assertions.assertEquals(-2700, positionMap.get(USD));
+        Assertions.assertEquals(1500, positionMap.get(GBP));
+
+        Assertions.assertEquals(300, pnlCalculator.pnl(), 0.0000001);
+    }
+
+    @Test
     public void testFeesInDifferentInstrument() {
         setUp();
         PnlCalculator pnlCalculator = new PnlCalculator();
