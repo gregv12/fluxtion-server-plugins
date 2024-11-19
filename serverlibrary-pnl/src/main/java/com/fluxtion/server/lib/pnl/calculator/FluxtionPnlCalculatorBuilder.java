@@ -32,6 +32,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     private FlowBuilder<Signal> positionUpdateEob;
     private FlowBuilder<Signal> positionSnapshotReset;
     private FlowBuilder<Trade> tradeStream;
+    private FlowBuilder<Trade> tradeBatchStream;
     private GroupByFlowBuilder<Instrument, FeeInstrumentPosMtm> instrumentFeeMap;
     private GroupByFlowBuilder<Instrument, InstrumentPosMtm> dealtAndContraInstPosition;
     private GroupByFlowBuilder<Instrument, InstrumentPosMtm> contraAndDealtInstPosition;
@@ -72,7 +73,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     }
 
     private void buildTradeStream() {
-        var tradeBatchStream = DataFlow.subscribe(TradeBatch.class)
+        tradeBatchStream = DataFlow.subscribe(TradeBatch.class)
                 .flatMap(TradeBatch::getTrades);
         tradeStream = DataFlow.subscribe(Trade.class)
                 .merge(tradeBatchStream);
@@ -97,7 +98,9 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     }
 
     private void buildInstrumentFeeMap() {
-        instrumentFeeMap = DataFlow.groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new)
+        instrumentFeeMap = DataFlow.subscribe(Trade.class)
+                .merge(tradeBatchStream)
+                .groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new)
                 .resetTrigger(positionSnapshotReset)
                 .defaultValue(GroupBy.emptyCollection())
                 .mapValues(derivedRateNode::calculateFeeMtm)

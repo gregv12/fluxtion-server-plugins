@@ -184,6 +184,42 @@ public class DerivedTest {
         Assertions.assertEquals(-1300, positionMap.get(USD));
         Assertions.assertEquals(-1100, positionMap.get(CHF));
         Assertions.assertEquals(500, positionMap.get(GBP));
+
+        //fees
+        Map<Instrument, Double> feePosMtm = mtmUpdates.getFirst().feesMtm().getFeesPositionMap();
+        Assertions.assertEquals(1, feePosMtm.size());
+        Assertions.assertEquals(65, feePosMtm.get(USD));
+    }
+
+    @Test
+    public void testTradeBatchFeesDifferentInstrument() {
+        setUp();
+        pnlCalculator.processTradeBatch(
+                TradeBatch.of(200,
+                        new Trade(symbolEURJPY, -400, 80000, 10),
+                        new Trade(symbolEURUSD, 500, -1100, 10),
+                        new Trade(symbolUSDCHF, 500, -1100, 0.0005),
+                        new Trade(symbolEURGBP, 1200, -1000, 10),
+                        new Trade(symbolGBPUSD, 1500, -700, 50, GBP)
+                )
+        );
+
+        Assertions.assertEquals(1, mtmInstUpdates.size());
+        Assertions.assertEquals(5, mtmInstUpdates.getFirst().size());
+        Assertions.assertEquals(1, mtmUpdates.size());
+
+        Map<Instrument, Double> positionMap = mtmUpdates.getFirst().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(1300, positionMap.get(EUR));
+        Assertions.assertEquals(80000, positionMap.get(JPY));
+        Assertions.assertEquals(-1300, positionMap.get(USD));
+        Assertions.assertEquals(-1100, positionMap.get(CHF));
+        Assertions.assertEquals(500, positionMap.get(GBP));
+
+        //fees
+        Map<Instrument, Double> feePosMtm = mtmUpdates.getFirst().feesMtm().getFeesPositionMap();
+        Assertions.assertEquals(2, feePosMtm.size());
+        Assertions.assertEquals(50, feePosMtm.get(GBP));
+        Assertions.assertEquals(30.0005, feePosMtm.get(USD));
     }
 
     @Test
