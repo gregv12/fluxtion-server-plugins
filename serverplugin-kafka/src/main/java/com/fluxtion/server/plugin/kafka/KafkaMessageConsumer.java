@@ -19,17 +19,19 @@ import java.util.Properties;
 
 @Log4j2
 public class KafkaMessageConsumer extends AbstractAgentHostedEventSourceService {
-    private Properties properties;
+
     private KafkaConsumer<String, String> consumer;
+    private Properties properties;
 
     protected KafkaMessageConsumer(String name) {
         super(name);
     }
 
+
     @Override
     public void init() {
-        String bootstrapServers = "127.0.0.1:9092";
         String groupId = "my-fourth-application";
+        String bootstrapServers = "127.0.0.1:9092";
 
         // create consumer configs
         properties = new Properties();
