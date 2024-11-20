@@ -81,8 +81,8 @@ import java.util.function.Consumer;
  *
  * <pre>
  * generation time                 : Not available
- * eventProcessorGenerator version : 9.3.47
- * api version                     : 9.3.47
+ * eventProcessorGenerator version : 9.3.48
+ * api version                     : 9.3.48
  * </pre>
  *
  * Event classes supported:
@@ -1427,6 +1427,7 @@ public class FluxtionPnlCalculator
   public void triggerCalculation() {
     throw new UnsupportedOperationException("triggerCalculation not supported");
   }
+  //EVENT BUFFERING - END
 
   private void auditEvent(Object typedEvent) {
     clock.eventReceived(typedEvent);

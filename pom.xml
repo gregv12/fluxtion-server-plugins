@@ -24,8 +24,8 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <fluxtion.version>9.3.47</fluxtion.version>
-        <fluxtion.server.version>0.1.40</fluxtion.server.version>
+        <fluxtion.version>9.3.48</fluxtion.version>
+        <fluxtion.server.version>0.1.41</fluxtion.server.version>
         <fluxtion.mavenplugin.version>3.0.14</fluxtion.mavenplugin.version>
     </properties>
 
