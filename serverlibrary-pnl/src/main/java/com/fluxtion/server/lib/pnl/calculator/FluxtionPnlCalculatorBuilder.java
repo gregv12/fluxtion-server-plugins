@@ -73,10 +73,8 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     }
 
     private void buildTradeStream() {
-        tradeBatchStream = DataFlow.subscribe(TradeBatch.class)
-                .flatMap(TradeBatch::getTrades);
-        tradeStream = DataFlow.subscribe(Trade.class)
-                .merge(tradeBatchStream);
+        tradeBatchStream = DataFlow.subscribe(TradeBatch.class).flatMap(TradeBatch::getTrades);
+        tradeStream = DataFlow.subscribe(Trade.class).merge(tradeBatchStream);
     }
 
     private void buildPositionMap() {
