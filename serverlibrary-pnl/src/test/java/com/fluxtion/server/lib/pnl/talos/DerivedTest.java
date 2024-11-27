@@ -24,6 +24,8 @@ public class DerivedTest {
 
     public static final Instrument EUR = new Instrument("EUR");
     public static final Instrument USD = new Instrument("USD");
+    public static final Instrument USDT = new Instrument("USDT");
+    public static final Instrument MXN = new Instrument("MXN");
     public static final Instrument CHF = new Instrument("CHF");
     public static final Instrument JPY = new Instrument("JPY");
     public static final Instrument GBP = new Instrument("GBP");
@@ -35,8 +37,12 @@ public class DerivedTest {
     public final static Symbol symbolUSDJPY = new Symbol("USDJPY", USD, JPY);
     public final static Symbol symbolGBPUSD = new Symbol("GBPUSD", GBP, USD);
     public final static Symbol symbolEURGBP = new Symbol("EURGBP", EUR, GBP);
+    public final static Symbol symbolUSDTMXN = new Symbol("USDTMXN", USDT, MXN);
+    public final static Symbol symbolMXNUSDT = new Symbol("MXNUSDT", MXN, USDT);
+    public final static Symbol symbolUSDMXN = new Symbol("USDMXN", USD, MXN);
+    public final static Symbol symbolUSDUSDT = new Symbol("USDUSDT", USD, USDT);
     private PnlCalculator pnlCalculator;
-    private final boolean log = false;
+    private boolean log = false;
     private final List<NetMarkToMarket> mtmUpdates = new ArrayList<>();
     private final List<Map<Instrument, NetMarkToMarket>> mtmInstUpdates = new ArrayList<>();
 
@@ -253,6 +259,50 @@ public class DerivedTest {
         //calc x-rate for usdchf : chf * eurchf -> eur,  eur * eurusd -> usd
         pnlCalculator.priceUpdate(symbolEURCHF, 3);
         Assertions.assertEquals(-150, pnlCalculator.pnl(), 0.0000001);
+    }
+
+    @Test
+    public void testMtm_USDTMXN() {
+        setUp();
+        pnlCalculator.priceUpdate(symbolUSDMXN, 20);
+        pnlCalculator.priceUpdate(symbolUSDUSDT, 1);
+
+        pnlCalculator.addSymbol(symbolUSDTMXN);
+        pnlCalculator.addSymbol(symbolMXNUSDT);
+
+        log = true;
+        pnlCalculator.processTrade(new Trade(symbolUSDTMXN, 30_000, -606_060.61, 13));
+        pnlCalculator.processTrade(new Trade(symbolMXNUSDT, 1_015_250, -50_000, 13));
+
+
+//        pnlCalculator.processTradeBatch(
+//                TradeBatch.of(200,
+//                        new Trade(symbolEURUSD, 500, -1000, 13),
+//                        new Trade(symbolGBPUSD, 1500, -2800, 13)
+//                )
+//        );
+//
+//
+//        Map<Instrument, Double> positionMap = mtmUpdates.getFirst().instrumentMtm().getPositionMap();
+//        Assertions.assertEquals(500, positionMap.get(EUR));
+//        Assertions.assertEquals(-3800, positionMap.get(USD));
+//        Assertions.assertEquals(1500, positionMap.get(GBP));
+//
+//        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
+//
+//        pnlCalculator.priceUpdate(symbolGBPUSD, 2);
+//        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
+//
+//        pnlCalculator.priceUpdate(symbolEURUSD, 1.5);
+//        Assertions.assertEquals(-50, pnlCalculator.pnl(), 0.0000001);
+//
+//        //no CHF rate force pnl to NaN
+//        pnlCalculator.processTrade(new Trade(symbolUSDCHF, 500, -1200, 13));
+//        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
+//
+//        //calc x-rate for usdchf : chf * eurchf -> eur,  eur * eurusd -> usd
+//        pnlCalculator.priceUpdate(symbolEURCHF, 3);
+//        Assertions.assertEquals(-150, pnlCalculator.pnl(), 0.0000001);
     }
 
     @Test
