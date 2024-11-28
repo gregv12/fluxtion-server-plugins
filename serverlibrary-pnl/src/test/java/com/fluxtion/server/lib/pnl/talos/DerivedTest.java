@@ -264,45 +264,25 @@ public class DerivedTest {
     @Test
     public void testMtm_USDTMXN() {
         setUp();
-        pnlCalculator.priceUpdate(symbolUSDMXN, 20);
-        pnlCalculator.priceUpdate(symbolUSDUSDT, 1);
 
         pnlCalculator.addSymbol(symbolUSDTMXN);
         pnlCalculator.addSymbol(symbolMXNUSDT);
 
-        log = true;
         pnlCalculator.processTrade(new Trade(symbolUSDTMXN, 30_000, -606_060.61, 13));
         pnlCalculator.processTrade(new Trade(symbolMXNUSDT, 1_015_250, -50_000, 13));
 
+        //positions but no MtM
+        Map<Instrument, Double> positionMap = mtmUpdates.getLast().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(-20_000, positionMap.get(USDT));
+        Assertions.assertEquals(0, positionMap.getOrDefault(USD, 0.0));
+        Assertions.assertEquals(409189.39, positionMap.get(MXN));
+        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
 
-//        pnlCalculator.processTradeBatch(
-//                TradeBatch.of(200,
-//                        new Trade(symbolEURUSD, 500, -1000, 13),
-//                        new Trade(symbolGBPUSD, 1500, -2800, 13)
-//                )
-//        );
-//
-//
-//        Map<Instrument, Double> positionMap = mtmUpdates.getFirst().instrumentMtm().getPositionMap();
-//        Assertions.assertEquals(500, positionMap.get(EUR));
-//        Assertions.assertEquals(-3800, positionMap.get(USD));
-//        Assertions.assertEquals(1500, positionMap.get(GBP));
-//
-//        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
-//
-//        pnlCalculator.priceUpdate(symbolGBPUSD, 2);
-//        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
-//
-//        pnlCalculator.priceUpdate(symbolEURUSD, 1.5);
-//        Assertions.assertEquals(-50, pnlCalculator.pnl(), 0.0000001);
-//
-//        //no CHF rate force pnl to NaN
-//        pnlCalculator.processTrade(new Trade(symbolUSDCHF, 500, -1200, 13));
-//        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
-//
-//        //calc x-rate for usdchf : chf * eurchf -> eur,  eur * eurusd -> usd
-//        pnlCalculator.priceUpdate(symbolEURCHF, 3);
-//        Assertions.assertEquals(-150, pnlCalculator.pnl(), 0.0000001);
+        //publish rate, MtM should be calculated
+        pnlCalculator.priceUpdate(symbolUSDMXN, 20);
+        pnlCalculator.priceUpdate(symbolUSDUSDT, 1);
+        Assertions.assertTrue(Double.isFinite(pnlCalculator.pnl()));
+        Assertions.assertEquals(459.4695, pnlCalculator.pnl(), 0.0000001);
     }
 
     @Test
