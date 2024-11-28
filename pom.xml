@@ -60,6 +60,7 @@
         <module>serverplugin-jdbc</module>
         <module>serverlibrary-pnl</module>
         <module>serverplugin-kafka</module>
+        <module>serverconnector-file</module>
     </modules>
 
     <dependencies>
