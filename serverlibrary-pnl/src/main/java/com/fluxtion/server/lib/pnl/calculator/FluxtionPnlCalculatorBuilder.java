@@ -137,9 +137,9 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         //instrument mtm for trading
         var instNetMtm = JoinFlowBuilder.outerJoin(dealtOnlyInstPosition, contraOnlyInstPosition, InstrumentPosMtm::merge)
                 .mapValues(derivedRateNode::calculateInstrumentPosMtm)
+                .updateTrigger(positionUpdateEob)
                 .defaultValue(GroupBy.emptyCollection())
-                .publishTriggerOverride(positionUpdateEob)
-                .updateTrigger(positionUpdateEob);
+                .publishTriggerOverride(positionUpdateEob);
 
         //instrument mtm net of fees
         JoinFlowBuilder.leftJoin(instNetMtm, instrumentFeeMap, NetMarkToMarket::combine)

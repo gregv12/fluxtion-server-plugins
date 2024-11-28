@@ -388,9 +388,9 @@ public class FluxtionPnlCalculator
     mapRef2RefFlowFunction_37.setEventProcessorContext(context);
     mapRef2RefFlowFunction_43.setEventProcessorContext(context);
     mapRef2RefFlowFunction_45.setEventProcessorContext(context);
+    mapRef2RefFlowFunction_45.setUpdateTriggerNode(handlerSignal_positionUpdate);
     mapRef2RefFlowFunction_47.setEventProcessorContext(context);
     mapRef2RefFlowFunction_47.setPublishTriggerOverrideNode(handlerSignal_positionUpdate);
-    mapRef2RefFlowFunction_47.setUpdateTriggerNode(handlerSignal_positionUpdate);
     mapRef2RefFlowFunction_51.setEventProcessorContext(context);
     mapRef2RefFlowFunction_51.setUpdateTriggerNode(handlerSignal_positionUpdate);
     mergeFlowFunction_2.dirtyStateMonitor = callbackDispatcher;
@@ -1282,8 +1282,8 @@ public class FluxtionPnlCalculator
       mapRef2RefFlowFunction_20.publishTriggerOverrideNodeUpdated(handlerSignal_positionUpdate);
       mapRef2RefFlowFunction_30.updateTriggerNodeUpdated(handlerSignal_positionUpdate);
       mapRef2RefFlowFunction_32.publishTriggerOverrideNodeUpdated(handlerSignal_positionUpdate);
+      mapRef2RefFlowFunction_45.updateTriggerNodeUpdated(handlerSignal_positionUpdate);
       mapRef2RefFlowFunction_47.publishTriggerOverrideNodeUpdated(handlerSignal_positionUpdate);
-      mapRef2RefFlowFunction_47.updateTriggerNodeUpdated(handlerSignal_positionUpdate);
       mapRef2RefFlowFunction_17.publishTriggerOverrideNodeUpdated(handlerSignal_positionUpdate);
       mapRef2RefFlowFunction_17.updateTriggerNodeUpdated(handlerSignal_positionUpdate);
       mapRef2RefFlowFunction_36.updateTriggerNodeUpdated(handlerSignal_positionUpdate);
@@ -1317,6 +1317,12 @@ public class FluxtionPnlCalculator
       isDirty_mapRef2RefFlowFunction_32 = mapRef2RefFlowFunction_32.map();
       if (isDirty_mapRef2RefFlowFunction_32) {
         binaryMapToRefFlowFunction_34.inputUpdated(mapRef2RefFlowFunction_32);
+      }
+    }
+    if (guardCheck_mapRef2RefFlowFunction_45()) {
+      isDirty_mapRef2RefFlowFunction_45 = mapRef2RefFlowFunction_45.map();
+      if (isDirty_mapRef2RefFlowFunction_45) {
+        mapRef2RefFlowFunction_47.inputUpdated(mapRef2RefFlowFunction_45);
       }
     }
     if (guardCheck_mapRef2RefFlowFunction_47()) {
@@ -1832,7 +1838,7 @@ public class FluxtionPnlCalculator
   }
 
   private boolean guardCheck_mapRef2RefFlowFunction_45() {
-    return isDirty_mapRef2RefFlowFunction_43;
+    return isDirty_handlerSignal_positionUpdate | isDirty_mapRef2RefFlowFunction_43;
   }
 
   private boolean guardCheck_mapRef2RefFlowFunction_47() {
