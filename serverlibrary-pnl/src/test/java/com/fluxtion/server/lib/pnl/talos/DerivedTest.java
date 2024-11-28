@@ -29,6 +29,7 @@ public class DerivedTest {
     public static final Instrument CHF = new Instrument("CHF");
     public static final Instrument JPY = new Instrument("JPY");
     public static final Instrument GBP = new Instrument("GBP");
+    public static final Instrument BTC = new Instrument("BTC");
     public final static Symbol symbolEURUSD = new Symbol("EURUSD", EUR, USD);
     public final static Symbol symbolEURCHF = new Symbol("EURCHF", EUR, CHF);
     public final static Symbol symbolUSDCHF = new Symbol("USDCHF", USD, CHF);
@@ -41,6 +42,8 @@ public class DerivedTest {
     public final static Symbol symbolMXNUSDT = new Symbol("MXNUSDT", MXN, USDT);
     public final static Symbol symbolUSDMXN = new Symbol("USDMXN", USD, MXN);
     public final static Symbol symbolUSDUSDT = new Symbol("USDUSDT", USD, USDT);
+    public final static Symbol symbolBTCEUR = new Symbol("BTCEUR", BTC, EUR);
+    public final static Symbol symbolBTCUSD = new Symbol("BTCUSD", BTC, USD);
     private PnlCalculator pnlCalculator;
     private boolean log = false;
     private final List<NetMarkToMarket> mtmUpdates = new ArrayList<>();
@@ -357,5 +360,78 @@ public class DerivedTest {
         Assertions.assertEquals(20, pnlCalculator.tradeFees(), 0.0000001);
         Assertions.assertEquals(-20.625, pnlCalculator.netPnl(), 0.0000001);
         System.out.println("----- GBPUSD rate complete -------");
+    }
+
+    @Test
+    public void testMtmRatesFirst() {
+        setUp();
+        pnlCalculator.addSymbol(symbolBTCEUR);
+        pnlCalculator.addSymbol(symbolBTCUSD);
+        pnlCalculator.addSymbol(symbolEURUSD);
+        pnlCalculator.priceUpdate("EURUSD", 1.2);
+        pnlCalculator.priceUpdate("BTCUSD", 95_000);
+
+        log = true;
+
+        pnlCalculator.processTrade(new Trade(symbolBTCEUR, 1, -91390, 27.41, EUR));
+        pnlCalculator.processTrade(new Trade(symbolBTCEUR, 1, -91390, 27.41, EUR));
+        pnlCalculator.processTrade(new Trade(symbolBTCEUR, 1, -91390, 27.41, EUR));
+
+        //aggregate
+        Map<Instrument, Double> positionMap = mtmUpdates.getLast().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(-274170.0, positionMap.get(EUR));
+        Assertions.assertEquals(3, positionMap.get(BTC));
+        Assertions.assertEquals(-44004.0, pnlCalculator.pnl(), 0.0000001);
+        Assertions.assertEquals(98.676, pnlCalculator.tradeFees(), 0.0000001);
+        Assertions.assertEquals(-44102.676, pnlCalculator.netPnl(), 0.0000001);
+
+        //instrument - BTC
+        NetMarkToMarket btcMtM = mtmInstUpdates.getLast().get(BTC);
+        Assertions.assertEquals(-44004.0, btcMtM.tradePnl(), 0.0000001);
+        Assertions.assertEquals(98.676, btcMtM.fees(), 0.0000001);
+        Assertions.assertEquals(-44102.676, btcMtM.pnlNetFees(), 0.0000001);
+
+        //instrument - EUR
+        NetMarkToMarket eurMtM = mtmInstUpdates.getLast().get(EUR);
+        Assertions.assertEquals(-44004.0, eurMtM.tradePnl(), 0.0000001);
+        Assertions.assertEquals(0, eurMtM.fees(), 0.0000001);
+        Assertions.assertEquals(-44004.0, eurMtM.pnlNetFees(), 0.0000001);
+    }
+
+    @Test
+    public void testMtmRatesAfterTrades() {
+        setUp();
+        pnlCalculator.addSymbol(symbolBTCEUR);
+        pnlCalculator.addSymbol(symbolBTCUSD);
+        pnlCalculator.addSymbol(symbolEURUSD);
+
+        log = true;
+
+        pnlCalculator.processTrade(new Trade(symbolBTCEUR, 1, -91390, 27.41, EUR));
+        pnlCalculator.processTrade(new Trade(symbolBTCEUR, 1, -91390, 27.41, EUR));
+        pnlCalculator.processTrade(new Trade(symbolBTCEUR, 1, -91390, 27.41, EUR));
+
+        pnlCalculator.priceUpdate("EURUSD", 1.2);
+        pnlCalculator.priceUpdate("BTCUSD", 95_000);
+
+        //aggregate
+        Map<Instrument, Double> positionMap = mtmUpdates.getLast().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(-274170.0, positionMap.get(EUR));
+        Assertions.assertEquals(3, positionMap.get(BTC));
+        Assertions.assertEquals(-44004.0, pnlCalculator.pnl(), 0.0000001);
+        Assertions.assertEquals(98.676, pnlCalculator.tradeFees(), 0.0000001);
+        Assertions.assertEquals(-44102.676, pnlCalculator.netPnl(), 0.0000001);
+
+        //instrument - BTC
+        NetMarkToMarket btcMtM = mtmInstUpdates.getLast().get(BTC);
+        Assertions.assertEquals(-44004.0, btcMtM.tradePnl(), 0.0000001);
+        Assertions.assertEquals(98.676, btcMtM.fees(), 0.0000001);
+        Assertions.assertEquals(-44102.676, btcMtM.pnlNetFees(), 0.0000001);
+
+        //instrument - EUR
+        NetMarkToMarket eurMtM = mtmInstUpdates.getLast().get(EUR);
+        Assertions.assertEquals(-44004.0, eurMtM.tradePnl(), 0.0000001);
+        Assertions.assertEquals(0, eurMtM.fees(), 0.0000001);
+        Assertions.assertEquals(-44004.0, eurMtM.pnlNetFees(), 0.0000001);
     }
 }
