@@ -5,6 +5,10 @@
 
 package com.fluxtion.server.lib.pnl;
 
+import com.fluxtion.server.lib.pnl.refdata.Instrument;
+
+import java.util.Map;
+
 public record NetMarkToMarket(InstrumentPosMtm instrumentMtm, FeeInstrumentPosMtm feesMtm, double tradePnl, double fees,
                               double pnlNetFees) {
 
@@ -14,6 +18,22 @@ public record NetMarkToMarket(InstrumentPosMtm instrumentMtm, FeeInstrumentPosMt
 
     public static NetMarkToMarket combine(InstrumentPosMtm instrumentMtm, FeeInstrumentPosMtm feesMtm) {
         return new NetMarkToMarket(instrumentMtm, feesMtm == null ? new FeeInstrumentPosMtm() : feesMtm);
+    }
+
+    public static NetMarkToMarket markToMarketSum(Map<Instrument, NetMarkToMarket> instrumentNetMarkToMarketMap) {
+
+        InstrumentPosMtm instrumentPosMtm = new InstrumentPosMtm();
+        FeeInstrumentPosMtm feesMtm = new FeeInstrumentPosMtm();
+
+
+        instrumentNetMarkToMarketMap.values().forEach(m -> {
+            instrumentPosMtm.combine(m.instrumentMtm());
+            feesMtm.combine(m.feesMtm());
+        });
+        instrumentPosMtm.setBookName("global");
+
+        NetMarkToMarket sumMtm = new NetMarkToMarket(instrumentPosMtm, feesMtm);
+        return sumMtm;
     }
 
 }

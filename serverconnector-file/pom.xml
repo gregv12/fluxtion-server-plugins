@@ -12,8 +12,8 @@
         <version>0.1.20-SNAPSHOT</version>
     </parent>
 
-    <artifactId>serverplugin-admintelnet</artifactId>
-    <name>fluxtion :: server-plugin-admin-telnet</name>
+    <artifactId>serverconnector-file</artifactId>
+    <name>fluxtion :: server-connector-file</name>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
@@ -23,10 +23,16 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.jline</groupId>
-            <artifactId>jline</artifactId>
-            <version>3.27.1</version>
+            <groupId>com.fluxtion</groupId>
+            <artifactId>server</artifactId>
+            <version>${fluxtion.server.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <version>2.14.2</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
-
 </project>
