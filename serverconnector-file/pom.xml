@@ -4,7 +4,8 @@
   ~ SPDX-License-Identifier: AGPL-3.0-only
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
@@ -13,8 +14,8 @@
         <version>0.1.19-SNAPSHOT</version>
     </parent>
 
-    <artifactId>serverplugin-jdbc</artifactId>
-    <name>fluxtion :: server-plugin-jdbc</name>
+    <artifactId>serverconnector-file</artifactId>
+    <name>fluxtion :: server-connector-file</name>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
@@ -22,4 +23,18 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+    <dependencies>
+        <dependency>
+            <groupId>com.fluxtion</groupId>
+            <artifactId>server</artifactId>
+            <version>${fluxtion.server.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <version>2.14.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>

@@ -80,7 +80,7 @@ public class DerivedRateNode {
         Map<Instrument, Double> mtmPositionsMap = feeInstrumentPosMtm.resetMtm().getFeesMtmPositionMap();
         feeInstrumentPosMtm.getFeesPositionMap()
                 .forEach((key, value) -> {
-                    mtmPositionsMap.put(key, value * getRateForInstrument(key));
+                    mtmPositionsMap.put(key, value == 0 ? 0 : value * getRateForInstrument(key));
                 });
         feeInstrumentPosMtm.calcTradePnl();
         return feeInstrumentPosMtm;
@@ -90,7 +90,7 @@ public class DerivedRateNode {
         Map<Instrument, Double> mtmPositionsMap = instrumentPosMtm.resetMtm().getMtmPositionsMap();
         instrumentPosMtm.getPositionMap()
                 .forEach((key, value) -> {
-                    mtmPositionsMap.put(key, value * getRateForInstrument(key));
+                    mtmPositionsMap.put(key, value == 0 ? 0 : value * getRateForInstrument(key));
                 });
         instrumentPosMtm.calcTradePnl();
         return instrumentPosMtm;
