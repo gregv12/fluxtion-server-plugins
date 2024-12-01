@@ -371,8 +371,6 @@ public class DerivedTest {
         pnlCalculator.priceUpdate("EURUSD", 1.2);
         pnlCalculator.priceUpdate("BTCUSD", 95_000);
 
-        log = true;
-
         pnlCalculator.processTrade(new Trade(symbolBTCEUR, 1, -91390, 27.41, EUR));
         pnlCalculator.processTrade(new Trade(symbolBTCEUR, 1, -91390, 27.41, EUR));
         pnlCalculator.processTrade(new Trade(symbolBTCEUR, 1, -91390, 27.41, EUR));
@@ -404,8 +402,6 @@ public class DerivedTest {
         pnlCalculator.addSymbol(symbolBTCEUR);
         pnlCalculator.addSymbol(symbolBTCUSD);
         pnlCalculator.addSymbol(symbolEURUSD);
-
-        log = true;
 
         pnlCalculator.processTrade(new Trade(symbolBTCEUR, 1, -91390, 27.41, EUR));
         pnlCalculator.processTrade(new Trade(symbolBTCEUR, 1, -91390, 27.41, EUR));
