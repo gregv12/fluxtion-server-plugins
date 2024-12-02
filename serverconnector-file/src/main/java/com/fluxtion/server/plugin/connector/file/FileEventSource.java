@@ -1,6 +1,8 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ *  * SPDX-License-Identifier: AGPL-3.0-only
+ *  
  */
 
 package com.fluxtion.server.plugin.connector.file;
@@ -17,11 +19,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Log4j2
-public class FileEventSource extends AbstractAgentHostedEventSourceService<Collection<SourceRecord<String>>> {
+@SuppressWarnings("all")
+public class FileEventSource extends AbstractAgentHostedEventSourceService {
 
     @Getter
     @Setter
@@ -88,12 +91,13 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService<Colle
             }
         } catch (IOException e) {
             log.error("Failed to close FileStreamSourceTask stream: ", e);
-        }finally {
+        } finally {
             commitPointer.force();
             IoUtil.unmap(commitPointer);
         }
     }
 
+    @SuppressWarnings("all")
     @Override
     public int doWork() {
         try {
@@ -103,7 +107,7 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService<Colle
 
             ArrayList<SourceRecord<String>> records = null;
 
-            int nread = 0;
+            int nread;
             while (reader.ready()) {
                 nread = reader.read(buffer, offset, buffer.length - offset);
                 log.trace("Read {} bytes from {}", nread, getFilename());

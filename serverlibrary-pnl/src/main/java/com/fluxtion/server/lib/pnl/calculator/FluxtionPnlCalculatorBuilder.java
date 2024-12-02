@@ -1,6 +1,8 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ *  * SPDX-License-Identifier: AGPL-3.0-only
+ *
  */
 
 package com.fluxtion.server.lib.pnl.calculator;
@@ -18,6 +20,9 @@ import com.fluxtion.server.lib.pnl.*;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import lombok.Getter;
 
+import static com.fluxtion.server.lib.pnl.PnlCalculator.GLOBAL_NET_MTM_SINK;
+import static com.fluxtion.server.lib.pnl.PnlCalculator.INSTRUMENT_NET_MTM_SINK;
+
 /**
  * Builds the {@link FluxtionPnlCalculator} AOT using the Fluxtion maven plugin.
  * <p>
@@ -27,6 +32,7 @@ import lombok.Getter;
 
 @Getter
 public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
+
 
     private EventProcessorConfig eventProcessorConfig;
     private FlowBuilder<Signal> positionUpdateEob;
@@ -39,6 +45,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     private GroupByFlowBuilder<Instrument, InstrumentPosMtm> dealtOnlyInstPosition;
     private GroupByFlowBuilder<Instrument, InstrumentPosMtm> contraOnlyInstPosition;
     private DerivedRateNode derivedRateNode;
+    private EventFeedConnector eventFeedConnector;
 
     public static FluxtionPnlCalculatorBuilder buildPnlCalculator(EventProcessorConfig config) {
         FluxtionPnlCalculatorBuilder calculatorBuilder = new FluxtionPnlCalculatorBuilder();
@@ -70,6 +77,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         positionUpdateEob = DataFlow.subscribeToSignal("positionUpdate");
         positionSnapshotReset = DataFlow.subscribeToSignal("positionSnapshotReset");
         derivedRateNode = eventProcessorConfig.addNode(new DerivedRateNode(), "derivedRateNode");
+        eventFeedConnector = eventProcessorConfig.addNode(new EventFeedConnector(), "eventFeedBatcher");
     }
 
     private void buildTradeStream() {
@@ -128,7 +136,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .map(GroupBy::toMap)
                 .map(NetMarkToMarket::markToMarketSum)
                 .id("globalNetMtm")
-                .sink("globalNetMtmListener");
+                .sink(GLOBAL_NET_MTM_SINK);
     }
 
     private void buildInstrumentMtm() {
@@ -144,6 +152,6 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .updateTrigger(positionUpdateEob)
                 .map(GroupBy::toMap)
                 .id("instrumentNetMtm")
-                .sink("instrumentNetMtmListener");
+                .sink(INSTRUMENT_NET_MTM_SINK);
     }
 }
