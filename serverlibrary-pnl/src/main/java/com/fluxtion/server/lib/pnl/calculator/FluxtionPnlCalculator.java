@@ -61,6 +61,7 @@ import com.fluxtion.runtime.service.ServiceListener;
 import com.fluxtion.runtime.service.ServiceRegistryNode;
 import com.fluxtion.runtime.time.Clock;
 import com.fluxtion.runtime.time.ClockStrategy.ClockStrategyEvent;
+import com.fluxtion.server.config.ConfigListener;
 import com.fluxtion.server.lib.pnl.InstrumentPosMtm;
 import com.fluxtion.server.lib.pnl.InstrumentPosition;
 import com.fluxtion.server.lib.pnl.MidPrice;
@@ -69,6 +70,8 @@ import com.fluxtion.server.lib.pnl.NetMarkToMarket;
 import com.fluxtion.server.lib.pnl.PositionSnapshot;
 import com.fluxtion.server.lib.pnl.Trade;
 import com.fluxtion.server.lib.pnl.TradeBatch;
+import com.fluxtion.server.lib.pnl.TradeBatchDTO;
+import com.fluxtion.server.lib.pnl.TradeDTO;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Map;
@@ -82,8 +85,8 @@ import java.util.function.Consumer;
  *
  * <pre>
  * generation time                 : Not available
- * eventProcessorGenerator version : 9.4.1-SNAPSHOT
- * api version                     : 9.4.1-SNAPSHOT
+ * eventProcessorGenerator version : 9.4.2
+ * api version                     : 9.4.2
  * </pre>
  *
  * Event classes supported:
@@ -102,6 +105,8 @@ import java.util.function.Consumer;
  *   <li>com.fluxtion.server.lib.pnl.PositionSnapshot
  *   <li>com.fluxtion.server.lib.pnl.Trade
  *   <li>com.fluxtion.server.lib.pnl.TradeBatch
+ *   <li>com.fluxtion.server.lib.pnl.TradeBatchDTO
+ *   <li>com.fluxtion.server.lib.pnl.TradeDTO
  * </ul>
  *
  * @author Greg Higgins
@@ -110,6 +115,7 @@ import java.util.function.Consumer;
 public class FluxtionPnlCalculator
     implements EventProcessor<FluxtionPnlCalculator>,
         /*--- @ExportService start ---*/
+        ConfigListener,
         ServiceListener,
         /*--- @ExportService end ---*/
         StaticEventProcessor,
@@ -583,6 +589,12 @@ public class FluxtionPnlCalculator
       handleEvent(typedEvent);
     } else if (event instanceof com.fluxtion.server.lib.pnl.TradeBatch) {
       TradeBatch typedEvent = (TradeBatch) event;
+      handleEvent(typedEvent);
+    } else if (event instanceof com.fluxtion.server.lib.pnl.TradeBatchDTO) {
+      TradeBatchDTO typedEvent = (TradeBatchDTO) event;
+      handleEvent(typedEvent);
+    } else if (event instanceof com.fluxtion.server.lib.pnl.TradeDTO) {
+      TradeDTO typedEvent = (TradeDTO) event;
       handleEvent(typedEvent);
     } else {
       unKnownEventHandler(event);
@@ -1122,6 +1134,20 @@ public class FluxtionPnlCalculator
     }
     afterEvent();
   }
+
+  public void handleEvent(TradeBatchDTO typedEvent) {
+    auditEvent(typedEvent);
+    //Default, no filter methods
+    eventFeedBatcher.onEvent(typedEvent);
+    afterEvent();
+  }
+
+  public void handleEvent(TradeDTO typedEvent) {
+    auditEvent(typedEvent);
+    //Default, no filter methods
+    eventFeedBatcher.onEvent(typedEvent);
+    afterEvent();
+  }
   //EVENT DISPATCH - END
 
   //FILTERED DISPATCH - START
@@ -1429,6 +1455,26 @@ public class FluxtionPnlCalculator
   //FILTERED DISPATCH - END
 
   //EXPORTED SERVICE FUNCTIONS - START
+  @Override
+  public boolean configChanged(com.fluxtion.server.config.ConfigUpdate arg0) {
+    beforeServiceCall(
+        "public default boolean com.fluxtion.server.config.ConfigListener.configChanged(com.fluxtion.server.config.ConfigUpdate)");
+    ExportFunctionAuditEvent typedEvent = functionAudit;
+    eventFeedBatcher.configChanged(arg0);
+    afterServiceCall();
+    return true;
+  }
+
+  @Override
+  public boolean initialConfig(com.fluxtion.server.config.ConfigMap arg0) {
+    beforeServiceCall(
+        "public boolean com.fluxtion.server.lib.pnl.calculator.EventFeedConnector.initialConfig(com.fluxtion.server.config.ConfigMap)");
+    ExportFunctionAuditEvent typedEvent = functionAudit;
+    eventFeedBatcher.initialConfig(arg0);
+    afterServiceCall();
+    return true;
+  }
+
   @Override
   public void deRegisterService(com.fluxtion.runtime.service.Service<?> arg0) {
     beforeServiceCall(

@@ -2,7 +2,7 @@
  *
  *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
  *  * SPDX-License-Identifier: AGPL-3.0-only
- *  
+ *
  */
 
 package com.fluxtion.server.plugin.connector.file;
@@ -36,6 +36,9 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
     @Getter
     @Setter
     private int batchSize;
+    @Getter
+    @Setter
+    private boolean tail = true;
     private final AtomicBoolean startComplete = new AtomicBoolean(false);
 
     private long streamOffset;
@@ -100,12 +103,15 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
     @SuppressWarnings("all")
     @Override
     public int doWork() {
+        if (!tail) {
+            return 0;
+        }
         try {
             if (connectReader() == null) {
                 return 0;
             }
 
-            ArrayList<SourceRecord<String>> records = null;
+            ArrayList<String> records = null;
 
             int nread;
             while (reader.ready()) {
@@ -124,7 +130,7 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
                             if (records == null) {
                                 records = new ArrayList<>();
                             }
-                            records.add(new SourceRecord<>(serviceName, line));
+                            records.add(line);
 
                             if (records.size() >= batchSize) {
                                 var recordBatch = records;

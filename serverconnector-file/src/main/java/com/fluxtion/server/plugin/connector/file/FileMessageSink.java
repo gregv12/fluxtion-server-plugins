@@ -1,12 +1,14 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ *  * SPDX-License-Identifier: AGPL-3.0-only
+ *
  */
 
 package com.fluxtion.server.plugin.connector.file;
 
 import com.fluxtion.runtime.lifecycle.Lifecycle;
-import com.fluxtion.runtime.output.MessageSink;
+import com.fluxtion.runtime.output.AbstractMessageSink;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -19,7 +21,8 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 
 @Log4j2
-public class FileMessageSink  implements Lifecycle, MessageSink<Object> {
+public class FileMessageSink extends AbstractMessageSink<Object>
+        implements Lifecycle {
 
     @Getter
     @Setter
@@ -28,7 +31,6 @@ public class FileMessageSink  implements Lifecycle, MessageSink<Object> {
 
     @Override
     public void init() {
-
     }
 
     @SneakyThrows
@@ -42,6 +44,12 @@ public class FileMessageSink  implements Lifecycle, MessageSink<Object> {
     }
 
     @Override
+    protected void sendToSink(Object value) {
+        log.trace("sink publish:{}", value);
+        printStream.println(value);
+    }
+
+    @Override
     public void stop() {
         printStream.flush();
         printStream.close();
@@ -50,12 +58,5 @@ public class FileMessageSink  implements Lifecycle, MessageSink<Object> {
     @Override
     public void tearDown() {
         stop();
-    }
-
-
-    @Override
-    public void accept(Object o) {
-        log.info("sink publish:{}", o);
-        printStream.println(o);
     }
 }
