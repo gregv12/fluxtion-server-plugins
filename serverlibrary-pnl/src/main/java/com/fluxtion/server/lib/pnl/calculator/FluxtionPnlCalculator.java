@@ -46,7 +46,6 @@ import com.fluxtion.runtime.dataflow.helpers.DefaultValue;
 import com.fluxtion.runtime.dataflow.helpers.Mappers;
 import com.fluxtion.runtime.dataflow.helpers.Tuples.MapTuple;
 import com.fluxtion.runtime.event.Event;
-import com.fluxtion.runtime.event.NamedFeedEvent;
 import com.fluxtion.runtime.event.Signal;
 import com.fluxtion.runtime.input.EventFeed;
 import com.fluxtion.runtime.input.SubscriptionManager;
@@ -70,8 +69,12 @@ import com.fluxtion.server.lib.pnl.NetMarkToMarket;
 import com.fluxtion.server.lib.pnl.PositionSnapshot;
 import com.fluxtion.server.lib.pnl.Trade;
 import com.fluxtion.server.lib.pnl.TradeBatch;
-import com.fluxtion.server.lib.pnl.TradeBatchDTO;
-import com.fluxtion.server.lib.pnl.TradeDTO;
+import com.fluxtion.server.lib.pnl.dto.MidPriceBatchDto;
+import com.fluxtion.server.lib.pnl.dto.MidPriceDto;
+import com.fluxtion.server.lib.pnl.dto.SymbolBatchDto;
+import com.fluxtion.server.lib.pnl.dto.SymbolDto;
+import com.fluxtion.server.lib.pnl.dto.TradeBatchDto;
+import com.fluxtion.server.lib.pnl.dto.TradeDto;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Map;
@@ -95,7 +98,6 @@ import java.util.function.Consumer;
  *   <li>com.fluxtion.compiler.generation.model.ExportFunctionMarker
  *   <li>com.fluxtion.runtime.callback.InstanceCallbackEvent.InstanceCallbackEvent_0
  *   <li>com.fluxtion.runtime.callback.InstanceCallbackEvent.InstanceCallbackEvent_1
- *   <li>com.fluxtion.runtime.event.NamedFeedEvent
  *   <li>com.fluxtion.runtime.event.Signal
  *   <li>com.fluxtion.runtime.output.SinkDeregister
  *   <li>com.fluxtion.runtime.output.SinkRegistration
@@ -105,8 +107,12 @@ import java.util.function.Consumer;
  *   <li>com.fluxtion.server.lib.pnl.PositionSnapshot
  *   <li>com.fluxtion.server.lib.pnl.Trade
  *   <li>com.fluxtion.server.lib.pnl.TradeBatch
- *   <li>com.fluxtion.server.lib.pnl.TradeBatchDTO
- *   <li>com.fluxtion.server.lib.pnl.TradeDTO
+ *   <li>com.fluxtion.server.lib.pnl.dto.MidPriceBatchDto
+ *   <li>com.fluxtion.server.lib.pnl.dto.MidPriceDto
+ *   <li>com.fluxtion.server.lib.pnl.dto.SymbolBatchDto
+ *   <li>com.fluxtion.server.lib.pnl.dto.SymbolDto
+ *   <li>com.fluxtion.server.lib.pnl.dto.TradeBatchDto
+ *   <li>com.fluxtion.server.lib.pnl.dto.TradeDto
  * </ul>
  *
  * @author Greg Higgins
@@ -476,7 +482,7 @@ public class FluxtionPnlCalculator
     }
     processing = true;
     auditEvent(Lifecycle.LifecycleEvent.Start);
-    eventFeedBatcher.start();
+
     afterEvent();
     callbackDispatcher.dispatchQueuedCallbacks();
     processing = false;
@@ -560,9 +566,6 @@ public class FluxtionPnlCalculator
         instanceof com.fluxtion.runtime.callback.InstanceCallbackEvent.InstanceCallbackEvent_1) {
       InstanceCallbackEvent_1 typedEvent = (InstanceCallbackEvent_1) event;
       handleEvent(typedEvent);
-    } else if (event instanceof com.fluxtion.runtime.event.NamedFeedEvent) {
-      NamedFeedEvent typedEvent = (NamedFeedEvent) event;
-      handleEvent(typedEvent);
     } else if (event instanceof com.fluxtion.runtime.event.Signal) {
       Signal typedEvent = (Signal) event;
       handleEvent(typedEvent);
@@ -590,11 +593,23 @@ public class FluxtionPnlCalculator
     } else if (event instanceof com.fluxtion.server.lib.pnl.TradeBatch) {
       TradeBatch typedEvent = (TradeBatch) event;
       handleEvent(typedEvent);
-    } else if (event instanceof com.fluxtion.server.lib.pnl.TradeBatchDTO) {
-      TradeBatchDTO typedEvent = (TradeBatchDTO) event;
+    } else if (event instanceof com.fluxtion.server.lib.pnl.dto.MidPriceBatchDto) {
+      MidPriceBatchDto typedEvent = (MidPriceBatchDto) event;
       handleEvent(typedEvent);
-    } else if (event instanceof com.fluxtion.server.lib.pnl.TradeDTO) {
-      TradeDTO typedEvent = (TradeDTO) event;
+    } else if (event instanceof com.fluxtion.server.lib.pnl.dto.MidPriceDto) {
+      MidPriceDto typedEvent = (MidPriceDto) event;
+      handleEvent(typedEvent);
+    } else if (event instanceof com.fluxtion.server.lib.pnl.dto.SymbolBatchDto) {
+      SymbolBatchDto typedEvent = (SymbolBatchDto) event;
+      handleEvent(typedEvent);
+    } else if (event instanceof com.fluxtion.server.lib.pnl.dto.SymbolDto) {
+      SymbolDto typedEvent = (SymbolDto) event;
+      handleEvent(typedEvent);
+    } else if (event instanceof com.fluxtion.server.lib.pnl.dto.TradeBatchDto) {
+      TradeBatchDto typedEvent = (TradeBatchDto) event;
+      handleEvent(typedEvent);
+    } else if (event instanceof com.fluxtion.server.lib.pnl.dto.TradeDto) {
+      TradeDto typedEvent = (TradeDto) event;
       handleEvent(typedEvent);
     } else {
       unKnownEventHandler(event);
@@ -849,18 +864,6 @@ public class FluxtionPnlCalculator
     }
     if (guardCheck_pushFlowFunction_40()) {
       isDirty_pushFlowFunction_40 = pushFlowFunction_40.push();
-    }
-    afterEvent();
-  }
-
-  public void handleEvent(NamedFeedEvent typedEvent) {
-    auditEvent(typedEvent);
-    switch (typedEvent.filterString()) {
-        //Event Class:[com.fluxtion.runtime.event.NamedFeedEvent] filterString:[tradeEventFeed]
-      case ("tradeEventFeed"):
-        handle_NamedFeedEvent_tradeEventFeed(typedEvent);
-        afterEvent();
-        return;
     }
     afterEvent();
   }
@@ -1135,14 +1138,42 @@ public class FluxtionPnlCalculator
     afterEvent();
   }
 
-  public void handleEvent(TradeBatchDTO typedEvent) {
+  public void handleEvent(MidPriceBatchDto typedEvent) {
     auditEvent(typedEvent);
     //Default, no filter methods
     eventFeedBatcher.onEvent(typedEvent);
     afterEvent();
   }
 
-  public void handleEvent(TradeDTO typedEvent) {
+  public void handleEvent(MidPriceDto typedEvent) {
+    auditEvent(typedEvent);
+    //Default, no filter methods
+    eventFeedBatcher.onEvent(typedEvent);
+    afterEvent();
+  }
+
+  public void handleEvent(SymbolBatchDto typedEvent) {
+    auditEvent(typedEvent);
+    //Default, no filter methods
+    eventFeedBatcher.onEvent(typedEvent);
+    afterEvent();
+  }
+
+  public void handleEvent(SymbolDto typedEvent) {
+    auditEvent(typedEvent);
+    //Default, no filter methods
+    eventFeedBatcher.onEvent(typedEvent);
+    afterEvent();
+  }
+
+  public void handleEvent(TradeBatchDto typedEvent) {
+    auditEvent(typedEvent);
+    //Default, no filter methods
+    eventFeedBatcher.onEvent(typedEvent);
+    afterEvent();
+  }
+
+  public void handleEvent(TradeDto typedEvent) {
     auditEvent(typedEvent);
     //Default, no filter methods
     eventFeedBatcher.onEvent(typedEvent);
@@ -1151,10 +1182,6 @@ public class FluxtionPnlCalculator
   //EVENT DISPATCH - END
 
   //FILTERED DISPATCH - START
-  private void handle_NamedFeedEvent_tradeEventFeed(NamedFeedEvent typedEvent) {
-    eventFeedBatcher.onEvent(typedEvent);
-  }
-
   private void handle_Signal_positionSnapshotReset(Signal typedEvent) {
     isDirty_handlerSignal_positionSnapshotReset =
         handlerSignal_positionSnapshotReset.onEvent(typedEvent);
