@@ -1,6 +1,8 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ *  * SPDX-License-Identifier: AGPL-3.0-only
+ *
  */
 
 package com.fluxtion.server.plugin.connector.file;
@@ -18,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Log4j2
@@ -36,11 +39,18 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
     private int batchSize;
     @Getter
     @Setter
+    private boolean publishOnStart = false;
+    @Getter
+    @Setter
+    private ReadStrategy readStrategy = ReadStrategy.COMMITED;
     private boolean tail = true;
+    private boolean commitRead = true;
+    private boolean latestRead = false;
     private final AtomicBoolean startComplete = new AtomicBoolean(false);
 
     private long streamOffset;
     private MappedByteBuffer commitPointer;
+    private boolean once;
 
     public FileEventSource() {
         this(1024);
@@ -53,49 +63,47 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
     }
 
     @Override
-    public void tearDown() {
-        super.tearDown();
+    public void start() {
+        log.info("Starting FileEventSource");
     }
 
     @Override
     public void startComplete() {
-        log.info("Starting FileEventFeed");
+        tail = readStrategy == ReadStrategy.COMMITED | readStrategy == ReadStrategy.EARLIEST | readStrategy == ReadStrategy.LATEST;
+        once = !tail;
+        commitRead = readStrategy == ReadStrategy.COMMITED;
+        latestRead = readStrategy == ReadStrategy.LATEST | readStrategy == ReadStrategy.ONCE_LATEST;
+        log.info("startComplete FileEventFeed tail:{} once:{}, commitRead:{} latestRead:{} readStrategy:{}", tail, once, commitRead, latestRead, readStrategy);
+
         File committedReadFile = new File(filename + ".readPointer");
-        log.info("{} creating committedReadFile:{}", serviceName, committedReadFile.getAbsolutePath());
-        if (committedReadFile.exists()) {
+        if (readStrategy == ReadStrategy.ONCE_EARLIEST | readStrategy == ReadStrategy.EARLIEST) {
+            streamOffset = 0;
+        } else if (committedReadFile.exists()) {
             commitPointer = IoUtil.mapExistingFile(committedReadFile, "committedReadFile_" + filename);
             streamOffset = commitPointer.getLong(0);
-        } else {
+            log.info("{} reading committedReadFile:{}, streamOffset:{}", serviceName, committedReadFile.getAbsolutePath(), streamOffset);
+        } else if (commitRead) {
             commitPointer = IoUtil.mapNewFile(committedReadFile, 1024);
             streamOffset = 0;
+            log.info("{} creating committedReadFile:{}, streamOffset:{}", serviceName, committedReadFile.getAbsolutePath(), streamOffset);
         }
+
         startComplete.set(true);
         if (filename == null || filename.isEmpty()) {
             //throw an  error
         }
         connectReader();
+        tail = true;
+        if (publishOnStart) {
+            log.info("publishOnStart: {}", publishOnStart);
+            doWork();
+        }
+        log.info("startComplete - exit");
     }
 
     @Override
     public void onStart() {
-        log.info("Agent onStart FileEventFeed");
-        super.onStart();
-    }
-
-    @Override
-    public void stop() {
-        log.trace("Stopping");
-        try {
-            if (stream != null) {
-                stream.close();
-                log.trace("Closed input stream");
-            }
-        } catch (IOException e) {
-            log.error("Failed to close FileStreamSourceTask stream: ", e);
-        } finally {
-            commitPointer.force();
-            IoUtil.unmap(commitPointer);
-        }
+        log.info("agent onStart FileEventFeed");
     }
 
     @SuppressWarnings("all")
@@ -108,11 +116,14 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
             if (connectReader() == null) {
                 return 0;
             }
+            log.debug("doWork FileEventFeed");
 
             ArrayList<String> records = null;
 
             int nread;
             while (reader.ready()) {
+                tail = !once;
+                Scanner scanner = new Scanner(reader);
                 nread = reader.read(buffer, offset, buffer.length - offset);
                 log.trace("Read {} bytes from {}", nread, getFilename());
 
@@ -127,17 +138,39 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
                             log.trace("Read a line from {}", getFilename());
                             if (records == null) {
                                 records = new ArrayList<>();
+                                if (latestRead) {
+                                    records.add(line);
+                                }
                             }
-                            records.add(line);
+                            if (latestRead) {
+                                records.set(0, line);
+                            } else {
+                                records.add(line);
+                            }
 
-                            if (records.size() >= batchSize) {
+                            if (records.size() >= batchSize & !latestRead) {
                                 var recordBatch = records;
                                 records = new ArrayList<>();
                                 output.publish(recordBatch);
-                                commitPointer.force();
+                                log.info("publish batch:{}", recordBatch);
+                                if (commitRead) {
+                                    commitPointer.force();
+                                }
                             }
                         }
                     } while (line != null);
+
+                    if (latestRead & foundOneLine) {
+                        log.info("publish latest:{}", records);
+                        output.publish(records);
+                    } else if (foundOneLine && records.size() > 0) {
+                        output.publish(records);
+                        log.info("publish batch:{}", records);
+                        records.clear();
+                        if (commitRead) {
+                            commitPointer.force();
+                        }
+                    }
 
                     if (!foundOneLine && offset == buffer.length) {
                         char[] newbuf = new char[buffer.length * 2];
@@ -151,8 +184,6 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
             return records == null ? 0 : records.size();
 
         } catch (IOException e) {
-            // Underlying stream was killed, probably as a result of calling stop. Allow to return
-            // null, and driving thread will handle any shutdown if necessary.
             try {
                 reader.close();
             } catch (IOException ex) {
@@ -169,11 +200,34 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
         return 0;
     }
 
+    @Override
+    public void stop() {
+        log.trace("Stopping");
+        try {
+            if (stream != null) {
+                stream.close();
+                log.trace("Closed input stream");
+            }
+        } catch (IOException e) {
+            log.error("Failed to close FileStreamSourceTask stream: ", e);
+        } finally {
+            if (commitPointer != null) {
+                commitPointer.force();
+                IoUtil.unmap(commitPointer);
+            }
+        }
+    }
+
+    @Override
+    public void tearDown() {
+        super.tearDown();
+    }
+
     private Reader connectReader() {
         if (startComplete.get() & stream == null && filename != null && !filename.isEmpty()) {
             try {
                 stream = Files.newInputStream(Paths.get(filename));
-                log.debug("Found previous offset, trying to skip to file offset {}", streamOffset);
+                log.info("Found previous offset, trying to skip to file offset {}", streamOffset);
                 long skipLeft = streamOffset;
                 while (skipLeft > 0) {
                     try {
@@ -184,9 +238,9 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
                         //TODO log error and stop
                     }
                 }
-                log.debug("Skipped to offset {}", streamOffset);
+                log.info("Skipped to offset {}", streamOffset);
                 reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
-                log.debug("Opened {} for reading", getFilename());
+                log.info("Opened {} for reading", getFilename());
             } catch (NoSuchFileException e) {
                 log.warn("Couldn't find file {} for FileStreamSourceTask, sleeping to wait for it to be created", getFilename());
             } catch (IOException e) {
@@ -220,7 +274,9 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
             System.arraycopy(buffer, newStart, buffer, 0, buffer.length - newStart);
             offset = offset - newStart;
             streamOffset += newStart;
-            commitPointer.putLong(0, streamOffset);
+            if (commitRead) {
+                commitPointer.putLong(0, streamOffset);
+            }
             return result;
         } else {
             return null;
