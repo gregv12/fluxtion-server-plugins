@@ -5,5 +5,5 @@
 
 package com.fluxtion.server.plugin.kafka;
 
-public class KafkaConsumer {
+public class KafkaMessagePublisher {
 }

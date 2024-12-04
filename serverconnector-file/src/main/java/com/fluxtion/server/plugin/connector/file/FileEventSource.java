@@ -17,11 +17,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Log4j2
-public class FileEventSource extends AbstractAgentHostedEventSourceService<Collection<SourceRecord<String>>> {
+@SuppressWarnings("all")
+public class FileEventSource extends AbstractAgentHostedEventSourceService {
 
     @Getter
     @Setter
@@ -33,6 +34,9 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService<Colle
     @Getter
     @Setter
     private int batchSize;
+    @Getter
+    @Setter
+    private boolean tail = true;
     private final AtomicBoolean startComplete = new AtomicBoolean(false);
 
     private long streamOffset;
@@ -56,7 +60,7 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService<Colle
     @Override
     public void startComplete() {
         log.info("Starting FileEventFeed");
-        File committedReadFile = new File(".", filename + ".readPointer");
+        File committedReadFile = new File(filename + ".readPointer");
         log.info("{} creating committedReadFile:{}", serviceName, committedReadFile.getAbsolutePath());
         if (committedReadFile.exists()) {
             commitPointer = IoUtil.mapExistingFile(committedReadFile, "committedReadFile_" + filename);
@@ -88,22 +92,26 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService<Colle
             }
         } catch (IOException e) {
             log.error("Failed to close FileStreamSourceTask stream: ", e);
-        }finally {
+        } finally {
             commitPointer.force();
             IoUtil.unmap(commitPointer);
         }
     }
 
+    @SuppressWarnings("all")
     @Override
     public int doWork() {
+        if (!tail) {
+            return 0;
+        }
         try {
             if (connectReader() == null) {
                 return 0;
             }
 
-            ArrayList<SourceRecord<String>> records = null;
+            ArrayList<String> records = null;
 
-            int nread = 0;
+            int nread;
             while (reader.ready()) {
                 nread = reader.read(buffer, offset, buffer.length - offset);
                 log.trace("Read {} bytes from {}", nread, getFilename());
@@ -120,7 +128,7 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService<Colle
                             if (records == null) {
                                 records = new ArrayList<>();
                             }
-                            records.add(new SourceRecord<>(serviceName, line));
+                            records.add(line);
 
                             if (records.size() >= batchSize) {
                                 var recordBatch = records;
