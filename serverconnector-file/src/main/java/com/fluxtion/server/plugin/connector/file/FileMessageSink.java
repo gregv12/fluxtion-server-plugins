@@ -1,8 +1,6 @@
 /*
- *
- *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- *  * SPDX-License-Identifier: AGPL-3.0-only
- *
+ * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 package com.fluxtion.server.plugin.connector.file;
@@ -17,6 +15,7 @@ import lombok.extern.log4j.Log4j2;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 
@@ -36,8 +35,10 @@ public class FileMessageSink extends AbstractMessageSink<Object>
     @SneakyThrows
     @Override
     public void start() {
+        Path path = Paths.get(filename);
+        path.toFile().getParentFile().mkdirs();
         printStream = new PrintStream(
-                Files.newOutputStream(Paths.get(filename), StandardOpenOption.CREATE, StandardOpenOption.APPEND),
+                Files.newOutputStream(path, StandardOpenOption.CREATE, StandardOpenOption.APPEND),
                 false,
                 StandardCharsets.UTF_8
         );

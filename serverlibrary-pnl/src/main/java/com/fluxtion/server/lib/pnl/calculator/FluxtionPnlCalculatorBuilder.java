@@ -70,6 +70,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         buildInstrumentMtm();
 
         //no buffer/trigger support required on this  processor
+//        eventProcessorConfig.addEventAudit();
         eventProcessorConfig.setSupportBufferAndTrigger(false);
     }
 

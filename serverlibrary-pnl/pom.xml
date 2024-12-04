@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
-  ~ SPDX-License-Identifier: AGPL-3.0-only
+  ~ /*
+  ~  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+  ~  * SPDX-License-Identifier: AGPL-3.0-only
+  ~  */
   -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -23,6 +25,11 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>org.jgrapht</groupId>
+            <artifactId>jgrapht-core</artifactId>
+            <version>1.4.0</version>
+        </dependency>
         <dependency>
             <groupId>com.fluxtion</groupId>
             <artifactId>server</artifactId>
