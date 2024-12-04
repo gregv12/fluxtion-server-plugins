@@ -1,6 +1,9 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ *  * SPDX-License-Identifier: AGPL-3.0-only
+ *  *
+ *
  */
 
 package com.fluxtion.server.lib.pnl;
@@ -21,6 +24,11 @@ import java.util.function.Function;
 
 public class PnlCalculator {
 
+    public static final String POSITION_UPDATE_EOB = "positionUpdate";
+    public static final String POSITION_SNAPSHOT_RESET = "positionSnapshotReset";
+    public static final String GLOBAL_NET_MTM_SINK = "globalNetMtmListener";
+    public static final String INSTRUMENT_NET_MTM_SINK = "instrumentNetMtmListener";
+
     private final FluxtionPnlCalculator fluxtionPnlCalculator;
     @Getter
     private final InMemorySymbolLookup symbolLookup = new InMemorySymbolLookup();
@@ -29,12 +37,11 @@ public class PnlCalculator {
         fluxtionPnlCalculator = new FluxtionPnlCalculator();
         fluxtionPnlCalculator.init();
         fluxtionPnlCalculator.start();
-        positionReset();
     }
 
     public PnlCalculator setMtmInstrument(Instrument instrument) {
         fluxtionPnlCalculator.onEvent(new MtmInstrument(instrument));
-        fluxtionPnlCalculator.publishSignal("positionUpdate");
+        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
         return this;
     }
 
@@ -45,26 +52,26 @@ public class PnlCalculator {
 
     public PnlCalculator positionSnapshot(PositionSnapshot positionSnapshot) {
         fluxtionPnlCalculator.onEvent(positionSnapshot);
-        fluxtionPnlCalculator.publishSignal("positionUpdate");
+        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
         return this;
     }
 
     public PnlCalculator positionReset(PositionSnapshot positionSnapshot) {
-        fluxtionPnlCalculator.publishSignal("positionSnapshotReset");
+        fluxtionPnlCalculator.publishSignal(POSITION_SNAPSHOT_RESET);
         fluxtionPnlCalculator.onEvent(positionSnapshot);
-        fluxtionPnlCalculator.publishSignal("positionUpdate");
+        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
         return this;
     }
 
     public PnlCalculator positionReset() {
-        fluxtionPnlCalculator.publishSignal("positionSnapshotReset");
-        fluxtionPnlCalculator.publishSignal("positionUpdate");
+        fluxtionPnlCalculator.publishSignal(POSITION_SNAPSHOT_RESET);
+        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
         return this;
     }
 
     public PnlCalculator priceUpdate(MidPrice midPrice) {
         fluxtionPnlCalculator.onEvent(midPrice);
-        fluxtionPnlCalculator.publishSignal("positionUpdate");
+        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
         return this;
     }
 
@@ -81,7 +88,7 @@ public class PnlCalculator {
         for (MidPrice midPrice : midPrices) {
             fluxtionPnlCalculator.onEvent(midPrice);
         }
-        fluxtionPnlCalculator.publishSignal("positionUpdate");
+        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
         return this;
     }
 
@@ -89,7 +96,7 @@ public class PnlCalculator {
         for (Trade trade : trades) {
             fluxtionPnlCalculator.onEvent(trade);
         }
-        fluxtionPnlCalculator.publishSignal("positionUpdate");
+        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
         return this;
     }
 
@@ -97,13 +104,13 @@ public class PnlCalculator {
         for (Trade trade : trades) {
             fluxtionPnlCalculator.onEvent(trade);
         }
-        fluxtionPnlCalculator.publishSignal("positionUpdate");
+        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
         return this;
     }
 
     public PnlCalculator processTradeBatch(TradeBatch trades) {
         fluxtionPnlCalculator.onEvent(trades);
-        fluxtionPnlCalculator.publishSignal("positionUpdate");
+        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
         return this;
     }
 
@@ -112,12 +119,12 @@ public class PnlCalculator {
     }
 
     public PnlCalculator addAggregateMtMListener(Consumer<NetMarkToMarket> mtMConsumer) {
-        fluxtionPnlCalculator.addSink("globalNetMtmListener", mtMConsumer);
+        fluxtionPnlCalculator.addSink(GLOBAL_NET_MTM_SINK, mtMConsumer);
         return this;
     }
 
     public PnlCalculator addInstrumentMtMListener(Consumer<Map<Instrument, NetMarkToMarket>> mtMConsumer) {
-        fluxtionPnlCalculator.addSink("instrumentNetMtmListener", mtMConsumer);
+        fluxtionPnlCalculator.addSink(INSTRUMENT_NET_MTM_SINK, mtMConsumer);
         return this;
     }
 
