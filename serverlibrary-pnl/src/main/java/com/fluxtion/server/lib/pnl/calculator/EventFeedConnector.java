@@ -1,6 +1,8 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ *  * SPDX-License-Identifier: AGPL-3.0-only
+ *
  */
 
 package com.fluxtion.server.lib.pnl.calculator;
@@ -128,7 +130,6 @@ public class EventFeedConnector implements EventProcessorContextListener, @Expor
     @OnEventHandler
     public boolean onPositionSnapshot(PositionSnapshotDto positionSnapshot) {
         log.info("Received positionSnapshot: " + positionSnapshot);
-        System.out.println(" ----------- Received positionSnapshot:  ----------- ");
         context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_SNAPSHOT_RESET);
         context.getStaticEventProcessor().onEvent(positionSnapshot.getPositionSnapshot());
         context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
