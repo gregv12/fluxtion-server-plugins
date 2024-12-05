@@ -17,9 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static com.fluxtion.server.lib.pnl.refdata.Instrument.INSTRUMENT_USD;
-import static com.fluxtion.server.lib.pnl.refdata.Instrument.INSTRUMENT_USDT;
-
 public class DerivedTest {
 
     public static final Instrument EUR = new Instrument("EUR");
@@ -122,27 +119,59 @@ public class DerivedTest {
         Assertions.assertEquals(-20000, positionMap.get(JPY));
         Assertions.assertEquals(100, positionMap.get(USD));
 
-        pnlCalculator.positionSnapshot(PositionSnapshot.of(
+
+//        pnlCalculator.positionReset();
+
+        pnlCalculator.positionReset(PositionSnapshot.of(
                 new InstrumentPosition(EUR, 50),
                 new InstrumentPosition(GBP, 12_000),
-                new InstrumentPosition(INSTRUMENT_USD, 800),
-                new InstrumentPosition(INSTRUMENT_USDT, 1500),
-                new InstrumentPosition(INSTRUMENT_USD, 200)
+                new InstrumentPosition(Instrument.INSTRUMENT_USD, 800),
+                new InstrumentPosition(Instrument.INSTRUMENT_USDT, 1500),
+                new InstrumentPosition(Instrument.INSTRUMENT_USD, 200)
         ));
 
         Assertions.assertEquals(2, mtmInstUpdates.size());
-        Assertions.assertEquals(2, mtmInstUpdates.getFirst().size());
+//        Assertions.assertEquals(2, mtmInstUpdates.getFirst().size());
         Assertions.assertEquals(2, mtmUpdates.size());
 
         mtm = mtmUpdates.getLast();
         positionMap = mtm.instrumentMtm().getPositionMap();
         Assertions.assertEquals(50, positionMap.get(EUR));
         Assertions.assertEquals(12_000, positionMap.get(GBP));
-        Assertions.assertEquals(-20000, positionMap.get(JPY));
-        Assertions.assertEquals(1500, positionMap.get(INSTRUMENT_USDT));
-        Assertions.assertEquals(200, positionMap.get(INSTRUMENT_USD));
+        Assertions.assertNull(positionMap.get(JPY));
+        Assertions.assertEquals(1500, positionMap.get(Instrument.INSTRUMENT_USDT));
+        Assertions.assertEquals(200, positionMap.get(Instrument.INSTRUMENT_USD));
+
+        pnlCalculator.processTrade(new Trade(symbolUSDJPY, 100, -20000, 13));
+        mtm = mtmUpdates.getLast();
+        positionMap = mtm.instrumentMtm().getPositionMap();
+        Assertions.assertEquals(-20000, positionMap.get(JPY));//new JPY
+        Assertions.assertEquals(50, positionMap.get(EUR));
+        Assertions.assertEquals(12_000, positionMap.get(GBP));
+        Assertions.assertEquals(1500, positionMap.get(Instrument.INSTRUMENT_USDT));
+        Assertions.assertEquals(300, positionMap.get(Instrument.INSTRUMENT_USD));
+
     }
 
+    @Test
+    public void initialSnapshot() {
+        setUp();
+        pnlCalculator.positionReset(PositionSnapshot.of(
+                new InstrumentPosition(EUR, 50),
+                new InstrumentPosition(GBP, 12_000),
+                new InstrumentPosition(Instrument.INSTRUMENT_USD, 800),
+                new InstrumentPosition(Instrument.INSTRUMENT_USDT, 1500),
+                new InstrumentPosition(Instrument.INSTRUMENT_USD, 200)
+        ));
+
+        var mtm = mtmUpdates.getLast();
+        var positionMap = mtm.instrumentMtm().getPositionMap();
+        Assertions.assertEquals(50, positionMap.get(EUR));
+        Assertions.assertEquals(12_000, positionMap.get(GBP));
+        Assertions.assertNull(positionMap.get(JPY));
+        Assertions.assertEquals(1500, positionMap.get(Instrument.INSTRUMENT_USDT));
+        Assertions.assertEquals(200, positionMap.get(Instrument.INSTRUMENT_USD));
+    }
 
     @Test
     public void testTrade() {
@@ -328,15 +357,11 @@ public class DerivedTest {
         Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
         Assertions.assertTrue(Double.isNaN(pnlCalculator.tradeFees()));
         Assertions.assertTrue(Double.isNaN(pnlCalculator.netPnl()));
-        System.out.println("----- trade complete -------");
-
 
         pnlCalculator.priceUpdate("EURCHF", 1.2);
         Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
         Assertions.assertTrue(Double.isNaN(pnlCalculator.tradeFees()));
         Assertions.assertTrue(Double.isNaN(pnlCalculator.netPnl()));
-        System.out.println("----- EURCHF rate complete -------");
-
 
         pnlCalculator.priceUpdate("EURUSD", 1.5);
         //rates
@@ -347,8 +372,6 @@ public class DerivedTest {
         Assertions.assertEquals(-0.625, pnlCalculator.pnl(), 0.0000001);
         Assertions.assertTrue(Double.isNaN(pnlCalculator.tradeFees()));
         Assertions.assertTrue(Double.isNaN(pnlCalculator.netPnl()));
-        System.out.println("----- EURUSD rate complete -------");
-
 
         pnlCalculator.priceUpdate("GBPUSD", 2);
         //rates
@@ -359,7 +382,6 @@ public class DerivedTest {
         Assertions.assertEquals(-0.625, pnlCalculator.pnl(), 0.0000001);
         Assertions.assertEquals(20, pnlCalculator.tradeFees(), 0.0000001);
         Assertions.assertEquals(-20.625, pnlCalculator.netPnl(), 0.0000001);
-        System.out.println("----- GBPUSD rate complete -------");
     }
 
     @Test

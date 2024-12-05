@@ -2,7 +2,6 @@
  *
  *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
  *  * SPDX-License-Identifier: AGPL-3.0-only
- *  *
  *
  */
 
@@ -27,6 +26,7 @@ public class PnlCalculator {
     public static final String POSITION_UPDATE_EOB = "positionUpdate";
     public static final String POSITION_SNAPSHOT_RESET = "positionSnapshotReset";
     public static final String GLOBAL_NET_MTM_SINK = "globalNetMtmListener";
+    public static final String POSITION_SNAPSHOT_SINK = "positionSnapshotListener";
     public static final String INSTRUMENT_NET_MTM_SINK = "instrumentNetMtmListener";
 
     private final FluxtionPnlCalculator fluxtionPnlCalculator;
@@ -50,11 +50,11 @@ public class PnlCalculator {
         return this;
     }
 
-    public PnlCalculator positionSnapshot(PositionSnapshot positionSnapshot) {
-        fluxtionPnlCalculator.onEvent(positionSnapshot);
-        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
-        return this;
-    }
+//    public PnlCalculator positionSnapshot(PositionSnapshot positionSnapshot) {
+//        fluxtionPnlCalculator.onEvent(positionSnapshot);
+//        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
+//        return this;
+//    }
 
     public PnlCalculator positionReset(PositionSnapshot positionSnapshot) {
         fluxtionPnlCalculator.publishSignal(POSITION_SNAPSHOT_RESET);

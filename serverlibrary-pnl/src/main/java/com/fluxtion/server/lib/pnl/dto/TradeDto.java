@@ -5,7 +5,7 @@
  *
  */
 
-package com.fluxtion.server.lib.pnl;
+package com.fluxtion.server.lib.pnl.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -14,18 +14,18 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class TradeDTO {
+public class TradeDto {
     private String symbol;
     private double dealtVolume;
     private double contraVolume;
     private double fee = 0.0;
     private String feeInstrument = "USD";
 
-    public TradeDTO(String symbol, double dealtVolume, double contraVolume) {
+    public TradeDto(String symbol, double dealtVolume, double contraVolume) {
         this(symbol, dealtVolume, contraVolume, 0.0, "USD");
     }
 
-    public TradeDTO(String symbol, double dealtVolume, double contraVolume, double fee) {
+    public TradeDto(String symbol, double dealtVolume, double contraVolume, double fee) {
         this(symbol, dealtVolume, contraVolume, fee, "USD");
     }
 }

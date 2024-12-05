@@ -1,6 +1,8 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ *  * SPDX-License-Identifier: AGPL-3.0-only
+ *
  */
 
 package com.fluxtion.server.lib.pnl;
@@ -26,11 +28,13 @@ public class InstrumentPosMtm {
     }
 
     public static InstrumentPosMtm overwriteInstrumentPositionWithSnapshot(InstrumentPosMtm instrumentPosMtm, InstrumentPosition instrumentPos) {
-        instrumentPosMtm = instrumentPosMtm == null ? new InstrumentPosMtm() : instrumentPosMtm;
+        InstrumentPosMtm offSetPosMtm = new InstrumentPosMtm(instrumentPosMtm);
         if (instrumentPos != null) {
-            instrumentPosMtm.getPositionMap().put(instrumentPos.instrument(), instrumentPos.position());
+            offSetPosMtm.getPositionMap().compute(
+                    instrumentPos.instrument(),
+                    (a, b) -> b == null ? instrumentPos.position() : b + instrumentPos.position());
         }
-        return instrumentPosMtm;
+        return offSetPosMtm;
     }
 
     public InstrumentPosMtm(InstrumentPosMtm from) {

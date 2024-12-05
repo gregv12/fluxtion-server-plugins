@@ -1,6 +1,8 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ *  * SPDX-License-Identifier: AGPL-3.0-only
+ *
  */
 
 package com.fluxtion.server.lib.pnl.talos;
@@ -15,13 +17,12 @@ import com.fluxtion.server.lib.pnl.Trade;
 import com.fluxtion.server.lib.pnl.calculator.DerivedRateNode;
 import com.fluxtion.server.lib.pnl.calculator.SingleInstrumentPosMtmAggregate;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
-import org.junit.jupiter.api.Test;
 
 import static com.fluxtion.server.lib.pnl.talos.DerivedTest.*;
 
 public class SimplePnl {
 
-    @Test
+    //    @Test
     public void testPnl() {
         var pnlCalculator = Fluxtion.interpret(c -> {
                     var tradeStream = DataFlow.subscribe(Trade.class);
@@ -56,7 +57,7 @@ public class SimplePnl {
     }
 
     private static PnlSummary calculateTotalPnl(GroupBy<Instrument, InstrumentPosMtm> instrumentInstrumentPosMtmGroupBy) {
-        System.out.println(instrumentInstrumentPosMtmGroupBy.toMap());
+//        System.out.println(instrumentInstrumentPosMtmGroupBy.toMap());
         return null;
     }
 

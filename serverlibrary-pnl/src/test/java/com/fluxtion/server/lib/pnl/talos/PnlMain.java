@@ -48,7 +48,7 @@ public class PnlMain {
 //        System.out.println("ratesMap - " + pnlCalculator.ratesMap());
         System.out.println("--- finish bootstrap rates ----\n");
 
-        pnlCalculator.positionSnapshot(PositionSnapshot.of(
+        pnlCalculator.positionReset(PositionSnapshot.of(
                 new InstrumentPosition(ape, 50),
                 new InstrumentPosition(moca, 12_000),
                 new InstrumentPosition(Instrument.INSTRUMENT_USDT, 1500),
@@ -69,7 +69,7 @@ public class PnlMain {
         );
 
         System.out.println();
-        pnlCalculator.positionSnapshot(positionSnapshot);
+        pnlCalculator.positionReset(positionSnapshot);
         System.out.println("--- finish update snapshot positions ----\n");
 
         System.out.println();

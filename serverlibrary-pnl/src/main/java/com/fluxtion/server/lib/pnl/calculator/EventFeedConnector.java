@@ -12,15 +12,13 @@ import com.fluxtion.runtime.EventProcessorContextListener;
 import com.fluxtion.runtime.annotations.ExportService;
 import com.fluxtion.runtime.annotations.Initialise;
 import com.fluxtion.runtime.annotations.OnEventHandler;
-import com.fluxtion.runtime.annotations.Start;
 import com.fluxtion.runtime.annotations.builder.FluxtionIgnore;
-import com.fluxtion.runtime.event.NamedFeedEvent;
 import com.fluxtion.server.config.ConfigListener;
 import com.fluxtion.server.config.ConfigMap;
+import com.fluxtion.server.lib.pnl.MidPrice;
 import com.fluxtion.server.lib.pnl.PnlCalculator;
 import com.fluxtion.server.lib.pnl.Trade;
-import com.fluxtion.server.lib.pnl.TradeBatchDTO;
-import com.fluxtion.server.lib.pnl.TradeDTO;
+import com.fluxtion.server.lib.pnl.dto.*;
 import com.fluxtion.server.lib.pnl.refdata.InMemorySymbolLookup;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
@@ -40,41 +38,29 @@ public class EventFeedConnector implements EventProcessorContextListener, @Expor
     @Override
     public void currentContext(EventProcessorContext currentContext) {
         this.context = currentContext;
-        currentContext.subscribeToNamedFeed(TRADE_EVENT_FEED);
+//        currentContext.subscribeToNamedFeed(TRADE_EVENT_FEED);
     }
 
     @Initialise
     public void init() {
         log.info("Initialising EventFeedConnector");
+        context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_SNAPSHOT_RESET);
+        context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
     }
 
     @Override
     public boolean initialConfig(ConfigMap config) {
         List<Map<String, String>> symbolList = config.get("symbols");
-        symbolList.stream()
-                .map(cfg -> new Symbol(cfg.get("symbol"), cfg.get("dealt"), cfg.get("contra")))
-                .forEach(symbolLookup::addSymbol);
-        return false;
-    }
-
-    @Start
-    public void start() {
-        log.info("Starting EventFeedConnector - reset calculator");
-        context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_SNAPSHOT_RESET);
-        context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
-    }
-
-    @OnEventHandler(filterString = TRADE_EVENT_FEED)
-    public boolean onEvent(NamedFeedEvent<Trade> event) {
-        log.info("Received TradeEvent: " + event);
-        Trade trade = event.getData();
-        context.getStaticEventProcessor().onEvent(trade);
-        context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
+        if (symbolList != null) {
+            symbolList.stream()
+                    .map(cfg -> new Symbol(cfg.get("symbol"), cfg.get("dealt"), cfg.get("contra")))
+                    .forEach(symbolLookup::addSymbol);
+        }
         return false;
     }
 
     @OnEventHandler
-    public boolean onEvent(TradeDTO tradeDTO) {
+    public boolean onTradeDto(TradeDto tradeDTO) {
         log.info("Received TradeDTO: " + tradeDTO);
         String feeInstrument = tradeDTO.getFeeInstrument() == null ? "" : tradeDTO.getFeeInstrument();
         Trade trade = new Trade(
@@ -89,9 +75,9 @@ public class EventFeedConnector implements EventProcessorContextListener, @Expor
     }
 
     @OnEventHandler
-    public boolean onEvent(TradeBatchDTO tradeBatchDTO) {
+    public boolean onTradeBatchDto(TradeBatchDto tradeBatchDTO) {
         log.info("Received TradeBatchDTO: " + tradeBatchDTO);
-        for (TradeDTO tradeDTO : tradeBatchDTO.getTrades()) {
+        for (TradeDto tradeDTO : tradeBatchDTO.getBatchData()) {
             String feeInstrument = tradeDTO.getFeeInstrument() == null ? "" : tradeDTO.getFeeInstrument();
             Trade trade = new Trade(
                     symbolLookup.getSymbolForName(tradeDTO.getSymbol()),
@@ -104,5 +90,49 @@ public class EventFeedConnector implements EventProcessorContextListener, @Expor
 
         context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
         return false;
+    }
+
+    @OnEventHandler
+    public boolean onSymbolDto(SymbolDto symbolDTO) {
+        log.info("Received symbolDTO: " + symbolDTO);
+        symbolLookup.addSymbol(symbolDTO.toSymbol());
+        return false;
+    }
+
+    @OnEventHandler
+    public boolean onSymbolBatchDto(SymbolBatchDto symbolBatchDTO) {
+        log.info("Received symbolBatchDTO: " + symbolBatchDTO);
+        symbolBatchDTO.getBatchData().stream()
+                .map(SymbolDto::toSymbol)
+                .forEach(symbolLookup::addSymbol);
+        return false;
+    }
+
+    @OnEventHandler
+    public boolean onMidPriceDto(MidPriceDto midPriceDto) {
+        log.info("Received midPriceDto: " + midPriceDto);
+        MidPrice midPrice = new MidPrice(symbolLookup.getSymbolForName(midPriceDto.getSymbol()), midPriceDto.getPrice());
+        context.getStaticEventProcessor().onEvent(midPrice);
+        context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
+        return false;
+    }
+
+    @OnEventHandler
+    public boolean onMidPriceBatchDto(MidPriceBatchDto midPriceBatchDto) {
+        log.info("Received midPriceBatchDto: " + midPriceBatchDto);
+        midPriceBatchDto.getBatchData().stream()
+                .map(midPriceDto -> new MidPrice(symbolLookup.getSymbolForName(midPriceDto.getSymbol()), midPriceDto.getPrice()))
+                .forEach(context.getStaticEventProcessor()::onEvent);
+        context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
+        return false;
+    }
+
+    @OnEventHandler
+    public boolean onPositionSnapshot(PositionSnapshotDto positionSnapshot) {
+        log.info("Received positionSnapshot: " + positionSnapshot);
+        context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_SNAPSHOT_RESET);
+        context.getStaticEventProcessor().onEvent(positionSnapshot.getPositionSnapshot());
+        context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
+        return true;
     }
 }
