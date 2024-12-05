@@ -17,6 +17,7 @@ import com.fluxtion.compiler.builder.dataflow.JoinFlowBuilder;
 import com.fluxtion.runtime.dataflow.groupby.GroupBy;
 import com.fluxtion.runtime.event.Signal;
 import com.fluxtion.server.lib.pnl.*;
+import com.fluxtion.server.lib.pnl.dto.DtoHelper;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import lombok.Getter;
 
@@ -98,10 +99,12 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         //position by instrument aggregates single side, either dealt and contra quantity
         dealtOnlyInstPosition = tradeStream
                 .groupBy(Trade::getDealtInstrument, InstrumentPosMtmAggregate::dealt)
-                .resetTrigger(positionSnapshotReset);
+                .resetTrigger(positionSnapshotReset)
+                .publishTrigger(positionSnapshotReset);
         contraOnlyInstPosition = tradeStream
                 .groupBy(Trade::getContraInstrument, InstrumentPosMtmAggregate::contra)
-                .resetTrigger(positionSnapshotReset);
+                .resetTrigger(positionSnapshotReset)
+                .publishTrigger(positionSnapshotReset);
     }
 
     private void buildInstrumentFeeMap() {
@@ -118,8 +121,8 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     private void buildGlobalMtm() {
         //Asset position map created by PositionSnapshot
         var snapshotPositionMap = DataFlow.subscribe(PositionSnapshot.class)
-                .flatMap(PositionSnapshot::getPositions)
-                .groupBy(InstrumentPosition::instrument)
+                .flatMap(PositionSnapshot::getPositions).id("flatMapSnapshotPositions")
+                .groupBy(InstrumentPosition::instrument).id("groupBySnapshotPositions")
                 .resetTrigger(positionSnapshotReset)
                 .publishTriggerOverride(positionUpdateEob);
 
@@ -137,7 +140,9 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .map(GroupBy::toMap)
                 .map(NetMarkToMarket::markToMarketSum)
                 .id("globalNetMtm")
-                .sink(GLOBAL_NET_MTM_SINK);
+                .sink(GLOBAL_NET_MTM_SINK)
+                .map(DtoHelper::formatPosition)
+                .sink(PnlCalculator.POSITION_SNAPSHOT_SINK);
     }
 
     private void buildInstrumentMtm() {

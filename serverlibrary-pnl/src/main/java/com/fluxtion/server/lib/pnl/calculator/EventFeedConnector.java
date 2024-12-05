@@ -1,8 +1,6 @@
 /*
- *
- *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- *  * SPDX-License-Identifier: AGPL-3.0-only
- *
+ * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 package com.fluxtion.server.lib.pnl.calculator;
@@ -60,7 +58,7 @@ public class EventFeedConnector implements EventProcessorContextListener, @Expor
     }
 
     @OnEventHandler
-    public boolean onEvent(TradeDto tradeDTO) {
+    public boolean onTradeDto(TradeDto tradeDTO) {
         log.info("Received TradeDTO: " + tradeDTO);
         String feeInstrument = tradeDTO.getFeeInstrument() == null ? "" : tradeDTO.getFeeInstrument();
         Trade trade = new Trade(
@@ -75,7 +73,7 @@ public class EventFeedConnector implements EventProcessorContextListener, @Expor
     }
 
     @OnEventHandler
-    public boolean onEvent(TradeBatchDto tradeBatchDTO) {
+    public boolean onTradeBatchDto(TradeBatchDto tradeBatchDTO) {
         log.info("Received TradeBatchDTO: " + tradeBatchDTO);
         for (TradeDto tradeDTO : tradeBatchDTO.getBatchData()) {
             String feeInstrument = tradeDTO.getFeeInstrument() == null ? "" : tradeDTO.getFeeInstrument();
@@ -93,14 +91,14 @@ public class EventFeedConnector implements EventProcessorContextListener, @Expor
     }
 
     @OnEventHandler
-    public boolean onEvent(SymbolDto symbolDTO) {
+    public boolean onSymbolDto(SymbolDto symbolDTO) {
         log.info("Received symbolDTO: " + symbolDTO);
         symbolLookup.addSymbol(symbolDTO.toSymbol());
         return false;
     }
 
     @OnEventHandler
-    public boolean onEvent(SymbolBatchDto symbolBatchDTO) {
+    public boolean onSymbolBatchDto(SymbolBatchDto symbolBatchDTO) {
         log.info("Received symbolBatchDTO: " + symbolBatchDTO);
         symbolBatchDTO.getBatchData().stream()
                 .map(SymbolDto::toSymbol)
@@ -109,7 +107,7 @@ public class EventFeedConnector implements EventProcessorContextListener, @Expor
     }
 
     @OnEventHandler
-    public boolean onEvent(MidPriceDto midPriceDto) {
+    public boolean onMidPriceDto(MidPriceDto midPriceDto) {
         log.info("Received midPriceDto: " + midPriceDto);
         MidPrice midPrice = new MidPrice(symbolLookup.getSymbolForName(midPriceDto.getSymbol()), midPriceDto.getPrice());
         context.getStaticEventProcessor().onEvent(midPrice);
@@ -118,12 +116,22 @@ public class EventFeedConnector implements EventProcessorContextListener, @Expor
     }
 
     @OnEventHandler
-    public boolean onEvent(MidPriceBatchDto midPriceBatchDto) {
+    public boolean onMidPriceBatchDto(MidPriceBatchDto midPriceBatchDto) {
         log.info("Received midPriceBatchDto: " + midPriceBatchDto);
         midPriceBatchDto.getBatchData().stream()
                 .map(midPriceDto -> new MidPrice(symbolLookup.getSymbolForName(midPriceDto.getSymbol()), midPriceDto.getPrice()))
                 .forEach(context.getStaticEventProcessor()::onEvent);
         context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
         return false;
+    }
+
+    @OnEventHandler
+    public boolean onPositionSnapshot(PositionSnapshotDto positionSnapshot) {
+        log.info("Received positionSnapshot: " + positionSnapshot);
+        System.out.println(" ----------- Received positionSnapshot:  ----------- ");
+        context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_SNAPSHOT_RESET);
+        context.getStaticEventProcessor().onEvent(positionSnapshot.getPositionSnapshot());
+        context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
+        return true;
     }
 }
