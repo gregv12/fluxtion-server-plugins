@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ /*
-  ~  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
-  ~  * SPDX-License-Identifier: AGPL-3.0-only
-  ~  */
+  ~ SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+  ~ SPDX-License-Identifier: AGPL-3.0-only
   -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -27,7 +25,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <fluxtion.version>9.4.3</fluxtion.version>
-        <fluxtion.server.version>0.1.46-SNAPSHOT</fluxtion.server.version>
+        <fluxtion.server.version>0.1.46</fluxtion.server.version>
         <fluxtion.mavenplugin.version>3.0.14</fluxtion.mavenplugin.version>
         <log4j2.version>2.24.2</log4j2.version>
     </properties>

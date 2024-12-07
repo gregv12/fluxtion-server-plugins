@@ -1,6 +1,8 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ *  * SPDX-License-Identifier: AGPL-3.0-only
+ *
  */
 
 package com.fluxtion.server.lib.pnl.calculator;
@@ -11,6 +13,7 @@ import com.fluxtion.runtime.annotations.ExportService;
 import com.fluxtion.runtime.annotations.Initialise;
 import com.fluxtion.runtime.annotations.OnEventHandler;
 import com.fluxtion.runtime.annotations.builder.FluxtionIgnore;
+import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
 import com.fluxtion.server.config.ConfigListener;
 import com.fluxtion.server.config.ConfigMap;
 import com.fluxtion.server.lib.pnl.MidPrice;
@@ -20,12 +23,14 @@ import com.fluxtion.server.lib.pnl.dto.*;
 import com.fluxtion.server.lib.pnl.refdata.InMemorySymbolLookup;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
+import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import lombok.extern.log4j.Log4j2;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 @Log4j2
 public class EventFeedConnector implements EventProcessorContextListener, @ExportService ConfigListener {
@@ -38,6 +43,11 @@ public class EventFeedConnector implements EventProcessorContextListener, @Expor
     @Override
     public void currentContext(EventProcessorContext currentContext) {
         this.context = currentContext;
+    }
+
+    @ServiceRegistered
+    public void admin(AdminCommandRegistry registry) {
+        registry.registerCommand("resetPosition", this::resetPosition);
     }
 
     @Initialise
@@ -117,6 +127,13 @@ public class EventFeedConnector implements EventProcessorContextListener, @Expor
         onEvent(positionSnapshot.getPositionSnapshot());
         publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
         return true;
+    }
+
+    private void resetPosition(List<String> strings, Consumer<String> out, Consumer<String> err) {
+        log.info("Received resetPosition command");
+        publishSignal(PnlCalculator.POSITION_SNAPSHOT_RESET);
+        publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
+        (out).accept("resetPosition");
     }
 
     private void processTradeDto(TradeDto tradeDTO) {
