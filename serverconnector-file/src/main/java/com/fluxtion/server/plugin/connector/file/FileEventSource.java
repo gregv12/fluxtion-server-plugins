@@ -2,7 +2,7 @@
  *
  *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
  *  * SPDX-License-Identifier: AGPL-3.0-only
- *  
+ *
  */
 
 package com.fluxtion.server.plugin.connector.file;
@@ -135,7 +135,7 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
                         line = extractLine();
                         if (line != null) {
                             foundOneLine = true;
-                            log.trace("Read a line from {}", getFilename());
+                            log.trace("Read a line from {} line:'{}'", getFilename(), line);
                             if (records == null) {
                                 records = new ArrayList<>();
                                 if (latestRead) {
@@ -143,6 +143,9 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
                                 }
                             }
                             if (latestRead) {
+                                if (records.isEmpty()) {
+                                    records.add(line);
+                                }
                                 records.set(0, line);
                             } else {
                                 records.add(line);
