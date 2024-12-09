@@ -12,28 +12,26 @@
         <version>0.1.24-SNAPSHOT</version>
     </parent>
 
-    <artifactId>serverplugin-springbuilder</artifactId>
-    <name>fluxtion :: server-plugin-spring</name>
-
+    <artifactId>serverlibrary-jsonserialiser</artifactId>
+    <name>fluxtion :: server-lib-jsondeserialiser</name>
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <org.springframework.version>6.2.0</org.springframework.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <jackson.version>2.17.2</jackson.version>
     </properties>
 
     <dependencies>
-        <!--Javalin webserver-->
         <dependency>
-            <groupId>com.fluxtion</groupId>
-            <artifactId>compiler</artifactId>
-            <version>${fluxtion.version}</version>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-            <version>${org.springframework.version}</version>
-            <scope>provided</scope>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
     </dependencies>
+
 </project>
