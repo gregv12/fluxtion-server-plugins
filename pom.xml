@@ -63,6 +63,7 @@
         <module>serverplugin-kafka</module>
         <module>serverconnector-file</module>
         <module>serverlibrary-jsonserialiser</module>
+        <module>serverplugin-cache</module>
     </modules>
 
     <dependencies>
