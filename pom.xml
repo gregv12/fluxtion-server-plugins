@@ -9,7 +9,7 @@
 
     <groupId>com.fluxtion</groupId>
     <artifactId>fluxtion-server-plugins</artifactId>
-    <version>0.1.25-SNAPSHOT</version>
+    <version>0.1.26-SNAPSHOT</version>
     <name>fluxtion :: server-plugins</name>
     <packaging>pom</packaging>
 
@@ -62,6 +62,7 @@
         <module>serverplugin-kafka</module>
         <module>serverconnector-file</module>
         <module>serverlibrary-jsonserialiser</module>
+        <module>serverplugin-cache</module>
     </modules>
 
     <dependencies>
