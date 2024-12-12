@@ -1,6 +1,8 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ *  * SPDX-License-Identifier: AGPL-3.0-only
+ *
  */
 
 package com.fluxtion.server.plugin.cache;
@@ -9,9 +11,11 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fluxtion.agrona.concurrent.Agent;
+import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
 import com.fluxtion.runtime.lifecycle.Lifecycle;
 import com.fluxtion.server.dispatch.EventFlowManager;
 import com.fluxtion.server.dispatch.EventFlowService;
+import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Setter;
@@ -38,16 +42,12 @@ public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService 
     private static final TypedData TYPED_DATA_NULL = new TypedData();
     private File file;
     private String serviceName;
-
-    @Override
-    public void setEventFlowManager(EventFlowManager eventFlowManager, String serviceName) {
-        log.info("setEventFlowManager serviceName:{}", serviceName);
-        this.serviceName = serviceName;
-    }
+    private AdminCommandRegistry registry;
 
     @SneakyThrows
     @Override
     public void init() {
+        log.info("init");
         file = new File(fileName);
         if (file.exists() && file.length() > 0) {
             log.info("opened cache file:{}", fileName);
@@ -60,10 +60,19 @@ public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService 
         }
     }
 
-//    @ServiceRegistered
-//    public void register(AdminCommandRegistry registry, String fileName) {
-//        registry.registerCommand("cache." + serviceName + ".get", this::getCommand);
-//    }
+    @ServiceRegistered
+    public void register(AdminCommandRegistry registry, String fileName) {
+        log.info("Registering admin command registry {}", registry);
+        this.registry = registry;
+    }
+
+    @Override
+    public void setEventFlowManager(EventFlowManager eventFlowManager, String serviceName) {
+        log.info("setEventFlowManager serviceName:{}", serviceName);
+        this.serviceName = serviceName;
+        registry.registerCommand("cache." + serviceName + ".get", this::getCommand);
+        registry.registerCommand("cache." + serviceName + ".keys", this::listKeys);
+    }
 
     private void getCommand(List<String> args, Consumer<String> out, Consumer<String> err) {
         if (args.size() >= 2) {
@@ -72,6 +81,10 @@ public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService 
         } else {
             err.accept("provide key as first argument");
         }
+    }
+
+    private void listKeys(List<String> args, Consumer<String> out, Consumer<String> err) {
+        out.accept("keys:\n" + String.join("\n", cacheMap.keySet()));
     }
 
     @Override
