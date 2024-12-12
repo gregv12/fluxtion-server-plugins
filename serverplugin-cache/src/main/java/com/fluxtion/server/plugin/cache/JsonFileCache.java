@@ -1,8 +1,6 @@
 /*
- *
- *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- *  * SPDX-License-Identifier: AGPL-3.0-only
- *
+ * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 package com.fluxtion.server.plugin.cache;
@@ -130,7 +128,8 @@ public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService 
     @Override
     public int doWork() throws Exception {
         if (updated.get()) {
-            mapper.writeValue(new File(fileName), cacheMap);
+            mapper.writerWithDefaultPrettyPrinter()
+                    .writeValue(new File(fileName), cacheMap);
         }
         updated.set(false);
         return 0;
