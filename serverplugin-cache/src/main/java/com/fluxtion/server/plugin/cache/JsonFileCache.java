@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 package com.fluxtion.server.plugin.cache;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -5,6 +10,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fluxtion.agrona.concurrent.Agent;
 import com.fluxtion.runtime.lifecycle.Lifecycle;
+import com.fluxtion.server.dispatch.EventFlowManager;
+import com.fluxtion.server.dispatch.EventFlowService;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Setter;
@@ -13,13 +20,15 @@ import lombok.extern.log4j.Log4j2;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 @Data
 @Log4j2
-public class JsonFileCache implements Cache, Agent, Lifecycle {
+public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService {
 
     private String fileName;
     private final AtomicBoolean updated = new AtomicBoolean(false);
@@ -28,12 +37,19 @@ public class JsonFileCache implements Cache, Agent, Lifecycle {
     private Map<String, TypedData> cacheMap = new ConcurrentHashMap<>();
     private static final TypedData TYPED_DATA_NULL = new TypedData();
     private File file;
+    private String serviceName;
+
+    @Override
+    public void setEventFlowManager(EventFlowManager eventFlowManager, String serviceName) {
+        log.info("setEventFlowManager serviceName:{}", serviceName);
+        this.serviceName = serviceName;
+    }
 
     @SneakyThrows
     @Override
     public void init() {
         file = new File(fileName);
-        if (file.exists()) {
+        if (file.exists() && file.length() > 0) {
             log.info("opened cache file:{}", fileName);
             cacheMap = mapper.readValue(file, new TypeReference<Map<String, TypedData>>() {
             });
@@ -41,6 +57,20 @@ public class JsonFileCache implements Cache, Agent, Lifecycle {
         } else {
             file.getParentFile().mkdirs();
             log.info("no cache file:{} created:{}", fileName, file.createNewFile());
+        }
+    }
+
+//    @ServiceRegistered
+//    public void register(AdminCommandRegistry registry, String fileName) {
+//        registry.registerCommand("cache." + serviceName + ".get", this::getCommand);
+//    }
+
+    private void getCommand(List<String> args, Consumer<String> out, Consumer<String> err) {
+        if (args.size() >= 2) {
+            String key = args.get(1);
+            out.accept(key + " -> " + get(key));
+        } else {
+            err.accept("provide key as first argument");
         }
     }
 
