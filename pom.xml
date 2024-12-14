@@ -64,6 +64,7 @@
         <module>serverconnector-file</module>
         <module>serverlibrary-jsonserialiser</module>
         <module>serverplugin-cache</module>
+        <module>serverconnector-chronicle</module>
     </modules>
 
     <dependencies>
