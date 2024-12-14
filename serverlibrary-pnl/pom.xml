@@ -11,7 +11,7 @@
     <parent>
         <groupId>com.fluxtion</groupId>
         <artifactId>fluxtion-server-plugins</artifactId>
-        <version>0.1.28-SNAPSHOT</version>
+        <version>0.1.29-SNAPSHOT</version>
     </parent>
 
     <artifactId>serverlibrary-pnl</artifactId>
@@ -38,7 +38,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
-            <version>2.18.1</version>
+            <version>2.18.2</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
