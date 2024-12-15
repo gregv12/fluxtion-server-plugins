@@ -12,13 +12,37 @@
         <version>0.1.30-SNAPSHOT</version>
     </parent>
 
-    <artifactId>serverplugin-jdbc</artifactId>
-    <name>fluxtion :: server-plugin-jdbc</name>
+    <artifactId>serverconnector-chronicle</artifactId>
+    <name>fluxtion :: server-connector-chronicle</name>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+
+    <dependencyManagement>
+
+        <dependencies>
+            <dependency>
+                <groupId>net.openhft</groupId>
+                <artifactId>chronicle-bom</artifactId>
+                <version>2.27ea5</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>net.openhft</groupId>
+            <artifactId>chronicle-queue</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.openhft</groupId>
+            <artifactId>chronicle-map</artifactId>
+        </dependency>
+    </dependencies>
 
 </project>

@@ -9,7 +9,7 @@
 
     <groupId>com.fluxtion</groupId>
     <artifactId>fluxtion-server-plugins</artifactId>
-    <version>0.1.29-SNAPSHOT</version>
+    <version>0.1.30-SNAPSHOT</version>
     <name>fluxtion :: server-plugins</name>
     <packaging>pom</packaging>
 
@@ -64,6 +64,7 @@
         <module>serverconnector-file</module>
         <module>serverlibrary-jsonserialiser</module>
         <module>serverplugin-cache</module>
+        <module>serverconnector-chronicle</module>
     </modules>
 
     <dependencies>
