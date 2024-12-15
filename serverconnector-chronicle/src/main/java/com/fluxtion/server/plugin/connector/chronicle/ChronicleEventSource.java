@@ -10,11 +10,16 @@ package com.fluxtion.server.plugin.connector.chronicle;
 import com.fluxtion.server.service.AbstractAgentHostedEventSourceService;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import net.openhft.chronicle.bytes.MethodReader;
+import net.openhft.chronicle.map.ChronicleMap;
+import net.openhft.chronicle.queue.ExcerptTailer;
 import net.openhft.chronicle.queue.impl.single.SingleChronicleQueue;
 import net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder;
 import org.jetbrains.annotations.NotNull;
+
+import java.io.File;
 
 @Log4j2
 @SuppressWarnings("all")
@@ -23,7 +28,14 @@ public class ChronicleEventSource extends AbstractAgentHostedEventSourceService 
     @Getter
     @Setter
     private String chroniclePath;
-    private @NotNull MethodReader methodReader;
+    private String chronicleQueuePath;
+    private String chronicleMapPath;
+    @Getter
+    @Setter
+    private ReadStrategy readStrategy = ReadStrategy.COMMITED;
+    private MethodReader methodReader;
+    private ChronicleMap<Long, Long> readpointer;
+    private @NotNull ExcerptTailer tailer;
 
     public ChronicleEventSource(String name) {
         super(name);
@@ -33,11 +45,27 @@ public class ChronicleEventSource extends AbstractAgentHostedEventSourceService 
         this("chronicle-event-source");
     }
 
+    @SneakyThrows
     @Override
     public void onStart() {
-        SingleChronicleQueue queue_en = SingleChronicleQueueBuilder.binary(chroniclePath).build();
+        chronicleQueuePath = chroniclePath + "/chronicle-queue";
+        chronicleMapPath = chroniclePath + "/chronicle-map";
+        SingleChronicleQueue chronicleQueue = SingleChronicleQueueBuilder.binary(chronicleQueuePath).build();
         MessageSink messageSink = output::publish;
-        methodReader = queue_en.createTailer().methodReader(messageSink);
+        tailer = chronicleQueue.createTailer();
+        methodReader = tailer.methodReader(messageSink);
+        File chronicleMapFile = new File(chronicleMapPath + "/readPointer.dat");
+        chronicleMapFile.getAbsoluteFile().getParentFile().mkdirs();
+        readpointer = ChronicleMap
+                .of(Long.class, Long.class)
+                .name("country-map")
+                .entries(50)
+                .createPersistedTo(chronicleMapFile);
+        switch (readStrategy) {
+            case COMMITED -> tailer.moveToIndex(readpointer.getOrDefault(1l, 0l));
+            case LATEST -> tailer.toEnd();
+            case EARLIEST -> tailer.toStart();
+        }
     }
 
     @Override
@@ -46,6 +74,7 @@ public class ChronicleEventSource extends AbstractAgentHostedEventSourceService 
         while (methodReader.readOne()) {
             count++;
         }
+        readpointer.put(1l, tailer.index());
         return count;
     }
 }
