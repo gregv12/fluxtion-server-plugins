@@ -1,8 +1,6 @@
 /*
- *
- *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- *  * SPDX-License-Identifier: AGPL-3.0-only
- *
+ * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 package com.fluxtion.server.plugin.connector.file;
@@ -63,12 +61,13 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
     }
 
     @Override
-    public void start() {
-        log.info("Starting FileEventSource");
+    public void onStart() {
+        log.info("agent onStart FileEventSource");
     }
 
     @Override
-    public void startComplete() {
+    public void start() {
+        log.info("start FileEventSource");
         tail = readStrategy == ReadStrategy.COMMITED | readStrategy == ReadStrategy.EARLIEST | readStrategy == ReadStrategy.LATEST;
         once = !tail;
         commitRead = readStrategy == ReadStrategy.COMMITED;
@@ -88,22 +87,25 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
             log.info("{} creating committedReadFile:{}, streamOffset:{}", serviceName, committedReadFile.getAbsolutePath(), streamOffset);
         }
 
-        startComplete.set(true);
         if (filename == null || filename.isEmpty()) {
             //throw an  error
         }
         connectReader();
         tail = true;
+
         if (publishOnStart) {
+            startComplete.set(true);
             log.info("publishOnStart: {}", publishOnStart);
             doWork();
+            startComplete.set(false);
         }
-        log.info("startComplete - exit");
     }
 
     @Override
-    public void onStart() {
-        log.info("agent onStart FileEventFeed");
+    public void startComplete() {
+        log.info("startComplete FileEventSource");
+        startComplete.set(true);
+        log.info("startComplete - exit");
     }
 
     @SuppressWarnings("all")

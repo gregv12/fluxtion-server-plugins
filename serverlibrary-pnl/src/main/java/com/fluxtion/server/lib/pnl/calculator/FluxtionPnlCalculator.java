@@ -90,8 +90,8 @@ import java.util.function.Consumer;
  *
  * <pre>
  * generation time                 : Not available
- * eventProcessorGenerator version : 9.4.4
- * api version                     : 9.4.4
+ * eventProcessorGenerator version : 9.4.7-SNAPSHOT
+ * api version                     : 9.4.7-SNAPSHOT
  * </pre>
  *
  * Event classes supported:
@@ -456,11 +456,13 @@ public class FluxtionPnlCalculator
     isDirty("test");
     clock.init();
     handlerPositionSnapshot.init();
+    flatMapSnapshotPositions.init();
     handlerSignal_positionSnapshotReset.init();
     handlerSignal_positionUpdate.init();
     groupBySnapshotPositions.initialiseEventStream();
     handlerTrade.init();
     handlerTradeBatch.init();
+    flatMapFlowFunction_2.init();
     mapRef2RefFlowFunction_5.initialiseEventStream();
     mapRef2RefFlowFunction_7.initialiseEventStream();
     binaryMapToRefFlowFunction_23.initialiseEventStream();
