@@ -18,7 +18,6 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Log4j2
@@ -125,7 +124,6 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
             int nread;
             while (reader.ready()) {
                 tail = !once;
-                Scanner scanner = new Scanner(reader);
                 nread = reader.read(buffer, offset, buffer.length - offset);
                 log.trace("Read {} bytes from {}", nread, getFilename());
 
