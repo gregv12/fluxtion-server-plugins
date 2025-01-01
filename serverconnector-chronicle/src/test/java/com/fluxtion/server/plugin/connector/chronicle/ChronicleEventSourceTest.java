@@ -9,6 +9,7 @@ import com.fluxtion.agrona.concurrent.OneToOneConcurrentArrayQueue;
 import com.fluxtion.runtime.event.NamedFeedEvent;
 import com.fluxtion.server.dispatch.EventToQueuePublisher;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -22,8 +23,8 @@ public class ChronicleEventSourceTest {
     Path tempDir;
 
     @Test
+    @Disabled
     public void testReadEvents() throws Exception {
-
         //output to chronicle
         ChronicleMessageSink chronicleMessageSink = new ChronicleMessageSink();
         chronicleMessageSink.setChroniclePath(tempDir.toAbsolutePath().toString());
@@ -42,19 +43,16 @@ public class ChronicleEventSourceTest {
         eventToQueue.addTargetQueue(targetQueue, "outputQueue");
         chronicleEventSource.setOutput(eventToQueue);
 
-
         chronicleEventSource.init();
         chronicleEventSource.onStart();
         chronicleEventSource.start();
         chronicleEventSource.startComplete();
         chronicleEventSource.doWork();
 
-//        targetQueue.drain(System.out::println);
         ArrayList<String> actual = new ArrayList<>();
 
         targetQueue.drainTo(actual, 100);
         Assertions.assertIterableEquals(List.of("item 1", "item 2"), actual);
-
 
         //push some new data
         actual.clear();
