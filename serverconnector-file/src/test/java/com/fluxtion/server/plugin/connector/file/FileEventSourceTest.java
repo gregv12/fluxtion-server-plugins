@@ -6,7 +6,9 @@
 package com.fluxtion.server.plugin.connector.file;
 
 import com.fluxtion.agrona.concurrent.OneToOneConcurrentArrayQueue;
+import com.fluxtion.runtime.event.NamedFeedEvent;
 import com.fluxtion.server.dispatch.EventToQueuePublisher;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -14,6 +16,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class FileEventSourceTest {
     @TempDir
@@ -21,15 +26,10 @@ public class FileEventSourceTest {
 
     @Test
     public void testReadEvents() throws IOException {
-
-        // Create a temporary file.
-        // This is guaranteed to be deleted after the test finishes.
         final Path tempFile = Files.createFile(tempDir.resolve("myfile.txt"));
-        System.out.println(tempDir.toAbsolutePath());
-        // Write something to it.
         Files.writeString(tempFile, """
-                        Hello World
-                        Test 1
+                        item 1
+                        item 2
                         """,
                 StandardOpenOption.SYNC);
 
@@ -40,7 +40,6 @@ public class FileEventSourceTest {
         EventToQueuePublisher<String> eventToQueue = new EventToQueuePublisher<>("myQueue");
         OneToOneConcurrentArrayQueue<String> targetQueue = new OneToOneConcurrentArrayQueue<>(100);
         eventToQueue.addTargetQueue(targetQueue, "outputQueue");
-        eventToQueue.setCacheEventLog(true);
         fileEventSource.setOutput(eventToQueue);
 
         fileEventSource.onStart();
@@ -48,13 +47,30 @@ public class FileEventSourceTest {
         fileEventSource.startComplete();
         fileEventSource.doWork();
 
-        targetQueue.drain(System.out::println);
+        ArrayList<String> actual = new ArrayList<>();
 
-//        // Read it.
-//        final String s = Files.readString(tempFile);
-//
-//        // Check that what was written is correct.
-//        Assertions.assertEquals("Hello World", s);
+        targetQueue.drainTo(actual, 100);
+        Assertions.assertIterableEquals(List.of("item 1", "item 2"), actual);
+
+        //push some new data
+        actual.clear();
+        Files.writeString(tempFile, """
+                        item 3
+                        item 4
+                        """,
+                StandardOpenOption.SYNC, StandardOpenOption.APPEND);
+        targetQueue.drainTo(actual, 100);
+        Assertions.assertTrue(actual.isEmpty());
+
+
+        fileEventSource.doWork();
+        targetQueue.drainTo(actual, 100);
+        Assertions.assertIterableEquals(List.of("item 3", "item 4"), actual);
+
+
+//      ----------- event log --------------
+        Assertions.assertIterableEquals(
+                List.of("item 1", "item 2", "item 3", "item 4"),
+                eventToQueue.getEventLog().stream().map(NamedFeedEvent::data).collect(Collectors.toList()));
     }
-
 }

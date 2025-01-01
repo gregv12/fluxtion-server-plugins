@@ -90,8 +90,8 @@ import java.util.function.Consumer;
  *
  * <pre>
  * generation time                 : Not available
- * eventProcessorGenerator version : 9.4.7-SNAPSHOT
- * api version                     : 9.4.7-SNAPSHOT
+ * eventProcessorGenerator version : 9.5.0
+ * api version                     : 9.5.0
  * </pre>
  *
  * Event classes supported:

@@ -6,6 +6,7 @@
 package com.fluxtion.server.plugin.connector.file;
 
 import com.fluxtion.agrona.IoUtil;
+import com.fluxtion.runtime.event.NamedFeedEvent;
 import com.fluxtion.server.config.ReadStrategy;
 import com.fluxtion.server.dispatch.EventToQueuePublisher;
 import com.fluxtion.server.service.AbstractAgentHostedEventSourceService;
@@ -19,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Log4j2
@@ -91,10 +93,11 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
         connectReader();
         tail = true;
 
+        output.setCacheEventLog(cacheEventLog);
         if (cacheEventLog) {
+            log.info("cacheEventLog: {}", cacheEventLog);
             startComplete.set(true);
             publishToQueue = false;
-            log.info("publishOnStart: {}", cacheEventLog);
             doWork();
             startComplete.set(false);
         }
@@ -107,6 +110,12 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
         publishToQueue = true;
         output.dispatchCachedEventLog();
         log.info("startComplete - exit");
+    }
+
+    @Override
+    public <T> NamedFeedEvent<T>[] eventLog() {
+        List<NamedFeedEvent> eventLog = output.getEventLog();
+        return eventLog.toArray(new NamedFeedEvent[0]);
     }
 
     @SuppressWarnings("all")
@@ -178,19 +187,6 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
         return 0;
     }
 
-    private void publish(String line) {
-        if (publishToQueue) {
-            log.debug("publish record:{}", line);
-            output.publish(line);
-        } else {
-            log.debug("cache record:{}", line);
-            output.cache(line);
-        }
-        if (commitRead) {
-            commitPointer.force();
-        }
-    }
-
     @Override
     public void stop() {
         log.trace("Stopping");
@@ -240,6 +236,19 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
             }
         }
         return reader;
+    }
+
+    private void publish(String line) {
+        if (publishToQueue) {
+            log.debug("publish record:{}", line);
+            output.publish(line);
+        } else {
+            log.debug("cache record:{}", line);
+            output.cache(line);
+        }
+        if (commitRead) {
+            commitPointer.force();
+        }
     }
 
     private String extractLine() {
