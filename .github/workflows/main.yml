@@ -36,9 +36,9 @@ jobs:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
-          
-      - name: Set TMPDIR
-        run: echo "::set-env name=TMPDIR::/tmp"
+
+      #      - name: Set TMPDIR
+      #        run: echo "::set-env name=TMPDIR::/tmp"
 
       - name: Build project with Maven
         run: mvn -B package --file pom.xml
