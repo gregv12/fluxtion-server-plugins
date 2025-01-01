@@ -10,7 +10,6 @@ import com.fluxtion.runtime.event.NamedFeedEvent;
 import com.fluxtion.server.dispatch.EventToQueuePublisher;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
@@ -25,7 +24,7 @@ public class FileEventSourceTest {
     @TempDir
     Path tempDir;
 
-    @Test
+    //    @Test
     @Disabled
     public void testReadEvents() throws IOException {
         final Path tempFile = Files.createFile(tempDir.resolve("myfile.txt"));

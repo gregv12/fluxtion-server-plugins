@@ -10,7 +10,6 @@ import com.fluxtion.runtime.event.NamedFeedEvent;
 import com.fluxtion.server.dispatch.EventToQueuePublisher;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
@@ -22,7 +21,7 @@ public class ChronicleEventSourceTest {
     @TempDir
     Path tempDir;
 
-    @Test
+    //    @Test
     @Disabled
     public void testReadEvents() throws Exception {
         //output to chronicle
