@@ -9,7 +9,7 @@
     <parent>
         <groupId>com.fluxtion</groupId>
         <artifactId>fluxtion-server-plugins</artifactId>
-        <version>0.1.31-SNAPSHOT</version>
+        <version>0.1.31</version>
     </parent>
 
     <artifactId>serverconnector-file</artifactId>
