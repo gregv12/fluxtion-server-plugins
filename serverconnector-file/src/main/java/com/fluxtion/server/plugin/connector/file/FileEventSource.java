@@ -1,11 +1,13 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 package com.fluxtion.server.plugin.connector.file;
 
 import com.fluxtion.agrona.IoUtil;
+import com.fluxtion.server.config.ReadStrategy;
+import com.fluxtion.server.dispatch.EventToQueuePublisher;
 import com.fluxtion.server.service.AbstractAgentHostedEventSourceService;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,7 +19,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Log4j2
@@ -33,10 +34,7 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
     private int offset = 0;
     @Getter
     @Setter
-    private int batchSize;
-    @Getter
-    @Setter
-    private boolean publishOnStart = false;
+    private boolean cacheEventLog = false;
     @Getter
     @Setter
     private ReadStrategy readStrategy = ReadStrategy.COMMITED;
@@ -48,6 +46,7 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
     private long streamOffset;
     private MappedByteBuffer commitPointer;
     private boolean once;
+    private boolean publishToQueue = false;
 
     public FileEventSource() {
         this(1024);
@@ -92,9 +91,10 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
         connectReader();
         tail = true;
 
-        if (publishOnStart) {
+        if (cacheEventLog) {
             startComplete.set(true);
-            log.info("publishOnStart: {}", publishOnStart);
+            publishToQueue = false;
+            log.info("publishOnStart: {}", cacheEventLog);
             doWork();
             startComplete.set(false);
         }
@@ -104,6 +104,8 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
     public void startComplete() {
         log.info("startComplete FileEventSource");
         startComplete.set(true);
+        publishToQueue = true;
+        output.dispatchCachedEventLog();
         log.info("startComplete - exit");
     }
 
@@ -118,10 +120,10 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
                 return 0;
             }
             log.debug("doWork FileEventFeed");
-
-            ArrayList<String> records = null;
-
+            String lastReadLine = null;
+            int readCount = 0;
             int nread;
+
             while (reader.ready()) {
                 tail = !once;
                 nread = reader.read(buffer, offset, buffer.length - offset);
@@ -130,52 +132,25 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
                 if (nread > 0) {
                     offset += nread;
                     String line;
-                    boolean foundOneLine = false;
                     do {
                         line = extractLine();
                         if (line != null) {
-                            foundOneLine = true;
-                            log.trace("Read a line from {} line:'{}'", getFilename(), line);
-                            if (records == null) {
-                                records = new ArrayList<>();
-                                if (latestRead) {
-                                    records.add(line);
-                                }
-                            }
+                            readCount++;
+                            log.trace("Read a line from '{}' count:'{}' line:'{}'", getFilename(), readCount, line);
                             if (latestRead) {
-                                if (records.isEmpty()) {
-                                    records.add(line);
-                                }
-                                records.set(0, line);
+                                lastReadLine = line;
                             } else {
-                                records.add(line);
-                            }
-
-                            if (records.size() >= batchSize & !latestRead) {
-                                var recordBatch = records;
-                                records = new ArrayList<>();
-                                output.publish(recordBatch);
-                                log.info("publish batch:{}", recordBatch);
-                                if (commitRead) {
-                                    commitPointer.force();
-                                }
+                                publish(line);
                             }
                         }
                     } while (line != null);
 
-                    if (latestRead & foundOneLine & !once) {
-                        log.info("publish latest:{}", records);
-                        output.publish(records);
-                    } else if (foundOneLine && records.size() > 0) {
-                        output.publish(records);
-                        log.info("publish batch:{}", records);
-                        records.clear();
-                        if (commitRead) {
-                            commitPointer.force();
-                        }
+                    if (latestRead & lastReadLine != null & !once) {
+                        log.info("publish latest:{}", lastReadLine);
+                        publish(lastReadLine);
                     }
 
-                    if (!foundOneLine && offset == buffer.length) {
+                    if (lastReadLine == null && offset == buffer.length) {
                         char[] newbuf = new char[buffer.length * 2];
                         System.arraycopy(buffer, 0, newbuf, 0, buffer.length);
                         log.info("Increased buffer from {} to {}", buffer.length, newbuf.length);
@@ -184,7 +159,7 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
                 }
             }
 
-            return records == null ? 0 : records.size();
+            return readCount;
 
         } catch (IOException e) {
             try {
@@ -201,6 +176,19 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
             stream = null;
         }
         return 0;
+    }
+
+    private void publish(String line) {
+        if (publishToQueue) {
+            log.debug("publish record:{}", line);
+            output.publish(line);
+        } else {
+            log.debug("cache record:{}", line);
+            output.cache(line);
+        }
+        if (commitRead) {
+            commitPointer.force();
+        }
     }
 
     @Override
@@ -286,4 +274,8 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
         }
     }
 
+    //for testing
+    void setOutput(EventToQueuePublisher<?> output) {
+        this.output = output;
+    }
 }
