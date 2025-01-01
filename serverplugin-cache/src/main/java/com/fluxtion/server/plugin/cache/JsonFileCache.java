@@ -39,6 +39,7 @@ public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService 
     private Map<String, TypedData> cacheMap = new ConcurrentHashMap<>();
     private static final TypedData TYPED_DATA_NULL = new TypedData();
     private File file;
+    private File redoLogFile;
     private String serviceName;
     private AdminCommandRegistry registry;
 

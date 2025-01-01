@@ -9,7 +9,7 @@
     <parent>
         <groupId>com.fluxtion</groupId>
         <artifactId>fluxtion-server-plugins</artifactId>
-        <version>0.1.30-SNAPSHOT</version>
+        <version>0.1.32-SNAPSHOT</version>
     </parent>
 
     <artifactId>serverplugin-springbuilder</artifactId>
@@ -18,7 +18,7 @@
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <org.springframework.version>6.2.0</org.springframework.version>
+        <org.springframework.version>6.2.1</org.springframework.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
