@@ -27,7 +27,7 @@
         <fluxtion.version>9.5.0</fluxtion.version>
         <fluxtion.server.version>0.1.52</fluxtion.server.version>
         <fluxtion.mavenplugin.version>3.0.14</fluxtion.mavenplugin.version>
-        <log4j2.version>2.24.2</log4j2.version>
+        <log4j2.version>2.24.3</log4j2.version>
         <jackson.version>2.18.2</jackson.version>
     </properties>
 
