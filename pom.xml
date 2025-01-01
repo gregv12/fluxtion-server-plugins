@@ -10,7 +10,7 @@
 
     <groupId>com.fluxtion</groupId>
     <artifactId>fluxtion-server-plugins</artifactId>
-    <version>0.1.30-SNAPSHOT</version>
+    <version>0.1.32-SNAPSHOT</version>
     <name>fluxtion :: server-plugins</name>
     <packaging>pom</packaging>
 
@@ -254,5 +254,5 @@
         </repository>
     </distributionManagement>
 
-    <!--    force release 0.1.16 -->
+    <!--    force release 0.1.31 -->
 </project>
