@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+  ~ SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
   ~ SPDX-License-Identifier: AGPL-3.0-only
   -->
 
@@ -24,8 +24,8 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <fluxtion.version>9.4.4</fluxtion.version>
-        <fluxtion.server.version>0.1.51</fluxtion.server.version>
+        <fluxtion.version>9.5.0</fluxtion.version>
+        <fluxtion.server.version>0.1.52</fluxtion.server.version>
         <fluxtion.mavenplugin.version>3.0.14</fluxtion.mavenplugin.version>
         <log4j2.version>2.24.2</log4j2.version>
         <jackson.version>2.18.2</jackson.version>
@@ -125,6 +125,23 @@
                     <releaseProfiles>release</releaseProfiles>
                     <autoVersionSubmodules>true</autoVersionSubmodules>
                     <tagNameFormat>v@{project.version}</tagNameFormat>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>
+                        --add-opens java.base/java.lang.reflect=ALL-UNNAMED
+                        --add-opens java.base/sun.nio.ch=ALL-UNNAMED
+                        --add-opens java.base/java.lang.reflect=ALL-UNNAMED
+                        --add-opens java.base/sun.nio.ch=ALL-UNNAMED
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                        --illegal-access=permit
+                        --add-exports java.base/jdk.internal.ref=ALL-UNNAMED
+                        --add-exports jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED
+                    </argLine>
                 </configuration>
             </plugin>
         </plugins>
