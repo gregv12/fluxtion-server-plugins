@@ -1,8 +1,6 @@
 /*
- *
- *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- *  * SPDX-License-Identifier: AGPL-3.0-only
- *
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 package com.fluxtion.server.lib.pnl.calculator;
@@ -71,7 +69,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         buildInstrumentMtm();
 
         //no buffer/trigger support required on this  processor
-//        eventProcessorConfig.addEventAudit();
+        eventProcessorConfig.addEventAudit();
         eventProcessorConfig.setSupportBufferAndTrigger(false);
     }
 

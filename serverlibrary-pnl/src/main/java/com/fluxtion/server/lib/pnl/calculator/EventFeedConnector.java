@@ -1,8 +1,6 @@
 /*
- *
- *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- *  * SPDX-License-Identifier: AGPL-3.0-only
- *
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 package com.fluxtion.server.lib.pnl.calculator;
@@ -12,8 +10,11 @@ import com.fluxtion.runtime.EventProcessorContextListener;
 import com.fluxtion.runtime.annotations.ExportService;
 import com.fluxtion.runtime.annotations.Initialise;
 import com.fluxtion.runtime.annotations.OnEventHandler;
+import com.fluxtion.runtime.annotations.Start;
 import com.fluxtion.runtime.annotations.builder.FluxtionIgnore;
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
+import com.fluxtion.runtime.audit.EventLogNode;
+import com.fluxtion.runtime.node.NamedFeedTableNode;
 import com.fluxtion.server.config.ConfigListener;
 import com.fluxtion.server.config.ConfigMap;
 import com.fluxtion.server.lib.pnl.MidPrice;
@@ -29,16 +30,26 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
 
 @Log4j2
-public class EventFeedConnector implements EventProcessorContextListener, @ExportService ConfigListener {
+public class EventFeedConnector extends EventLogNode implements EventProcessorContextListener, @ExportService ConfigListener {
 
     @FluxtionIgnore
     private final InMemorySymbolLookup symbolLookup = new InMemorySymbolLookup();
+    private final NamedFeedTableNode<String, SymbolDto> symbolTable;
     private EventProcessorContext context;
     private Logger erroLogger = LogManager.getLogger("com.fluxtion.pnl.error");
+
+    public EventFeedConnector() {
+        this(new NamedFeedTableNode<>(
+                "symbolFeed",
+                "com.fluxtion.server.lib.pnl.dto.SymbolDto::getSymbol"));
+    }
+
+    public EventFeedConnector(NamedFeedTableNode<String, SymbolDto> symbolTable) {
+        this.symbolTable = symbolTable;
+    }
 
     @Override
     public void currentContext(EventProcessorContext currentContext) {
@@ -59,14 +70,13 @@ public class EventFeedConnector implements EventProcessorContextListener, @Expor
 
     @Override
     public boolean initialConfig(ConfigMap config) {
-        List<Map<String, String>> symbolList = config.get("symbols");
-        if (symbolList != null) {
-            symbolList.stream()
-                    .map(cfg -> new Symbol(cfg.get("symbol"), cfg.get("dealt"), cfg.get("contra")))
-                    .forEach(symbolLookup::addSymbol);
-        }
         erroLogger = LogManager.getLogger(config.getOrDefault("errorLogName", "com.fluxtion.pnl.error"));
         return false;
+    }
+
+    @Start
+    public void start() {
+        log.info("Starting EventFeedConnector symbolMap: {}", symbolTable.getTableMap());
     }
 
     @OnEventHandler
@@ -86,25 +96,9 @@ public class EventFeedConnector implements EventProcessorContextListener, @Expor
     }
 
     @OnEventHandler
-    public boolean onSymbolDto(SymbolDto symbolDTO) {
-        log.info("Received symbolDTO: " + symbolDTO);
-        symbolLookup.addSymbol(symbolDTO.toSymbol());
-        return false;
-    }
-
-    @OnEventHandler
-    public boolean onSymbolBatchDto(SymbolBatchDto symbolBatchDTO) {
-        log.info("Received symbolBatchDTO: " + symbolBatchDTO);
-        symbolBatchDTO.getBatchData().stream()
-                .map(SymbolDto::toSymbol)
-                .forEach(symbolLookup::addSymbol);
-        return false;
-    }
-
-    @OnEventHandler
     public boolean onMidPriceDto(MidPriceDto midPriceDto) {
         log.info("Received midPriceDto: " + midPriceDto);
-        MidPrice midPrice = new MidPrice(symbolLookup.getSymbolForName(midPriceDto.getSymbol()), midPriceDto.getPrice());
+        MidPrice midPrice = new MidPrice(getSymbolForName(midPriceDto.getSymbol()), midPriceDto.getPrice());
         onEvent(midPrice);
         publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
         return false;
@@ -114,7 +108,7 @@ public class EventFeedConnector implements EventProcessorContextListener, @Expor
     public boolean onMidPriceBatchDto(MidPriceBatchDto midPriceBatchDto) {
         log.info("Received midPriceBatchDto: " + midPriceBatchDto);
         midPriceBatchDto.getBatchData().stream()
-                .map(midPriceDto -> new MidPrice(symbolLookup.getSymbolForName(midPriceDto.getSymbol()), midPriceDto.getPrice()))
+                .map(midPriceDto -> new MidPrice(getSymbolForName(midPriceDto.getSymbol()), midPriceDto.getPrice()))
                 .forEach(context.getStaticEventProcessor()::onEvent);
         publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
         return false;
@@ -137,7 +131,7 @@ public class EventFeedConnector implements EventProcessorContextListener, @Expor
     }
 
     private void processTradeDto(TradeDto tradeDTO) {
-        Symbol symbolForName = symbolLookup.getSymbolForName(tradeDTO.getSymbol());
+        Symbol symbolForName = getSymbolForName(tradeDTO.getSymbol());
         if (symbolForName != null) {
             String feeInstrument = tradeDTO.getFeeInstrument() == null ? "" : tradeDTO.getFeeInstrument();
             Trade trade = new Trade(
@@ -159,5 +153,14 @@ public class EventFeedConnector implements EventProcessorContextListener, @Expor
 
     private void onEvent(Object event) {
         context.getStaticEventProcessor().onEvent(event);
+    }
+
+    private Symbol getSymbolForName(String name) {
+        Symbol symbol = symbolLookup.getSymbolForName(name);
+        if (symbol == null) {
+            symbol = symbolTable.getTableMap().get(name).toSymbol();
+            symbolLookup.addSymbol(symbol);
+        }
+        return symbol;
     }
 }

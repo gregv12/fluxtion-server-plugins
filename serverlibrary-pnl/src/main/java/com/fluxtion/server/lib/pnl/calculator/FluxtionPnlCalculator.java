@@ -23,6 +23,7 @@ import com.fluxtion.runtime.EventProcessor;
 import com.fluxtion.runtime.callback.InternalEventProcessor;
 import com.fluxtion.runtime.EventProcessorContext;
 import com.fluxtion.runtime.audit.Auditor;
+import com.fluxtion.runtime.audit.EventLogControlEvent;
 import com.fluxtion.runtime.audit.EventLogManager;
 import com.fluxtion.runtime.audit.NodeNameAuditor;
 import com.fluxtion.runtime.callback.CallBackNode;
@@ -46,6 +47,7 @@ import com.fluxtion.runtime.dataflow.helpers.DefaultValue;
 import com.fluxtion.runtime.dataflow.helpers.Mappers;
 import com.fluxtion.runtime.dataflow.helpers.Tuples.MapTuple;
 import com.fluxtion.runtime.event.Event;
+import com.fluxtion.runtime.event.NamedFeedEvent;
 import com.fluxtion.runtime.event.Signal;
 import com.fluxtion.runtime.input.EventFeed;
 import com.fluxtion.runtime.input.SubscriptionManager;
@@ -53,6 +55,7 @@ import com.fluxtion.runtime.input.SubscriptionManagerNode;
 import com.fluxtion.runtime.node.DefaultEventHandlerNode;
 import com.fluxtion.runtime.node.ForkedTriggerTask;
 import com.fluxtion.runtime.node.MutableEventProcessorContext;
+import com.fluxtion.runtime.node.NamedFeedTableNode;
 import com.fluxtion.runtime.output.SinkDeregister;
 import com.fluxtion.runtime.output.SinkPublisher;
 import com.fluxtion.runtime.output.SinkRegistration;
@@ -73,7 +76,6 @@ import com.fluxtion.server.lib.pnl.dto.DtoHelper;
 import com.fluxtion.server.lib.pnl.dto.MidPriceBatchDto;
 import com.fluxtion.server.lib.pnl.dto.MidPriceDto;
 import com.fluxtion.server.lib.pnl.dto.PositionSnapshotDto;
-import com.fluxtion.server.lib.pnl.dto.SymbolBatchDto;
 import com.fluxtion.server.lib.pnl.dto.SymbolDto;
 import com.fluxtion.server.lib.pnl.dto.TradeBatchDto;
 import com.fluxtion.server.lib.pnl.dto.TradeDto;
@@ -90,14 +92,15 @@ import java.util.function.Consumer;
  *
  * <pre>
  * generation time                 : Not available
- * eventProcessorGenerator version : 9.5.0
- * api version                     : 9.5.0
+ * eventProcessorGenerator version : 9.5.1
+ * api version                     : 9.5.1
  * </pre>
  *
  * Event classes supported:
  *
  * <ul>
  *   <li>com.fluxtion.compiler.generation.model.ExportFunctionMarker
+ *   <li>com.fluxtion.runtime.audit.EventLogControlEvent
  *   <li>com.fluxtion.runtime.callback.InstanceCallbackEvent.InstanceCallbackEvent_0
  *   <li>com.fluxtion.runtime.callback.InstanceCallbackEvent.InstanceCallbackEvent_1
  *   <li>com.fluxtion.runtime.event.Signal
@@ -112,10 +115,9 @@ import java.util.function.Consumer;
  *   <li>com.fluxtion.server.lib.pnl.dto.MidPriceBatchDto
  *   <li>com.fluxtion.server.lib.pnl.dto.MidPriceDto
  *   <li>com.fluxtion.server.lib.pnl.dto.PositionSnapshotDto
- *   <li>com.fluxtion.server.lib.pnl.dto.SymbolBatchDto
- *   <li>com.fluxtion.server.lib.pnl.dto.SymbolDto
  *   <li>com.fluxtion.server.lib.pnl.dto.TradeBatchDto
  *   <li>com.fluxtion.server.lib.pnl.dto.TradeDto
+ *   <li>com.fluxtion.runtime.event.NamedFeedEvent
  * </ul>
  *
  * @author Greg Higgins
@@ -134,18 +136,19 @@ public class FluxtionPnlCalculator
 
   //Node declarations
   private final InstanceCallbackEvent_0 callBackTriggerEvent_0 = new InstanceCallbackEvent_0();
-  private final CallBackNode callBackNode_57 = new CallBackNode<>(callBackTriggerEvent_0);
+  private final CallBackNode callBackNode_58 = new CallBackNode<>(callBackTriggerEvent_0);
   private final InstanceCallbackEvent_1 callBackTriggerEvent_1 = new InstanceCallbackEvent_1();
-  private final CallBackNode callBackNode_71 = new CallBackNode<>(callBackTriggerEvent_1);
+  private final CallBackNode callBackNode_72 = new CallBackNode<>(callBackTriggerEvent_1);
   private final CallbackDispatcherImpl callbackDispatcher = new CallbackDispatcherImpl();
   public final Clock clock = new Clock();
   public final DerivedRateNode derivedRateNode = new DerivedRateNode();
-  private final EmptyGroupBy emptyGroupBy_63 = new EmptyGroupBy<>();
-  private final DefaultValue defaultValue_15 = new DefaultValue<>(emptyGroupBy_63);
-  private final EmptyGroupBy emptyGroupBy_111 = new EmptyGroupBy<>();
-  private final DefaultValue defaultValue_32 = new DefaultValue<>(emptyGroupBy_111);
-  private final EmptyGroupBy emptyGroupBy_273 = new EmptyGroupBy<>();
-  private final DefaultValue defaultValue_49 = new DefaultValue<>(emptyGroupBy_273);
+  private final EmptyGroupBy emptyGroupBy_64 = new EmptyGroupBy<>();
+  private final DefaultValue defaultValue_15 = new DefaultValue<>(emptyGroupBy_64);
+  private final EmptyGroupBy emptyGroupBy_112 = new EmptyGroupBy<>();
+  private final DefaultValue defaultValue_32 = new DefaultValue<>(emptyGroupBy_112);
+  private final EmptyGroupBy emptyGroupBy_274 = new EmptyGroupBy<>();
+  private final DefaultValue defaultValue_49 = new DefaultValue<>(emptyGroupBy_274);
+  public final EventLogManager eventLogger = new EventLogManager();
   private final GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_4 =
       new GroupByFlowFunctionWrapper<>(
           Trade::getDealtInstrument, Mappers::identity, SingleInstrumentPosMtmAggregate::dealt);
@@ -172,22 +175,25 @@ public class FluxtionPnlCalculator
       new GroupByMapFlowFunction(derivedRateNode::calculateInstrumentPosMtm);
   private final LeftJoin leftJoin_34 = new LeftJoin();
   private final LeftJoin leftJoin_51 = new LeftJoin();
-  private final MapTuple mapTuple_238 = new MapTuple<>(NetMarkToMarket::combine);
+  private final MapTuple mapTuple_239 = new MapTuple<>(NetMarkToMarket::combine);
   private final GroupByMapFlowFunction groupByMapFlowFunction_36 =
-      new GroupByMapFlowFunction(mapTuple_238::mapTuple);
-  private final MapTuple mapTuple_248 =
+      new GroupByMapFlowFunction(mapTuple_239::mapTuple);
+  private final MapTuple mapTuple_249 =
       new MapTuple<>(InstrumentPosMtm::overwriteInstrumentPositionWithSnapshot);
   private final GroupByMapFlowFunction groupByMapFlowFunction_28 =
-      new GroupByMapFlowFunction(mapTuple_248::mapTuple);
-  private final MapTuple mapTuple_252 = new MapTuple<>(InstrumentPosMtm::merge);
+      new GroupByMapFlowFunction(mapTuple_249::mapTuple);
+  private final MapTuple mapTuple_253 = new MapTuple<>(InstrumentPosMtm::merge);
   private final GroupByMapFlowFunction groupByMapFlowFunction_24 =
-      new GroupByMapFlowFunction(mapTuple_252::mapTuple);
-  private final MapTuple mapTuple_327 = new MapTuple<>(NetMarkToMarket::combine);
+      new GroupByMapFlowFunction(mapTuple_253::mapTuple);
+  private final MapTuple mapTuple_328 = new MapTuple<>(NetMarkToMarket::combine);
   private final GroupByMapFlowFunction groupByMapFlowFunction_53 =
-      new GroupByMapFlowFunction(mapTuple_327::mapTuple);
-  private final MapTuple mapTuple_337 = new MapTuple<>(InstrumentPosMtm::merge);
+      new GroupByMapFlowFunction(mapTuple_328::mapTuple);
+  private final MapTuple mapTuple_338 = new MapTuple<>(InstrumentPosMtm::merge);
   private final GroupByMapFlowFunction groupByMapFlowFunction_45 =
-      new GroupByMapFlowFunction(mapTuple_337::mapTuple);
+      new GroupByMapFlowFunction(mapTuple_338::mapTuple);
+  private final NamedFeedTableNode namedFeedTableNode_57 =
+      new NamedFeedTableNode<>("symbolFeed", SymbolDto::getSymbol);
+  public final EventFeedConnector eventFeedBatcher = new EventFeedConnector(namedFeedTableNode_57);
   public final NodeNameAuditor nodeNameLookup = new NodeNameAuditor();
   private final OuterJoin outerJoin_22 = new OuterJoin();
   private final OuterJoin outerJoin_26 = new OuterJoin();
@@ -310,24 +316,23 @@ public class FluxtionPnlCalculator
   private final PushFlowFunction pushFlowFunction_56 =
       new PushFlowFunction<>(instrumentNetMtm, instrumentNetMtmListener::publish);
   public final ServiceRegistryNode serviceRegistry = new ServiceRegistryNode();
-  public final EventFeedConnector eventFeedBatcher = new EventFeedConnector();
   private final ExportFunctionAuditEvent functionAudit = new ExportFunctionAuditEvent();
   //Dirty flags
   private boolean initCalled = false;
   private boolean processing = false;
   private boolean buffering = false;
   private final IdentityHashMap<Object, BooleanSupplier> dirtyFlagSupplierMap =
-      new IdentityHashMap<>(42);
+      new IdentityHashMap<>(43);
   private final IdentityHashMap<Object, Consumer<Boolean>> dirtyFlagUpdateMap =
-      new IdentityHashMap<>(42);
+      new IdentityHashMap<>(43);
 
   private boolean isDirty_binaryMapToRefFlowFunction_23 = false;
   private boolean isDirty_binaryMapToRefFlowFunction_27 = false;
   private boolean isDirty_binaryMapToRefFlowFunction_35 = false;
   private boolean isDirty_binaryMapToRefFlowFunction_44 = false;
   private boolean isDirty_binaryMapToRefFlowFunction_52 = false;
-  private boolean isDirty_callBackNode_57 = false;
-  private boolean isDirty_callBackNode_71 = false;
+  private boolean isDirty_callBackNode_58 = false;
+  private boolean isDirty_callBackNode_72 = false;
   private boolean isDirty_clock = false;
   private boolean isDirty_derivedRateNode = false;
   private boolean isDirty_flatMapFlowFunction_2 = false;
@@ -360,6 +365,7 @@ public class FluxtionPnlCalculator
   private boolean isDirty_mapRef2RefFlowFunction_54 = false;
   private boolean isDirty_mergeFlowFunction_3 = false;
   private boolean isDirty_mergeFlowFunction_12 = false;
+  private boolean isDirty_namedFeedTableNode_57 = false;
   private boolean isDirty_pushFlowFunction_40 = false;
   private boolean isDirty_pushFlowFunction_42 = false;
   private boolean isDirty_pushFlowFunction_56 = false;
@@ -375,14 +381,19 @@ public class FluxtionPnlCalculator
     if (context != null) {
       context.replaceMappings(contextMap);
     }
+    eventLogger.trace = (boolean) false;
+    eventLogger.printEventToString = (boolean) true;
+    eventLogger.printThreadName = (boolean) true;
+    eventLogger.traceLevel = com.fluxtion.runtime.audit.EventLogControlEvent.LogLevel.NONE;
+    eventLogger.clock = clock;
     binaryMapToRefFlowFunction_23.setEventProcessorContext(context);
     binaryMapToRefFlowFunction_27.setEventProcessorContext(context);
     binaryMapToRefFlowFunction_35.setEventProcessorContext(context);
     binaryMapToRefFlowFunction_44.setEventProcessorContext(context);
     binaryMapToRefFlowFunction_52.setEventProcessorContext(context);
-    flatMapFlowFunction_2.callback = callBackNode_57;
+    flatMapFlowFunction_2.callback = callBackNode_58;
     flatMapFlowFunction_2.dirtyStateMonitor = callbackDispatcher;
-    flatMapSnapshotPositions.callback = callBackNode_71;
+    flatMapSnapshotPositions.callback = callBackNode_72;
     flatMapSnapshotPositions.dirtyStateMonitor = callbackDispatcher;
     globalNetMtm.setEventProcessorContext(context);
     groupBySnapshotPositions.setEventProcessorContext(context);
@@ -434,6 +445,7 @@ public class FluxtionPnlCalculator
     serviceRegistry.setEventProcessorContext(context);
     //node auditors
     initialiseAuditor(clock);
+    initialiseAuditor(eventLogger);
     initialiseAuditor(nodeNameLookup);
     initialiseAuditor(serviceRegistry);
     if (subscriptionManager != null) {
@@ -455,6 +467,9 @@ public class FluxtionPnlCalculator
     //initialise dirty lookup map
     isDirty("test");
     clock.init();
+    namedFeedTableNode_57.initialise();
+    namedFeedTableNode_57.init();
+    eventFeedBatcher.init();
     handlerPositionSnapshot.init();
     flatMapSnapshotPositions.init();
     handlerSignal_positionSnapshotReset.init();
@@ -491,7 +506,6 @@ public class FluxtionPnlCalculator
     mapRef2RefFlowFunction_41.initialiseEventStream();
     pushFlowFunction_42.initialiseEventStream();
     pushFlowFunction_56.initialiseEventStream();
-    eventFeedBatcher.init();
     afterEvent();
   }
 
@@ -502,7 +516,7 @@ public class FluxtionPnlCalculator
     }
     processing = true;
     auditEvent(Lifecycle.LifecycleEvent.Start);
-
+    eventFeedBatcher.start();
     afterEvent();
     callbackDispatcher.dispatchQueuedCallbacks();
     processing = false;
@@ -540,6 +554,7 @@ public class FluxtionPnlCalculator
     auditEvent(Lifecycle.LifecycleEvent.TearDown);
     serviceRegistry.tearDown();
     nodeNameLookup.tearDown();
+    eventLogger.tearDown();
     clock.tearDown();
     handlerTradeBatch.tearDown();
     handlerTrade.tearDown();
@@ -578,7 +593,10 @@ public class FluxtionPnlCalculator
 
   @Override
   public void onEventInternal(Object event) {
-    if (event
+    if (event instanceof com.fluxtion.runtime.audit.EventLogControlEvent) {
+      EventLogControlEvent typedEvent = (EventLogControlEvent) event;
+      handleEvent(typedEvent);
+    } else if (event
         instanceof com.fluxtion.runtime.callback.InstanceCallbackEvent.InstanceCallbackEvent_0) {
       InstanceCallbackEvent_0 typedEvent = (InstanceCallbackEvent_0) event;
       handleEvent(typedEvent);
@@ -622,27 +640,31 @@ public class FluxtionPnlCalculator
     } else if (event instanceof com.fluxtion.server.lib.pnl.dto.PositionSnapshotDto) {
       PositionSnapshotDto typedEvent = (PositionSnapshotDto) event;
       handleEvent(typedEvent);
-    } else if (event instanceof com.fluxtion.server.lib.pnl.dto.SymbolBatchDto) {
-      SymbolBatchDto typedEvent = (SymbolBatchDto) event;
-      handleEvent(typedEvent);
-    } else if (event instanceof com.fluxtion.server.lib.pnl.dto.SymbolDto) {
-      SymbolDto typedEvent = (SymbolDto) event;
-      handleEvent(typedEvent);
     } else if (event instanceof com.fluxtion.server.lib.pnl.dto.TradeBatchDto) {
       TradeBatchDto typedEvent = (TradeBatchDto) event;
       handleEvent(typedEvent);
     } else if (event instanceof com.fluxtion.server.lib.pnl.dto.TradeDto) {
       TradeDto typedEvent = (TradeDto) event;
       handleEvent(typedEvent);
+    } else if (event instanceof com.fluxtion.runtime.event.NamedFeedEvent) {
+      NamedFeedEvent typedEvent = (NamedFeedEvent) event;
+      handleEvent(typedEvent);
     } else {
       unKnownEventHandler(event);
     }
   }
 
+  public void handleEvent(EventLogControlEvent typedEvent) {
+    auditEvent(typedEvent);
+    //Default, no filter methods
+    eventLogger.calculationLogConfig(typedEvent);
+    afterEvent();
+  }
+
   public void handleEvent(InstanceCallbackEvent_0 typedEvent) {
     auditEvent(typedEvent);
     //Default, no filter methods
-    isDirty_callBackNode_57 = callBackNode_57.onEvent(typedEvent);
+    isDirty_callBackNode_58 = callBackNode_58.onEvent(typedEvent);
     if (guardCheck_flatMapFlowFunction_2()) {
       isDirty_flatMapFlowFunction_2 = true;
       flatMapFlowFunction_2.callbackReceived();
@@ -835,7 +857,7 @@ public class FluxtionPnlCalculator
   public void handleEvent(InstanceCallbackEvent_1 typedEvent) {
     auditEvent(typedEvent);
     //Default, no filter methods
-    isDirty_callBackNode_71 = callBackNode_71.onEvent(typedEvent);
+    isDirty_callBackNode_72 = callBackNode_72.onEvent(typedEvent);
     if (guardCheck_flatMapSnapshotPositions()) {
       isDirty_flatMapSnapshotPositions = true;
       flatMapSnapshotPositions.callbackReceived();
@@ -1228,20 +1250,6 @@ public class FluxtionPnlCalculator
     afterEvent();
   }
 
-  public void handleEvent(SymbolBatchDto typedEvent) {
-    auditEvent(typedEvent);
-    //Default, no filter methods
-    eventFeedBatcher.onSymbolBatchDto(typedEvent);
-    afterEvent();
-  }
-
-  public void handleEvent(SymbolDto typedEvent) {
-    auditEvent(typedEvent);
-    //Default, no filter methods
-    eventFeedBatcher.onSymbolDto(typedEvent);
-    afterEvent();
-  }
-
   public void handleEvent(TradeBatchDto typedEvent) {
     auditEvent(typedEvent);
     //Default, no filter methods
@@ -1253,6 +1261,18 @@ public class FluxtionPnlCalculator
     auditEvent(typedEvent);
     //Default, no filter methods
     eventFeedBatcher.onTradeDto(typedEvent);
+    afterEvent();
+  }
+
+  public void handleEvent(NamedFeedEvent typedEvent) {
+    auditEvent(typedEvent);
+    switch (typedEvent.filterString()) {
+        //Event Class:[com.fluxtion.runtime.event.NamedFeedEvent] filterString:[symbolFeed]
+      case ("symbolFeed"):
+        handle_NamedFeedEvent_symbolFeed(typedEvent);
+        afterEvent();
+        return;
+    }
     afterEvent();
   }
   //EVENT DISPATCH - END
@@ -1589,6 +1609,10 @@ public class FluxtionPnlCalculator
   private void handle_SinkRegistration_positionSnapshotListener(SinkRegistration typedEvent) {
     positionSnapshotListener.sinkRegistration(typedEvent);
   }
+
+  private void handle_NamedFeedEvent_symbolFeed(NamedFeedEvent typedEvent) {
+    isDirty_namedFeedTableNode_57 = namedFeedTableNode_57.tableUpdate(typedEvent);
+  }
   //FILTERED DISPATCH - END
 
   //EXPORTED SERVICE FUNCTIONS - START
@@ -1643,20 +1667,22 @@ public class FluxtionPnlCalculator
 
   private void auditEvent(Object typedEvent) {
     clock.eventReceived(typedEvent);
+    eventLogger.eventReceived(typedEvent);
     nodeNameLookup.eventReceived(typedEvent);
     serviceRegistry.eventReceived(typedEvent);
   }
 
   private void auditEvent(Event typedEvent) {
     clock.eventReceived(typedEvent);
+    eventLogger.eventReceived(typedEvent);
     nodeNameLookup.eventReceived(typedEvent);
     serviceRegistry.eventReceived(typedEvent);
   }
 
   private void initialiseAuditor(Auditor auditor) {
     auditor.init();
-    auditor.nodeRegistered(callBackNode_57, "callBackNode_57");
-    auditor.nodeRegistered(callBackNode_71, "callBackNode_71");
+    auditor.nodeRegistered(callBackNode_58, "callBackNode_58");
+    auditor.nodeRegistered(callBackNode_72, "callBackNode_72");
     auditor.nodeRegistered(callbackDispatcher, "callbackDispatcher");
     auditor.nodeRegistered(callBackTriggerEvent_1, "callBackTriggerEvent_1");
     auditor.nodeRegistered(callBackTriggerEvent_0, "callBackTriggerEvent_0");
@@ -1693,9 +1719,9 @@ public class FluxtionPnlCalculator
     auditor.nodeRegistered(pushFlowFunction_40, "pushFlowFunction_40");
     auditor.nodeRegistered(pushFlowFunction_42, "pushFlowFunction_42");
     auditor.nodeRegistered(pushFlowFunction_56, "pushFlowFunction_56");
-    auditor.nodeRegistered(emptyGroupBy_63, "emptyGroupBy_63");
-    auditor.nodeRegistered(emptyGroupBy_111, "emptyGroupBy_111");
-    auditor.nodeRegistered(emptyGroupBy_273, "emptyGroupBy_273");
+    auditor.nodeRegistered(emptyGroupBy_64, "emptyGroupBy_64");
+    auditor.nodeRegistered(emptyGroupBy_112, "emptyGroupBy_112");
+    auditor.nodeRegistered(emptyGroupBy_274, "emptyGroupBy_274");
     auditor.nodeRegistered(groupByFlowFunctionWrapper_4, "groupByFlowFunctionWrapper_4");
     auditor.nodeRegistered(groupByFlowFunctionWrapper_6, "groupByFlowFunctionWrapper_6");
     auditor.nodeRegistered(groupByFlowFunctionWrapper_8, "groupByFlowFunctionWrapper_8");
@@ -1718,11 +1744,11 @@ public class FluxtionPnlCalculator
     auditor.nodeRegistered(defaultValue_15, "defaultValue_15");
     auditor.nodeRegistered(defaultValue_32, "defaultValue_32");
     auditor.nodeRegistered(defaultValue_49, "defaultValue_49");
-    auditor.nodeRegistered(mapTuple_238, "mapTuple_238");
-    auditor.nodeRegistered(mapTuple_248, "mapTuple_248");
-    auditor.nodeRegistered(mapTuple_252, "mapTuple_252");
-    auditor.nodeRegistered(mapTuple_327, "mapTuple_327");
-    auditor.nodeRegistered(mapTuple_337, "mapTuple_337");
+    auditor.nodeRegistered(mapTuple_239, "mapTuple_239");
+    auditor.nodeRegistered(mapTuple_249, "mapTuple_249");
+    auditor.nodeRegistered(mapTuple_253, "mapTuple_253");
+    auditor.nodeRegistered(mapTuple_328, "mapTuple_328");
+    auditor.nodeRegistered(mapTuple_338, "mapTuple_338");
     auditor.nodeRegistered(subscriptionManager, "subscriptionManager");
     auditor.nodeRegistered(handlerPositionSnapshot, "handlerPositionSnapshot");
     auditor.nodeRegistered(
@@ -1731,6 +1757,7 @@ public class FluxtionPnlCalculator
     auditor.nodeRegistered(handlerTrade, "handlerTrade");
     auditor.nodeRegistered(handlerTradeBatch, "handlerTradeBatch");
     auditor.nodeRegistered(context, "context");
+    auditor.nodeRegistered(namedFeedTableNode_57, "namedFeedTableNode_57");
     auditor.nodeRegistered(globalNetMtmListener, "globalNetMtmListener");
     auditor.nodeRegistered(instrumentNetMtmListener, "instrumentNetMtmListener");
     auditor.nodeRegistered(positionSnapshotListener, "positionSnapshotListener");
@@ -1756,6 +1783,7 @@ public class FluxtionPnlCalculator
   private void afterEvent() {
 
     clock.processingComplete();
+    eventLogger.processingComplete();
     nodeNameLookup.processingComplete();
     serviceRegistry.processingComplete();
     isDirty_binaryMapToRefFlowFunction_23 = false;
@@ -1763,8 +1791,8 @@ public class FluxtionPnlCalculator
     isDirty_binaryMapToRefFlowFunction_35 = false;
     isDirty_binaryMapToRefFlowFunction_44 = false;
     isDirty_binaryMapToRefFlowFunction_52 = false;
-    isDirty_callBackNode_57 = false;
-    isDirty_callBackNode_71 = false;
+    isDirty_callBackNode_58 = false;
+    isDirty_callBackNode_72 = false;
     isDirty_clock = false;
     isDirty_derivedRateNode = false;
     isDirty_flatMapFlowFunction_2 = false;
@@ -1797,6 +1825,7 @@ public class FluxtionPnlCalculator
     isDirty_mapRef2RefFlowFunction_54 = false;
     isDirty_mergeFlowFunction_3 = false;
     isDirty_mergeFlowFunction_12 = false;
+    isDirty_namedFeedTableNode_57 = false;
     isDirty_pushFlowFunction_40 = false;
     isDirty_pushFlowFunction_42 = false;
     isDirty_pushFlowFunction_56 = false;
@@ -1840,8 +1869,8 @@ public class FluxtionPnlCalculator
           binaryMapToRefFlowFunction_44, () -> isDirty_binaryMapToRefFlowFunction_44);
       dirtyFlagSupplierMap.put(
           binaryMapToRefFlowFunction_52, () -> isDirty_binaryMapToRefFlowFunction_52);
-      dirtyFlagSupplierMap.put(callBackNode_57, () -> isDirty_callBackNode_57);
-      dirtyFlagSupplierMap.put(callBackNode_71, () -> isDirty_callBackNode_71);
+      dirtyFlagSupplierMap.put(callBackNode_58, () -> isDirty_callBackNode_58);
+      dirtyFlagSupplierMap.put(callBackNode_72, () -> isDirty_callBackNode_72);
       dirtyFlagSupplierMap.put(clock, () -> isDirty_clock);
       dirtyFlagSupplierMap.put(derivedRateNode, () -> isDirty_derivedRateNode);
       dirtyFlagSupplierMap.put(flatMapFlowFunction_2, () -> isDirty_flatMapFlowFunction_2);
@@ -1876,6 +1905,7 @@ public class FluxtionPnlCalculator
       dirtyFlagSupplierMap.put(mapRef2RefFlowFunction_9, () -> isDirty_mapRef2RefFlowFunction_9);
       dirtyFlagSupplierMap.put(mergeFlowFunction_12, () -> isDirty_mergeFlowFunction_12);
       dirtyFlagSupplierMap.put(mergeFlowFunction_3, () -> isDirty_mergeFlowFunction_3);
+      dirtyFlagSupplierMap.put(namedFeedTableNode_57, () -> isDirty_namedFeedTableNode_57);
       dirtyFlagSupplierMap.put(pushFlowFunction_40, () -> isDirty_pushFlowFunction_40);
       dirtyFlagSupplierMap.put(pushFlowFunction_42, () -> isDirty_pushFlowFunction_42);
       dirtyFlagSupplierMap.put(pushFlowFunction_56, () -> isDirty_pushFlowFunction_56);
@@ -1896,8 +1926,8 @@ public class FluxtionPnlCalculator
           binaryMapToRefFlowFunction_44, (b) -> isDirty_binaryMapToRefFlowFunction_44 = b);
       dirtyFlagUpdateMap.put(
           binaryMapToRefFlowFunction_52, (b) -> isDirty_binaryMapToRefFlowFunction_52 = b);
-      dirtyFlagUpdateMap.put(callBackNode_57, (b) -> isDirty_callBackNode_57 = b);
-      dirtyFlagUpdateMap.put(callBackNode_71, (b) -> isDirty_callBackNode_71 = b);
+      dirtyFlagUpdateMap.put(callBackNode_58, (b) -> isDirty_callBackNode_58 = b);
+      dirtyFlagUpdateMap.put(callBackNode_72, (b) -> isDirty_callBackNode_72 = b);
       dirtyFlagUpdateMap.put(clock, (b) -> isDirty_clock = b);
       dirtyFlagUpdateMap.put(derivedRateNode, (b) -> isDirty_derivedRateNode = b);
       dirtyFlagUpdateMap.put(flatMapFlowFunction_2, (b) -> isDirty_flatMapFlowFunction_2 = b);
@@ -1948,11 +1978,16 @@ public class FluxtionPnlCalculator
       dirtyFlagUpdateMap.put(mapRef2RefFlowFunction_9, (b) -> isDirty_mapRef2RefFlowFunction_9 = b);
       dirtyFlagUpdateMap.put(mergeFlowFunction_12, (b) -> isDirty_mergeFlowFunction_12 = b);
       dirtyFlagUpdateMap.put(mergeFlowFunction_3, (b) -> isDirty_mergeFlowFunction_3 = b);
+      dirtyFlagUpdateMap.put(namedFeedTableNode_57, (b) -> isDirty_namedFeedTableNode_57 = b);
       dirtyFlagUpdateMap.put(pushFlowFunction_40, (b) -> isDirty_pushFlowFunction_40 = b);
       dirtyFlagUpdateMap.put(pushFlowFunction_42, (b) -> isDirty_pushFlowFunction_42 = b);
       dirtyFlagUpdateMap.put(pushFlowFunction_56, (b) -> isDirty_pushFlowFunction_56 = b);
     }
     dirtyFlagUpdateMap.get(node).accept(dirtyFlag);
+  }
+
+  private boolean guardCheck_eventLogger() {
+    return isDirty_clock;
   }
 
   private boolean guardCheck_binaryMapToRefFlowFunction_23() {
@@ -1976,11 +2011,11 @@ public class FluxtionPnlCalculator
   }
 
   private boolean guardCheck_flatMapFlowFunction_2() {
-    return isDirty_callBackNode_57;
+    return isDirty_callBackNode_58;
   }
 
   private boolean guardCheck_flatMapSnapshotPositions() {
-    return isDirty_callBackNode_71;
+    return isDirty_callBackNode_72;
   }
 
   private boolean guardCheck_globalNetMtm() {
@@ -2115,6 +2150,10 @@ public class FluxtionPnlCalculator
 
   private boolean guardCheck_positionSnapshotListener() {
     return isDirty_pushFlowFunction_42;
+  }
+
+  private boolean guardCheck_eventFeedBatcher() {
+    return isDirty_namedFeedTableNode_57;
   }
 
   @Override
