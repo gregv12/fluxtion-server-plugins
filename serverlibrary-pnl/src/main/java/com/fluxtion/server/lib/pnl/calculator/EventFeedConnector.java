@@ -139,7 +139,8 @@ public class EventFeedConnector extends EventLogNode implements EventProcessorCo
                     tradeDTO.getDealtVolume(),
                     tradeDTO.getContraVolume(),
                     tradeDTO.getFee(),
-                    feeInstrument.isBlank() ? Instrument.INSTRUMENT_USD : new Instrument(feeInstrument));
+                    feeInstrument.isBlank() ? Instrument.INSTRUMENT_USD : new Instrument(feeInstrument),
+                    tradeDTO.getId());
             onEvent(trade);
             publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
         } else {

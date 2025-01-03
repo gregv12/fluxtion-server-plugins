@@ -1,8 +1,6 @@
 /*
- *
- *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- *  * SPDX-License-Identifier: AGPL-3.0-only
- *
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 package com.fluxtion.server.lib.pnl.dto;
@@ -20,12 +18,13 @@ public class TradeDto {
     private double contraVolume;
     private double fee = 0.0;
     private String feeInstrument = "USD";
+    private long id;
 
-    public TradeDto(String symbol, double dealtVolume, double contraVolume) {
-        this(symbol, dealtVolume, contraVolume, 0.0, "USD");
-    }
-
-    public TradeDto(String symbol, double dealtVolume, double contraVolume, double fee) {
-        this(symbol, dealtVolume, contraVolume, fee, "USD");
-    }
+//    public TradeDto(String symbol, double dealtVolume, double contraVolume) {
+//        this(symbol, dealtVolume, contraVolume, 0.0, "USD");
+//    }
+//
+//    public TradeDto(String symbol, double dealtVolume, double contraVolume, double fee) {
+//        this(symbol, dealtVolume, contraVolume, fee, "USD");
+//    }
 }

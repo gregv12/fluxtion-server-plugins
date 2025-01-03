@@ -45,6 +45,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     private GroupByFlowBuilder<Instrument, InstrumentPosMtm> contraOnlyInstPosition;
     private DerivedRateNode derivedRateNode;
     private EventFeedConnector eventFeedConnector;
+    private PositionCache positionCache;
 
     public static FluxtionPnlCalculatorBuilder buildPnlCalculator(EventProcessorConfig config) {
         FluxtionPnlCalculatorBuilder calculatorBuilder = new FluxtionPnlCalculatorBuilder();
@@ -78,11 +79,14 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         positionSnapshotReset = DataFlow.subscribeToSignal("positionSnapshotReset");
         derivedRateNode = eventProcessorConfig.addNode(new DerivedRateNode(), "derivedRateNode");
         eventFeedConnector = eventProcessorConfig.addNode(new EventFeedConnector(), "eventFeedBatcher");
+        positionCache = eventProcessorConfig.addNode(new PositionCache(), "positionCache");
     }
 
     private void buildTradeStream() {
         tradeBatchStream = DataFlow.subscribe(TradeBatch.class).flatMap(TradeBatch::getTrades);
-        tradeStream = DataFlow.subscribe(Trade.class).merge(tradeBatchStream);
+        tradeStream = DataFlow.subscribe(Trade.class)
+                .merge(tradeBatchStream)
+                .filter(new TradeSequenceFilter()::checkTradeSequenceNumber);
     }
 
     private void buildPositionMap() {
@@ -132,6 +136,8 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTriggerOverride(positionUpdateEob);
 
+//        globalNetMtm.map(GroupBy::toMap).push(positionCache::mtmUpdated);
+
         //global mtm net of fees
         JoinFlowBuilder.leftJoin(globalNetMtm, instrumentFeeMap, NetMarkToMarket::combine)
                 .updateTrigger(positionUpdateEob)
@@ -150,6 +156,8 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .updateTrigger(positionUpdateEob)
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTriggerOverride(positionUpdateEob);
+
+        instNetMtm.map(GroupBy::toMap).push(positionCache::mtmUpdated);
 
         //instrument mtm net of fees
         JoinFlowBuilder.leftJoin(instNetMtm, instrumentFeeMap, NetMarkToMarket::combine)

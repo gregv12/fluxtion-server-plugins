@@ -22,6 +22,7 @@ import lombok.extern.log4j.Log4j2;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -73,17 +74,9 @@ public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService 
         registry.registerCommand("cache." + serviceName + ".keys", this::listKeys);
     }
 
-    private void getCommand(List<String> args, Consumer<String> out, Consumer<String> err) {
-        if (args.size() >= 2) {
-            String key = args.get(1);
-            out.accept(key + " -> " + get(key));
-        } else {
-            err.accept("provide key as first argument");
-        }
-    }
-
-    private void listKeys(List<String> args, Consumer<String> out, Consumer<String> err) {
-        out.accept("keys:\n" + String.join("\n", cacheMap.keySet()));
+    @Override
+    public Collection<String> keys() {
+        return cacheMap.keySet();
     }
 
     @Override
@@ -145,6 +138,19 @@ public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService 
     @Override
     public void tearDown() {
         mapper.writeValue(new File(fileName), cacheMap);
+    }
+
+    private void getCommand(List<String> args, Consumer<String> out, Consumer<String> err) {
+        if (args.size() >= 2) {
+            String key = args.get(1);
+            out.accept(key + " -> " + get(key));
+        } else {
+            err.accept("provide key as first argument");
+        }
+    }
+
+    private void listKeys(List<String> args, Consumer<String> out, Consumer<String> err) {
+        out.accept("keys:\n" + String.join("\n", cacheMap.keySet()));
     }
 
     @Data
