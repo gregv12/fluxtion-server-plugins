@@ -12,6 +12,7 @@ import com.fluxtion.compiler.builder.dataflow.DataFlow;
 import com.fluxtion.compiler.builder.dataflow.FlowBuilder;
 import com.fluxtion.compiler.builder.dataflow.GroupByFlowBuilder;
 import com.fluxtion.compiler.builder.dataflow.JoinFlowBuilder;
+import com.fluxtion.runtime.audit.EventLogControlEvent;
 import com.fluxtion.runtime.dataflow.groupby.GroupBy;
 import com.fluxtion.runtime.event.Signal;
 import com.fluxtion.server.lib.pnl.*;
@@ -70,7 +71,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         buildInstrumentMtm();
 
         //no buffer/trigger support required on this  processor
-        eventProcessorConfig.addEventAudit();
+        eventProcessorConfig.addEventAudit(EventLogControlEvent.LogLevel.INFO);
         eventProcessorConfig.setSupportBufferAndTrigger(false);
     }
 
@@ -131,6 +132,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         //global mtm for trading + snapshot positions
         var globalNetMtm = JoinFlowBuilder.outerJoin(dealtAndContraInstPosition, contraAndDealtInstPosition, InstrumentPosMtm::merge)
                 .outerJoin(snapshotPositionMap, InstrumentPosMtm::overwriteInstrumentPositionWithSnapshot)
+                .mapValues(positionCache::addInitialSnapshot)
                 .mapValues(derivedRateNode::calculateInstrumentPosMtm)
                 .updateTrigger(positionUpdateEob)
                 .defaultValue(GroupBy.emptyCollection())

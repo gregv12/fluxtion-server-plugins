@@ -51,4 +51,9 @@ public class PositionCache extends BaseNode {
         }
     }
 
+    public InstrumentPosMtm addInitialSnapshot(InstrumentPosMtm instrumentPosMtm) {
+//        instrumentPosMtm.getPositionMap()
+        auditLog.info("addInitialSnapshot", instrumentPosMtm);
+        return instrumentPosMtm;
+    }
 }
