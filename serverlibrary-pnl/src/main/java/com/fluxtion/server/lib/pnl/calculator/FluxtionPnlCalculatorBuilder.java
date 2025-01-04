@@ -131,14 +131,16 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
 
         //global mtm for trading + snapshot positions
         var globalNetMtm = JoinFlowBuilder.outerJoin(dealtAndContraInstPosition, contraAndDealtInstPosition, InstrumentPosMtm::merge)
+                .defaultValue(GroupBy.emptyCollection())
+                .publishTrigger(positionUpdateEob)
                 .outerJoin(snapshotPositionMap, InstrumentPosMtm::overwriteInstrumentPositionWithSnapshot)
-                .mapValues(positionCache::addInitialSnapshot)
+//                .mapValues(positionCache::addInitialSnapshot)
                 .mapValues(derivedRateNode::calculateInstrumentPosMtm)
                 .updateTrigger(positionUpdateEob)
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTriggerOverride(positionUpdateEob);
 
-//        globalNetMtm.map(GroupBy::toMap).push(positionCache::mtmUpdated);
+        globalNetMtm.map(GroupBy::toMap).push(positionCache::mtmUpdated);
 
         //global mtm net of fees
         JoinFlowBuilder.leftJoin(globalNetMtm, instrumentFeeMap, NetMarkToMarket::combine)
@@ -159,7 +161,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTriggerOverride(positionUpdateEob);
 
-        instNetMtm.map(GroupBy::toMap).push(positionCache::mtmUpdated);
+//        instNetMtm.map(GroupBy::toMap).push(positionCache::mtmUpdated);
 
         //instrument mtm net of fees
         JoinFlowBuilder.leftJoin(instNetMtm, instrumentFeeMap, NetMarkToMarket::combine)

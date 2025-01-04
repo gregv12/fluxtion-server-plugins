@@ -64,6 +64,7 @@ public class EventFeedConnector extends EventLogNode implements EventProcessorCo
     @Initialise
     public void init() {
         log.info("Initialising EventFeedConnector");
+        auditLog.info("lifecycle", "init");
         publishSignal(PnlCalculator.POSITION_SNAPSHOT_RESET);
         publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
     }
