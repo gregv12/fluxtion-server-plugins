@@ -21,11 +21,11 @@ public final class Instrument {
     public static final Instrument INSTRUMENT_USDT = new Instrument("USDT");
     private String instrumentName;
 
-//    public Instrument(String instrumentName) {
-//        this.instrumentName = instrumentName;
-//    }
-//
-//    public String instrumentName() {
-//        return instrumentName;
-//    }
+    public String getInstrumentName() {
+        return instrumentName;
+    }
+
+    public void setInstrumentName(String instrumentName) {
+        this.instrumentName = instrumentName;
+    }
 }

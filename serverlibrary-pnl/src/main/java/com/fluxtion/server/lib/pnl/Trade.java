@@ -25,7 +25,8 @@ public class Trade {
         this.contraVolume = contraVolume;
         this.fee = fee;
         this.feeInstrument = Instrument.INSTRUMENT_USD;
-        this.id = globalSequenceNumber++;
+        globalSequenceNumber++;
+        this.id = globalSequenceNumber;
     }
 
     public Trade(Symbol symbol, double dealtVolume, double contraVolume, double fee, Instrument feeInstrument) {
@@ -34,7 +35,8 @@ public class Trade {
         this.contraVolume = contraVolume;
         this.fee = fee;
         this.feeInstrument = feeInstrument;
-        this.id = globalSequenceNumber++;
+        globalSequenceNumber++;
+        this.id = globalSequenceNumber;
     }
 
     public Trade(Symbol symbol, double dealtVolume, double contraVolume, double fee, Instrument feeInstrument, long id) {
