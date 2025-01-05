@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -22,4 +22,5 @@ public class PositionSnapshot {
     }
 
     private Collection<InstrumentPosition> positions = new ArrayList<>();
+    private Collection<InstrumentPosition> feePositions = new ArrayList<>();
 }

@@ -118,14 +118,6 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     }
 
     private void buildInstrumentFeeMap() {
-        instrumentFeeMap = DataFlow.subscribe(Trade.class)
-                .merge(tradeBatchStream)
-                .groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new)
-                .resetTrigger(positionSnapshotReset)
-                .defaultValue(GroupBy.emptyCollection())
-                .mapValues(derivedRateNode::calculateFeeMtm)
-                .publishTriggerOverride(positionUpdateEob)
-                .updateTrigger(positionUpdateEob);
     }
 
     private void buildGlobalMtm() {
@@ -146,13 +138,22 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTriggerOverride(positionUpdateEob);
 
-        globalNetMtm.map(GroupBy::toMap).push(positionCache::mtmUpdated);
+        instrumentFeeMap = DataFlow.subscribe(Trade.class)
+                .merge(tradeBatchStream)
+                .groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new)
+                .resetTrigger(positionSnapshotReset)
+                .defaultValue(GroupBy.emptyCollection())
+                .mapValues(derivedRateNode::calculateFeeMtm)
+                .publishTriggerOverride(positionUpdateEob)
+                .updateTrigger(positionUpdateEob);
+//        globalNetMtm.map(GroupBy::toMap).push(positionCache::positionsUpdated);
 
         //global mtm net of fees
         JoinFlowBuilder.leftJoin(globalNetMtm, instrumentFeeMap, NetMarkToMarket::combine)
                 .updateTrigger(positionUpdateEob)
                 .map(GroupBy::toMap)
                 .map(NetMarkToMarket::markToMarketSum)
+                .push(positionCache::mtmUpdated)
                 .id("globalNetMtm")
                 .sink(GLOBAL_NET_MTM_SINK);
     }

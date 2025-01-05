@@ -22,14 +22,21 @@ public class PositionCache extends BaseNode {
 
     private Cache cache;
     private long sequenceNumber = 0;
+    private MtmCheckpoint mtmCheckpoint = new MtmCheckpoint();
 
     @ServiceRegistered("positionCache")
     public void cacheRegistered(Cache cache) {
         this.cache = cache;
         sequenceNumber = cache.keys().stream().mapToLong(Long::parseLong).max().orElse(0);
-        Map<String, Double> positionMap = cache.getOrDefault(sequenceNumber + "", new HashMap<>());
+
+        mtmCheckpoint = cache.getOrDefault(sequenceNumber + "", mtmCheckpoint);
         PositionSnapshot positionSnapshot = new PositionSnapshot();
+
+        Map<String, Double> positionMap = mtmCheckpoint.getPositions();
         positionMap.forEach((inst, pos) -> positionSnapshot.getPositions().add(new InstrumentPosition(new Instrument(inst), pos)));
+
+        Map<String, Double> feesMap = mtmCheckpoint.getFees();
+        feesMap.forEach((inst, pos) -> positionSnapshot.getFeePositions().add(new InstrumentPosition(new Instrument(inst), pos)));
 
         auditLog.info("cacheRegistered", cache)
                 .info("keys", cache.keys().toString())
@@ -49,17 +56,23 @@ public class PositionCache extends BaseNode {
         return false;
     }
 
-    public void mtmUpdated(Map<Instrument, InstrumentPosMtm> instrumentInstrumentPosMtmMap) {
-        auditLog.info("mtmUpdated", instrumentInstrumentPosMtmMap);
-        HashMap<String, Double> positionMap = new HashMap<>();
-        instrumentInstrumentPosMtmMap.forEach((instrument, instrumentPosMtm) -> {
-            positionMap.put(
-                    instrument.getInstrumentName(),
-                    instrumentPosMtm.getPositionMap().get(instrument));
+    public void mtmUpdated(NetMarkToMarket netMarkToMarket) {
+        auditLog.info("netMarkToMarket", netMarkToMarket);
+        Map<String, Double> positionMap = mtmCheckpoint.getPositions();
+        Map<Instrument, Double> instrumentInstrumentPosMtmMap = netMarkToMarket.instrumentMtm().getPositionMap();
+        instrumentInstrumentPosMtmMap.forEach((instrument, pos) -> {
+            positionMap.put(instrument.getInstrumentName(), pos);
         });
+
+        Map<String, Double> feesPositionMap = mtmCheckpoint.getFees();
+        Map<Instrument, Double> feesMap = netMarkToMarket.feesMtm().getFeesPositionMap();
+        feesMap.forEach((instrument, pos) -> {
+            feesPositionMap.put(instrument.getInstrumentName(), pos);
+        });
+
         if (cache != null) {
             auditLog.info("cacheUpdateId", sequenceNumber);
-            cache.put(sequenceNumber + "", positionMap);
+            cache.put(sequenceNumber + "", mtmCheckpoint);
         }
     }
 
