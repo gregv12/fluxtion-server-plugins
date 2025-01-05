@@ -8,11 +8,13 @@ package com.fluxtion.server.lib.pnl.calculator;
 
 import com.fluxtion.runtime.annotations.OnEventHandler;
 import com.fluxtion.runtime.annotations.builder.FluxtionIgnore;
+import com.fluxtion.runtime.node.NamedFeedTableNode;
 import com.fluxtion.server.lib.pnl.FeeInstrumentPosMtm;
 import com.fluxtion.server.lib.pnl.InstrumentPosMtm;
 import com.fluxtion.server.lib.pnl.MidPrice;
 import com.fluxtion.server.lib.pnl.MtmInstrument;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
+import com.fluxtion.server.lib.pnl.refdata.Symbol;
 import lombok.Data;
 import org.jgrapht.GraphPath;
 import org.jgrapht.graph.DefaultDirectedWeightedGraph;
@@ -24,6 +26,7 @@ import java.util.Map;
 @Data
 public class DerivedRateNode {
 
+    private final NamedFeedTableNode<String, Symbol> symbolTable;
     @FluxtionIgnore
     private Instrument mtmInstrument = Instrument.INSTRUMENT_USD;
     @FluxtionIgnore
@@ -34,6 +37,10 @@ public class DerivedRateNode {
     private final DefaultDirectedWeightedGraph<Instrument, DefaultWeightedEdge> graph = new DefaultDirectedWeightedGraph<>(DefaultWeightedEdge.class);
     @FluxtionIgnore
     private final BellmanFordShortestPath<Instrument, DefaultWeightedEdge> shortestPath = new BellmanFordShortestPath<>(graph);
+
+    public DerivedRateNode(NamedFeedTableNode<String, Symbol> symbolTable) {
+        this.symbolTable = symbolTable;
+    }
 
     @OnEventHandler
     public boolean updateMtmInstrument(MtmInstrument mtmInstrumentUpdate) {
@@ -48,6 +55,9 @@ public class DerivedRateNode {
 
     @OnEventHandler
     public boolean midRate(MidPrice midPrice) {
+        if (midPrice.getSymbol() == null) {
+            midPrice.setSymbol(symbolTable.getTableMap().get(midPrice.getSymbolName()));
+        }
         Instrument dealtInstrument = midPrice.dealtInstrument();
         Instrument contraInstrument = midPrice.contraInstrument();
 

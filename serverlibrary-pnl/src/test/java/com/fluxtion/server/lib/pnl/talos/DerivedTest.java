@@ -5,10 +5,16 @@
 
 package com.fluxtion.server.lib.pnl.talos;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fluxtion.runtime.node.NamedFeedTableNode;
 import com.fluxtion.server.lib.pnl.*;
 import com.fluxtion.server.lib.pnl.calculator.DerivedRateNode;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,7 +73,9 @@ public class DerivedTest {
 
     @Test
     public void testCrossRate() {
-        DerivedRateNode derivedRateNode = new DerivedRateNode();
+        DerivedRateNode derivedRateNode = new DerivedRateNode(new NamedFeedTableNode<>(
+                "symbolFeed",
+                "com.fluxtion.server.lib.pnl.refdata.Symbol::symbolName"));
         derivedRateNode.midRate(new MidPrice(symbolEURCHF, 0.5));
         derivedRateNode.midRate(new MidPrice(symbolUSDCHF, 1.0));
 
@@ -451,5 +459,29 @@ public class DerivedTest {
         Assertions.assertEquals(-44004.0, eurMtM.tradePnl(), 0.0000001);
         Assertions.assertEquals(0, eurMtM.fees(), 0.0000001);
         Assertions.assertEquals(-44004.0, eurMtM.pnlNetFees(), 0.0000001);
+    }
+
+    @SneakyThrows
+    @Test
+    public void midPriceSerialisationTest() {
+        MidPrice midPrice = new MidPrice(symbolEURUSD, 10.5);
+
+
+        ObjectMapper objectMapper = JsonMapper.builder()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                .configure(MapperFeature.PROPAGATE_TRANSIENT_MARKER, true).build();
+        String ser = objectMapper.writeValueAsString(midPrice);
+        System.out.println(ser);
+
+        String in = "{\"symbolName\":\"EURUSD\",\"rate\":10.5}";
+        System.out.println(objectMapper.readValue(in, MidPrice.class));
+
+
+        Symbol symbol = new Symbol("EURUSD", "EUR", "USD");
+        ser = objectMapper.writeValueAsString(symbol);
+        System.out.println(ser);
+
+        in = "{\"symbolName\":\"EURUSD\",\"dealt\":\"EUR\",\"contra\":\"USD\"}";
+        System.out.println(objectMapper.readValue(in, Symbol.class));
     }
 }

@@ -7,17 +7,20 @@ package com.fluxtion.server.lib.pnl;
 
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
-import lombok.Value;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Value
+@Data
+@NoArgsConstructor
 public class Trade {
     private static long globalSequenceNumber;
-    Symbol symbol;
-    double dealtVolume;
-    double contraVolume;
-    double fee;
-    Instrument feeInstrument;
-    long id;
+    private transient Symbol symbol;
+    private String symbolName;
+    private double dealtVolume;
+    private double contraVolume;
+    private double fee;
+    private Instrument feeInstrument;
+    private long id;
 
     public Trade(Symbol symbol, double dealtVolume, double contraVolume, double fee) {
         this.symbol = symbol;

@@ -15,9 +15,10 @@ import com.fluxtion.compiler.builder.dataflow.JoinFlowBuilder;
 import com.fluxtion.runtime.audit.EventLogControlEvent;
 import com.fluxtion.runtime.dataflow.groupby.GroupBy;
 import com.fluxtion.runtime.event.Signal;
+import com.fluxtion.runtime.node.NamedFeedTableNode;
 import com.fluxtion.server.lib.pnl.*;
-import com.fluxtion.server.lib.pnl.dto.DtoHelper;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
+import com.fluxtion.server.lib.pnl.refdata.Symbol;
 import lombok.Getter;
 
 import static com.fluxtion.server.lib.pnl.PnlCalculator.GLOBAL_NET_MTM_SINK;
@@ -32,7 +33,6 @@ import static com.fluxtion.server.lib.pnl.PnlCalculator.INSTRUMENT_NET_MTM_SINK;
 
 @Getter
 public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
-
 
     private EventProcessorConfig eventProcessorConfig;
     private FlowBuilder<Signal> positionUpdateEob;
@@ -78,14 +78,21 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     private void buildSharedNodes() {
         positionUpdateEob = DataFlow.subscribeToSignal("positionUpdate");
         positionSnapshotReset = DataFlow.subscribeToSignal("positionSnapshotReset");
-        derivedRateNode = eventProcessorConfig.addNode(new DerivedRateNode(), "derivedRateNode");
-        eventFeedConnector = eventProcessorConfig.addNode(new EventFeedConnector(), "eventFeedBatcher");
+        NamedFeedTableNode<String, Symbol> symbolTable = new NamedFeedTableNode<>(
+                "symbolFeed",
+                "com.fluxtion.server.lib.pnl.refdata.Symbol::symbolName");
+        derivedRateNode = eventProcessorConfig.addNode(new DerivedRateNode(symbolTable), "derivedRateNode");
+        eventFeedConnector = eventProcessorConfig.addNode(new EventFeedConnector(symbolTable), "eventFeedBatcher");
         positionCache = eventProcessorConfig.addNode(new PositionCache(), "positionCache");
     }
 
     private void buildTradeStream() {
-        tradeBatchStream = DataFlow.subscribe(TradeBatch.class).flatMap(TradeBatch::getTrades);
+        tradeBatchStream = DataFlow.subscribe(TradeBatch.class)
+                .flatMap(TradeBatch::getTrades, PnlCalculator.POSITION_UPDATE_EOB)
+                .map(eventFeedConnector::validateBatchTrade);
+
         tradeStream = DataFlow.subscribe(Trade.class)
+                .map(eventFeedConnector::validateTrade)
                 .merge(tradeBatchStream)
                 .filter(new TradeSequenceFilter()::checkTradeSequenceNumber);
     }
@@ -147,9 +154,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .map(GroupBy::toMap)
                 .map(NetMarkToMarket::markToMarketSum)
                 .id("globalNetMtm")
-                .sink(GLOBAL_NET_MTM_SINK)
-                .map(DtoHelper::formatPosition)
-                .sink(PnlCalculator.POSITION_SNAPSHOT_SINK);
+                .sink(GLOBAL_NET_MTM_SINK);
     }
 
     private void buildInstrumentMtm() {

@@ -1,8 +1,6 @@
 /*
- *
- *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- *  * SPDX-License-Identifier: AGPL-3.0-only
- *
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 package com.fluxtion.server.lib.pnl;
@@ -96,7 +94,6 @@ public class PnlCalculator {
         for (Trade trade : trades) {
             fluxtionPnlCalculator.onEvent(trade);
         }
-        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
         return this;
     }
 
@@ -110,7 +107,6 @@ public class PnlCalculator {
 
     public PnlCalculator processTradeBatch(TradeBatch trades) {
         fluxtionPnlCalculator.onEvent(trades);
-        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
         return this;
     }
 
