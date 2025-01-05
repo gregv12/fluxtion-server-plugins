@@ -14,12 +14,14 @@ import com.fluxtion.server.lib.pnl.*;
 import com.fluxtion.server.lib.pnl.calculator.DerivedRateNode;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
+import lombok.Data;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -503,18 +505,40 @@ public class DerivedTest {
         ObjectMapper objectMapper = JsonMapper.builder()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .configure(MapperFeature.PROPAGATE_TRANSIENT_MARKER, true).build();
-        String ser = objectMapper.writeValueAsString(midPrice);
+//        String ser = objectMapper.writeValueAsString(midPrice);
+//        System.out.println(ser);
+//
+//        String in = "{\"symbolName\":\"EURUSD\",\"rate\":10.5}";
+//        System.out.println(objectMapper.readValue(in, MidPrice.class));
+//
+//
+//        Symbol symbol = new Symbol("EURUSD", "EUR", "USD");
+//        ser = objectMapper.writeValueAsString(symbol);
+//        System.out.println(ser);
+//
+//        in = "{\"symbolName\":\"EURUSD\",\"dealt\":\"EUR\",\"contra\":\"USD\"}";
+//        System.out.println(objectMapper.readValue(in, Symbol.class));
+
+
+        MtmCheckpoint mtmCheckpoint = new MtmCheckpoint();
+        mtmCheckpoint.getFees().put("USD", 10.5);
+        mtmCheckpoint.getFees().put("EUR", 30.1);
+        //
+        mtmCheckpoint.getPositions().put("USD", 568.235);
+        mtmCheckpoint.getPositions().put("EUR", 368.21);
+        mtmCheckpoint.getPositions().put("CHF", 65.5);
+
+        String ser = objectMapper.writeValueAsString(mtmCheckpoint);
         System.out.println(ser);
 
-        String in = "{\"symbolName\":\"EURUSD\",\"rate\":10.5}";
-        System.out.println(objectMapper.readValue(in, MidPrice.class));
+        String in = "{\"fees\":{\"EUR\":30.1,\"USD\":10.5},\"positions\":{\"CHF\":65.5,\"EUR\":368.21,\"USD\":568.235}}";
+        System.out.println(objectMapper.readValue(in, MtmCheckpoint.class));
 
+    }
 
-        Symbol symbol = new Symbol("EURUSD", "EUR", "USD");
-        ser = objectMapper.writeValueAsString(symbol);
-        System.out.println(ser);
-
-        in = "{\"symbolName\":\"EURUSD\",\"dealt\":\"EUR\",\"contra\":\"USD\"}";
-        System.out.println(objectMapper.readValue(in, Symbol.class));
+    @Data
+    public static class MtmCheckpoint {
+        private Map<String, Double> fees = new HashMap<>();
+        private Map<String, Double> positions = new HashMap<>();
     }
 }

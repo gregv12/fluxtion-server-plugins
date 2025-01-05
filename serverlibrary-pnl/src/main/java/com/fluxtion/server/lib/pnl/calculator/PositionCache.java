@@ -12,6 +12,7 @@ import com.fluxtion.runtime.node.BaseNode;
 import com.fluxtion.server.lib.pnl.*;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.plugin.cache.Cache;
+import lombok.Data;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -60,5 +61,11 @@ public class PositionCache extends BaseNode {
             auditLog.info("cacheUpdateId", sequenceNumber);
             cache.put(sequenceNumber + "", positionMap);
         }
+    }
+
+    @Data
+    public static class MtmCheckpoint {
+        private Map<String, Double> fees = new HashMap<>();
+        private Map<String, Double> positions = new HashMap<>();
     }
 }
