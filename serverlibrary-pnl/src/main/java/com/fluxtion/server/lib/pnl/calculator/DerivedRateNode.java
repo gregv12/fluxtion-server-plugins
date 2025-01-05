@@ -8,11 +8,9 @@ package com.fluxtion.server.lib.pnl.calculator;
 
 import com.fluxtion.runtime.annotations.OnEventHandler;
 import com.fluxtion.runtime.annotations.builder.FluxtionIgnore;
+import com.fluxtion.runtime.node.BaseNode;
 import com.fluxtion.runtime.node.NamedFeedTableNode;
-import com.fluxtion.server.lib.pnl.FeeInstrumentPosMtm;
-import com.fluxtion.server.lib.pnl.InstrumentPosMtm;
-import com.fluxtion.server.lib.pnl.MidPrice;
-import com.fluxtion.server.lib.pnl.MtmInstrument;
+import com.fluxtion.server.lib.pnl.*;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
 import lombok.Data;
@@ -21,10 +19,11 @@ import org.jgrapht.graph.DefaultDirectedWeightedGraph;
 import org.jgrapht.graph.DefaultWeightedEdge;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Data
-public class DerivedRateNode {
+public class DerivedRateNode extends BaseNode {
 
     private final NamedFeedTableNode<String, Symbol> symbolTable;
     @FluxtionIgnore
@@ -37,6 +36,8 @@ public class DerivedRateNode {
     private final DefaultDirectedWeightedGraph<Instrument, DefaultWeightedEdge> graph = new DefaultDirectedWeightedGraph<>(DefaultWeightedEdge.class);
     @FluxtionIgnore
     private final BellmanFordShortestPath<Instrument, DefaultWeightedEdge> shortestPath = new BellmanFordShortestPath<>(graph);
+    @FluxtionIgnore
+    private boolean sendEob = true;
 
     public DerivedRateNode(NamedFeedTableNode<String, Symbol> symbolTable) {
         this.symbolTable = symbolTable;
@@ -51,6 +52,21 @@ public class DerivedRateNode {
             derivedMtmRatesByInstrument.clear();
         }
         return change;
+    }
+
+    @OnEventHandler
+    public boolean midRateBatch(MidPriceBatch midPriceBatch) {
+        sendEob = false;
+        List<MidPrice> trades = midPriceBatch.getTrades();
+        for (int i = 0, tradesSize = trades.size(); i < tradesSize; i++) {
+            MidPrice midPrice = trades.get(i);
+            midRate(midPrice);
+        }
+        sendEob = true;
+        if (context != null) {
+            context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
+        }
+        return false;
     }
 
     @OnEventHandler
@@ -84,6 +100,11 @@ public class DerivedRateNode {
             graph.setEdgeWeight(graph.addEdge(dealtInstrument, contraInstrument), logRate);
             graph.setEdgeWeight(graph.addEdge(contraInstrument, dealtInstrument), logInverseRate);
         }
+
+        if (context != null & sendEob) {
+            context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
+        }
+
         return false;
     }
 

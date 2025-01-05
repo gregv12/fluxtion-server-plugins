@@ -319,8 +319,41 @@ public class DerivedTest {
         Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
 
         //publish rate, MtM should be calculated
+        mtmUpdates.clear();
+        mtmInstUpdates.clear();
         pnlCalculator.priceUpdate(symbolUSDMXN, 20);
         pnlCalculator.priceUpdate(symbolUSDUSDT, 1);
+
+        Assertions.assertEquals(2, mtmUpdates.size());
+        Assertions.assertEquals(2, mtmInstUpdates.size());
+        Assertions.assertTrue(Double.isFinite(pnlCalculator.pnl()));
+        Assertions.assertEquals(459.4695, pnlCalculator.pnl(), 0.0000001);
+    }
+
+    @Test
+    public void midRateBatchTest() {
+        setUp();
+
+        pnlCalculator.addSymbol(symbolUSDTMXN);
+        pnlCalculator.addSymbol(symbolMXNUSDT);
+
+        pnlCalculator.processTrade(new Trade(symbolUSDTMXN, 30_000, -606_060.61, 13));
+        pnlCalculator.processTrade(new Trade(symbolMXNUSDT, 1_015_250, -50_000, 13));
+
+        //positions but no MtM
+        Map<Instrument, Double> positionMap = mtmUpdates.getLast().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(-20_000, positionMap.get(USDT));
+        Assertions.assertEquals(0, positionMap.getOrDefault(USD, 0.0));
+        Assertions.assertEquals(409189.39, positionMap.get(MXN));
+        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
+
+        //publish rate as batch, MtM should be calculated and published once for batch
+        mtmUpdates.clear();
+        mtmInstUpdates.clear();
+        pnlCalculator.priceUpdate(new MidPrice(symbolUSDMXN, 20), new MidPrice(symbolUSDUSDT, 1));
+
+        Assertions.assertEquals(1, mtmUpdates.size());
+        Assertions.assertEquals(1, mtmInstUpdates.size());
         Assertions.assertTrue(Double.isFinite(pnlCalculator.pnl()));
         Assertions.assertEquals(459.4695, pnlCalculator.pnl(), 0.0000001);
     }

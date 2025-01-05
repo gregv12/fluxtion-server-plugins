@@ -68,6 +68,7 @@ import com.fluxtion.server.config.ConfigListener;
 import com.fluxtion.server.lib.pnl.InstrumentPosMtm;
 import com.fluxtion.server.lib.pnl.InstrumentPosition;
 import com.fluxtion.server.lib.pnl.MidPrice;
+import com.fluxtion.server.lib.pnl.MidPriceBatch;
 import com.fluxtion.server.lib.pnl.MtmInstrument;
 import com.fluxtion.server.lib.pnl.NetMarkToMarket;
 import com.fluxtion.server.lib.pnl.PositionSnapshot;
@@ -103,6 +104,7 @@ import java.util.function.Consumer;
  *   <li>com.fluxtion.runtime.output.SinkRegistration
  *   <li>com.fluxtion.runtime.time.ClockStrategy.ClockStrategyEvent
  *   <li>com.fluxtion.server.lib.pnl.MidPrice
+ *   <li>com.fluxtion.server.lib.pnl.MidPriceBatch
  *   <li>com.fluxtion.server.lib.pnl.MtmInstrument
  *   <li>com.fluxtion.server.lib.pnl.PositionSnapshot
  *   <li>com.fluxtion.server.lib.pnl.Trade
@@ -480,6 +482,7 @@ public class FluxtionPnlCalculator
     clock.init();
     namedFeedTableNode_64.initialise();
     namedFeedTableNode_64.init();
+    derivedRateNode.init();
     eventFeedBatcher.init();
     positionCache.init();
     handlerPositionSnapshot.init();
@@ -635,6 +638,9 @@ public class FluxtionPnlCalculator
       handleEvent(typedEvent);
     } else if (event instanceof com.fluxtion.server.lib.pnl.MidPrice) {
       MidPrice typedEvent = (MidPrice) event;
+      handleEvent(typedEvent);
+    } else if (event instanceof com.fluxtion.server.lib.pnl.MidPriceBatch) {
+      MidPriceBatch typedEvent = (MidPriceBatch) event;
       handleEvent(typedEvent);
     } else if (event instanceof com.fluxtion.server.lib.pnl.MtmInstrument) {
       MtmInstrument typedEvent = (MtmInstrument) event;
@@ -1077,6 +1083,14 @@ public class FluxtionPnlCalculator
     //Default, no filter methods
     auditInvocation(derivedRateNode, "derivedRateNode", "midRate", typedEvent);
     isDirty_derivedRateNode = derivedRateNode.midRate(typedEvent);
+    afterEvent();
+  }
+
+  public void handleEvent(MidPriceBatch typedEvent) {
+    auditEvent(typedEvent);
+    //Default, no filter methods
+    auditInvocation(derivedRateNode, "derivedRateNode", "midRateBatch", typedEvent);
+    isDirty_derivedRateNode = derivedRateNode.midRateBatch(typedEvent);
     afterEvent();
   }
 

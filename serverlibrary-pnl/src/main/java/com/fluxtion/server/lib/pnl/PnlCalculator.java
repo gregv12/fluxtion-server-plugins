@@ -24,7 +24,6 @@ public class PnlCalculator {
     public static final String POSITION_UPDATE_EOB = "positionUpdate";
     public static final String POSITION_SNAPSHOT_RESET = "positionSnapshotReset";
     public static final String GLOBAL_NET_MTM_SINK = "globalNetMtmListener";
-    public static final String POSITION_SNAPSHOT_SINK = "positionSnapshotListener";
     public static final String INSTRUMENT_NET_MTM_SINK = "instrumentNetMtmListener";
 
     private final FluxtionPnlCalculator fluxtionPnlCalculator;
@@ -69,7 +68,6 @@ public class PnlCalculator {
 
     public PnlCalculator priceUpdate(MidPrice midPrice) {
         fluxtionPnlCalculator.onEvent(midPrice);
-        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
         return this;
     }
 
@@ -83,10 +81,11 @@ public class PnlCalculator {
     }
 
     public PnlCalculator priceUpdate(MidPrice... midPrices) {
+        MidPriceBatch midPriceBatch = new MidPriceBatch();
         for (MidPrice midPrice : midPrices) {
-            fluxtionPnlCalculator.onEvent(midPrice);
+            midPriceBatch.getTrades().add(midPrice);
         }
-        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
+        fluxtionPnlCalculator.onEvent(midPriceBatch);
         return this;
     }
 
@@ -98,10 +97,9 @@ public class PnlCalculator {
     }
 
     public PnlCalculator processTradeBatch(Collection<Trade> trades) {
-        for (Trade trade : trades) {
-            fluxtionPnlCalculator.onEvent(trade);
-        }
-        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
+        TradeBatch tradeBatch = new TradeBatch();
+        tradeBatch.getTrades().addAll(trades);
+        processTradeBatch(tradeBatch);
         return this;
     }
 
