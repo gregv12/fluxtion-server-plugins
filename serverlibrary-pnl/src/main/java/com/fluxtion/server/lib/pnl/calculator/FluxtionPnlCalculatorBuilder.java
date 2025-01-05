@@ -134,7 +134,6 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTrigger(positionUpdateEob)
                 .outerJoin(snapshotPositionMap, InstrumentPosMtm::overwriteInstrumentPositionWithSnapshot)
-//                .mapValues(positionCache::addInitialSnapshot)
                 .mapValues(derivedRateNode::calculateInstrumentPosMtm)
                 .updateTrigger(positionUpdateEob)
                 .defaultValue(GroupBy.emptyCollection())

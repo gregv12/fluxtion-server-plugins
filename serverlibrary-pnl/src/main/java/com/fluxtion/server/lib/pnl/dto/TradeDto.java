@@ -19,12 +19,4 @@ public class TradeDto {
     private double fee = 0.0;
     private String feeInstrument = "USD";
     private long id;
-
-//    public TradeDto(String symbol, double dealtVolume, double contraVolume) {
-//        this(symbol, dealtVolume, contraVolume, 0.0, "USD");
-//    }
-//
-//    public TradeDto(String symbol, double dealtVolume, double contraVolume, double fee) {
-//        this(symbol, dealtVolume, contraVolume, fee, "USD");
-//    }
 }
