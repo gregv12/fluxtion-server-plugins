@@ -82,9 +82,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     private void buildSharedNodes() {
         positionUpdateEob = DataFlow.subscribeToSignal("positionUpdate");
         positionSnapshotReset = DataFlow.subscribeToSignal("positionSnapshotReset");
-        NamedFeedTableNode<String, Symbol> symbolTable = new NamedFeedTableNode<>(
-                "symbolFeed",
-                "com.fluxtion.server.lib.pnl.refdata.Symbol::symbolName");
+        var symbolTable = new NamedFeedTableNode<String, Symbol>("symbolFeed", Symbol::symbolName);
         derivedRateNode = eventProcessorConfig.addNode(new DerivedRateNode(symbolTable), "derivedRateNode");
         eventFeedConnector = eventProcessorConfig.addNode(new EventFeedConnector(symbolTable), "eventFeedBatcher");
 
