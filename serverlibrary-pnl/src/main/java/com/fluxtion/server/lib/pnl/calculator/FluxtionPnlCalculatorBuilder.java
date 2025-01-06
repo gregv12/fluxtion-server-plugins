@@ -48,8 +48,8 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     private GroupByFlowBuilder<Instrument, InstrumentPosMtm> contraOnlyInstPosition;
     private DerivedRateNode derivedRateNode;
     private EventFeedConnector eventFeedConnector;
-    private PositionCache positionCache;
-    private FlowBuilder<NetMarkToMarket> gloablMtm;
+    private FlowBuilder<NetMarkToMarket> globalNetMtm;
+    private FlowBuilder<Map<Instrument, NetMarkToMarket>> instrumentNetMtm;
 
     public static FluxtionPnlCalculatorBuilder buildPnlCalculator(EventProcessorConfig config) {
         FluxtionPnlCalculatorBuilder calculatorBuilder = new FluxtionPnlCalculatorBuilder();
@@ -72,6 +72,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         buildInstrumentFeeMap();
         buildGlobalMtm();
         buildInstrumentMtm();
+        buildCheckpoint();
 
         //no buffer/trigger support required on this  processor
         eventProcessorConfig.addEventAudit(EventLogControlEvent.LogLevel.INFO);
@@ -86,7 +87,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 "com.fluxtion.server.lib.pnl.refdata.Symbol::symbolName");
         derivedRateNode = eventProcessorConfig.addNode(new DerivedRateNode(symbolTable), "derivedRateNode");
         eventFeedConnector = eventProcessorConfig.addNode(new EventFeedConnector(symbolTable), "eventFeedBatcher");
-        positionCache = eventProcessorConfig.addNode(new PositionCache(), "positionCache");
+
     }
 
     private void buildTradeStream() {
@@ -121,7 +122,6 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     }
 
     private void buildInstrumentFeeMap() {
-
         //FeeInstrumentPosMtm
         var snapshotPositionMap = DataFlow.subscribe(PositionSnapshot.class)
                 .flatMap(PositionSnapshot::getFeePositions)
@@ -152,7 +152,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .publishTriggerOverride(positionUpdateEob);
 
         //global mtm for trading + snapshot positions
-        var globalNetMtm = JoinFlowBuilder.outerJoin(dealtAndContraInstPosition, contraAndDealtInstPosition, InstrumentPosMtm::merge)
+        var globalTradeMtm = JoinFlowBuilder.outerJoin(dealtAndContraInstPosition, contraAndDealtInstPosition, InstrumentPosMtm::merge)
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTrigger(positionUpdateEob)
                 .outerJoin(snapshotPositionMap, InstrumentPosMtm::addSnapshot)
@@ -162,30 +162,32 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .publishTriggerOverride(positionUpdateEob);
 
         //global mtm net of fees
-        gloablMtm = JoinFlowBuilder.leftJoin(globalNetMtm, instrumentFeeMap, NetMarkToMarket::combine)
+        globalNetMtm = JoinFlowBuilder.leftJoin(globalTradeMtm, instrumentFeeMap, NetMarkToMarket::combine)
                 .updateTrigger(positionUpdateEob)
                 .map(GroupBy::toMap)
                 .map(NetMarkToMarket::markToMarketSum)
-                .push(positionCache::mtmUpdated)
                 .id("globalNetMtm")
                 .sink(GLOBAL_NET_MTM_SINK);
     }
 
     private void buildInstrumentMtm() {
         //instrument mtm for trading
-        var instNetMtm = JoinFlowBuilder.outerJoin(dealtOnlyInstPosition, contraOnlyInstPosition, InstrumentPosMtm::merge)
+        var instTradeMtm = JoinFlowBuilder.outerJoin(dealtOnlyInstPosition, contraOnlyInstPosition, InstrumentPosMtm::merge)
                 .mapValues(derivedRateNode::calculateInstrumentPosMtm)
                 .updateTrigger(positionUpdateEob)
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTriggerOverride(positionUpdateEob);
 
         //instrument mtm net of fees
-        FlowBuilder<Map<Instrument, NetMarkToMarket>> instrumentNetMtm = JoinFlowBuilder.leftJoin(instNetMtm, instrumentFeeMap, NetMarkToMarket::combine)
+        instrumentNetMtm = JoinFlowBuilder.leftJoin(instTradeMtm, instrumentFeeMap, NetMarkToMarket::combine)
                 .updateTrigger(positionUpdateEob)
                 .map(GroupBy::toMap)
                 .id("instrumentNetMtm")
                 .sink(INSTRUMENT_NET_MTM_SINK);
+    }
 
-        DataFlow.mapBiFunction(positionCache::checkPoint, gloablMtm, instrumentNetMtm);
+    private void buildCheckpoint() {
+        PositionCache positionCache = eventProcessorConfig.addNode(new PositionCache(), "positionCache");
+        DataFlow.mapBiFunction(positionCache::checkPoint, globalNetMtm, instrumentNetMtm);
     }
 }

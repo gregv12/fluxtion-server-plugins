@@ -58,9 +58,19 @@ public class PositionCache extends BaseNode {
         return false;
     }
 
-    public void mtmUpdated(NetMarkToMarket netMarkToMarket) {
+    public Object checkPoint(NetMarkToMarket netMarkToMarket, Map<Instrument, NetMarkToMarket> instrumentNetMarkToMarketMap) {
+        log.info("checkPoint globalMtm:{}, instMtm:{}", netMarkToMarket, instrumentNetMarkToMarketMap);
+        mtmUpdated(netMarkToMarket, applicationCheckpoint.getGlobalPosition());
+
+        if (cache != null) {
+            auditLog.info("cacheUpdateId", sequenceNumber);
+            cache.put(sequenceNumber + "", applicationCheckpoint);
+        }
+        return null;
+    }
+
+    private void mtmUpdated(NetMarkToMarket netMarkToMarket, PositionCheckpoint positionCheckpoint) {
         auditLog.info("netMarkToMarket", netMarkToMarket);
-        PositionCheckpoint positionCheckpoint = applicationCheckpoint.getGlobalPosition();
         Map<String, Double> positionMap = positionCheckpoint.getPositions();
         Map<Instrument, Double> instrumentInstrumentPosMtmMap = netMarkToMarket.instrumentMtm().getPositionMap();
         instrumentInstrumentPosMtmMap.forEach((instrument, pos) -> {
@@ -73,15 +83,10 @@ public class PositionCache extends BaseNode {
             feesPositionMap.put(instrument.getInstrumentName(), pos);
         });
 
-        if (cache != null) {
-            auditLog.info("cacheUpdateId", sequenceNumber);
-            cache.put(sequenceNumber + "", applicationCheckpoint);
-        }
-    }
-
-    public Object checkPoint(NetMarkToMarket netMarkToMarket, Map<Instrument, NetMarkToMarket> instrumentNetMarkToMarketMap) {
-        log.info("checkPoint globalMtm:{}, instMtm:{}", netMarkToMarket, instrumentNetMarkToMarketMap);
-        return null;
+//        if (cache != null) {
+//            auditLog.info("cacheUpdateId", sequenceNumber);
+//            cache.put(sequenceNumber + "", applicationCheckpoint);
+//        }
     }
 
     @Data
