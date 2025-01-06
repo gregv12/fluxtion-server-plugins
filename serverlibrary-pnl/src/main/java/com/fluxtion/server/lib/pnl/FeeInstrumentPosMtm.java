@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -7,16 +7,29 @@ package com.fluxtion.server.lib.pnl;
 
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import lombok.Data;
+import lombok.extern.log4j.Log4j2;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @Data
+@Log4j2
 public class FeeInstrumentPosMtm {
     private String bookName;
     private Double fees = 0.0;
     private Map<Instrument, Double> feesPositionMap = new HashMap<>();
     private Map<Instrument, Double> feesMtmPositionMap = new HashMap<>();
+
+    public static FeeInstrumentPosMtm addSnapshot(FeeInstrumentPosMtm instrumentPosMtm, InstrumentPosition instrumentPos) {
+        FeeInstrumentPosMtm offSetPosMtm = instrumentPosMtm == null ? new FeeInstrumentPosMtm() : instrumentPosMtm;
+        if (instrumentPos != null) {
+            offSetPosMtm.getFeesPositionMap().compute(
+                    instrumentPos.instrument(),
+                    (a, b) -> b == null ? instrumentPos.position() : b + instrumentPos.position());
+        }
+        log.info("Merge snapshot \nsnapshot:{}\noriginal:{}\nresult:{}", instrumentPos, instrumentPosMtm, offSetPosMtm);
+        return offSetPosMtm;
+    }
 
     public FeeInstrumentPosMtm reset() {
         this.bookName = null;

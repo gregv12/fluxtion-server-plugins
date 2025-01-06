@@ -118,6 +118,28 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     }
 
     private void buildInstrumentFeeMap() {
+
+        //FeeInstrumentPosMtm
+        var snapshotPositionMap = DataFlow.subscribe(PositionSnapshot.class)
+                .flatMap(PositionSnapshot::getFeePositions)
+                .groupBy(InstrumentPosition::instrument)
+                .resetTrigger(positionSnapshotReset)
+                .publishTriggerOverride(positionUpdateEob)
+                .id("feeSnapshot")
+                .console("feeSnapshot:{}");
+
+        instrumentFeeMap = tradeStream
+                .publishTrigger(positionUpdateEob)
+                .groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new)
+                .defaultValue(GroupBy.emptyCollection())
+                .publishTrigger(positionUpdateEob)
+                .outerJoin(snapshotPositionMap, FeeInstrumentPosMtm::addSnapshot).id("joinFeeSnapshot")
+                .resetTrigger(positionSnapshotReset)
+                .defaultValue(GroupBy.emptyCollection())
+                .mapValues(derivedRateNode::calculateFeeMtm)
+                .publishTriggerOverride(positionUpdateEob)
+                .updateTrigger(positionUpdateEob);
+
     }
 
     private void buildGlobalMtm() {
@@ -132,20 +154,13 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         var globalNetMtm = JoinFlowBuilder.outerJoin(dealtAndContraInstPosition, contraAndDealtInstPosition, InstrumentPosMtm::merge)
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTrigger(positionUpdateEob)
-                .outerJoin(snapshotPositionMap, InstrumentPosMtm::overwriteInstrumentPositionWithSnapshot)
+                .outerJoin(snapshotPositionMap, InstrumentPosMtm::addSnapshot)
                 .mapValues(derivedRateNode::calculateInstrumentPosMtm)
                 .updateTrigger(positionUpdateEob)
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTriggerOverride(positionUpdateEob);
 
-        instrumentFeeMap = DataFlow.subscribe(Trade.class)
-                .merge(tradeBatchStream)
-                .groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new)
-                .resetTrigger(positionSnapshotReset)
-                .defaultValue(GroupBy.emptyCollection())
-                .mapValues(derivedRateNode::calculateFeeMtm)
-                .publishTriggerOverride(positionUpdateEob)
-                .updateTrigger(positionUpdateEob);
+
 //        globalNetMtm.map(GroupBy::toMap).push(positionCache::positionsUpdated);
 
         //global mtm net of fees
