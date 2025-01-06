@@ -169,6 +169,8 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     }
 
     private void buildInstrumentMtm() {
+        //TODO add snapshot of asset position by instrument
+
         //instrument mtm for trading
         var instTradeMtm = JoinFlowBuilder.outerJoin(dealtOnlyInstPosition, contraOnlyInstPosition, InstrumentPosMtm::merge)
                 .mapValues(derivedRateNode::calculateInstrumentPosMtm)

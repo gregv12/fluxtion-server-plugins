@@ -62,6 +62,13 @@ public class PositionCache extends BaseNode {
         log.info("checkPoint globalMtm:{}, instMtm:{}", netMarkToMarket, instrumentNetMarkToMarketMap);
         mtmUpdated(netMarkToMarket, applicationCheckpoint.getGlobalPosition());
 
+        instrumentNetMarkToMarketMap.forEach((instrument, netMtm) -> {
+            var checkpoint = applicationCheckpoint.instrumentPositions.computeIfAbsent(
+                    instrument.getInstrumentName(), inst -> new PositionCheckpoint());
+            mtmUpdated(netMtm, checkpoint);
+        });
+
+
         if (cache != null) {
             auditLog.info("cacheUpdateId", sequenceNumber);
             cache.put(sequenceNumber + "", applicationCheckpoint);
@@ -82,11 +89,6 @@ public class PositionCache extends BaseNode {
         feesMap.forEach((instrument, pos) -> {
             feesPositionMap.put(instrument.getInstrumentName(), pos);
         });
-
-//        if (cache != null) {
-//            auditLog.info("cacheUpdateId", sequenceNumber);
-//            cache.put(sequenceNumber + "", applicationCheckpoint);
-//        }
     }
 
     @Data
