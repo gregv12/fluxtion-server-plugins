@@ -21,6 +21,8 @@ import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
 import lombok.Getter;
 
+import java.util.Map;
+
 import static com.fluxtion.server.lib.pnl.PnlCalculator.GLOBAL_NET_MTM_SINK;
 import static com.fluxtion.server.lib.pnl.PnlCalculator.INSTRUMENT_NET_MTM_SINK;
 
@@ -47,6 +49,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     private DerivedRateNode derivedRateNode;
     private EventFeedConnector eventFeedConnector;
     private PositionCache positionCache;
+    private FlowBuilder<NetMarkToMarket> gloablMtm;
 
     public static FluxtionPnlCalculatorBuilder buildPnlCalculator(EventProcessorConfig config) {
         FluxtionPnlCalculatorBuilder calculatorBuilder = new FluxtionPnlCalculatorBuilder();
@@ -159,7 +162,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .publishTriggerOverride(positionUpdateEob);
 
         //global mtm net of fees
-        JoinFlowBuilder.leftJoin(globalNetMtm, instrumentFeeMap, NetMarkToMarket::combine)
+        gloablMtm = JoinFlowBuilder.leftJoin(globalNetMtm, instrumentFeeMap, NetMarkToMarket::combine)
                 .updateTrigger(positionUpdateEob)
                 .map(GroupBy::toMap)
                 .map(NetMarkToMarket::markToMarketSum)
@@ -176,13 +179,13 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTriggerOverride(positionUpdateEob);
 
-//        instNetMtm.map(GroupBy::toMap).push(positionCache::mtmUpdated);
-
         //instrument mtm net of fees
-        JoinFlowBuilder.leftJoin(instNetMtm, instrumentFeeMap, NetMarkToMarket::combine)
+        FlowBuilder<Map<Instrument, NetMarkToMarket>> instrumentNetMtm = JoinFlowBuilder.leftJoin(instNetMtm, instrumentFeeMap, NetMarkToMarket::combine)
                 .updateTrigger(positionUpdateEob)
                 .map(GroupBy::toMap)
                 .id("instrumentNetMtm")
                 .sink(INSTRUMENT_NET_MTM_SINK);
+
+        DataFlow.mapBiFunction(positionCache::checkPoint, gloablMtm, instrumentNetMtm);
     }
 }
