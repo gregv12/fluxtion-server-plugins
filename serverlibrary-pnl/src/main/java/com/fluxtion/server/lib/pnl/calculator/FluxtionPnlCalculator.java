@@ -431,7 +431,6 @@ public class FluxtionPnlCalculator
     binaryMapToRefFlowFunction_60.setEventProcessorContext(context);
     binaryMapToRefFlowFunction_68.setEventProcessorContext(context);
     filterFlowFunction_8.setEventProcessorContext(context);
-    filterFlowFunction_8.setPublishTriggerNode(handlerSignal_positionUpdate);
     flatMapFlowFunction_3.setFlatMapCompleteSignal("positionUpdate");
     flatMapFlowFunction_3.callback = callBackNode_74;
     flatMapFlowFunction_3.dirtyStateMonitor = callbackDispatcher;
@@ -1827,7 +1826,6 @@ public class FluxtionPnlCalculator
     if (isDirty_handlerSignal_positionUpdate) {
       feeSnapshot.publishTriggerOverrideNodeUpdated(handlerSignal_positionUpdate);
       groupBySnapshotPositions.publishTriggerOverrideNodeUpdated(handlerSignal_positionUpdate);
-      filterFlowFunction_8.publishTriggerNodeUpdated(handlerSignal_positionUpdate);
       mapRef2RefFlowFunction_25.publishTriggerNodeUpdated(handlerSignal_positionUpdate);
       mapRef2RefFlowFunction_33.publishTriggerOverrideNodeUpdated(handlerSignal_positionUpdate);
       mapRef2RefFlowFunction_33.updateTriggerNodeUpdated(handlerSignal_positionUpdate);
@@ -1857,68 +1855,6 @@ public class FluxtionPnlCalculator
     if (guardCheck_peekFlowFunction_21()) {
       auditInvocation(peekFlowFunction_21, "peekFlowFunction_21", "peek", typedEvent);
       peekFlowFunction_21.peek();
-    }
-    if (guardCheck_filterFlowFunction_8()) {
-      auditInvocation(filterFlowFunction_8, "filterFlowFunction_8", "filter", typedEvent);
-      isDirty_filterFlowFunction_8 = filterFlowFunction_8.filter();
-      if (isDirty_filterFlowFunction_8) {
-        mapRef2RefFlowFunction_10.inputUpdated(filterFlowFunction_8);
-        mapRef2RefFlowFunction_12.inputUpdated(filterFlowFunction_8);
-        mapRef2RefFlowFunction_14.inputUpdated(filterFlowFunction_8);
-        mapRef2RefFlowFunction_16.inputUpdated(filterFlowFunction_8);
-        mapRef2RefFlowFunction_23.inputUpdated(filterFlowFunction_8);
-      }
-    }
-    if (guardCheck_mapRef2RefFlowFunction_10()) {
-      auditInvocation(mapRef2RefFlowFunction_10, "mapRef2RefFlowFunction_10", "map", typedEvent);
-      isDirty_mapRef2RefFlowFunction_10 = mapRef2RefFlowFunction_10.map();
-      if (isDirty_mapRef2RefFlowFunction_10) {
-        binaryMapToRefFlowFunction_38.inputUpdated(mapRef2RefFlowFunction_10);
-      }
-    }
-    if (guardCheck_mapRef2RefFlowFunction_12()) {
-      auditInvocation(mapRef2RefFlowFunction_12, "mapRef2RefFlowFunction_12", "map", typedEvent);
-      isDirty_mapRef2RefFlowFunction_12 = mapRef2RefFlowFunction_12.map();
-      if (isDirty_mapRef2RefFlowFunction_12) {
-        binaryMapToRefFlowFunction_38.input2Updated(mapRef2RefFlowFunction_12);
-      }
-    }
-    if (guardCheck_binaryMapToRefFlowFunction_38()) {
-      auditInvocation(
-          binaryMapToRefFlowFunction_38, "binaryMapToRefFlowFunction_38", "map", typedEvent);
-      isDirty_binaryMapToRefFlowFunction_38 = binaryMapToRefFlowFunction_38.map();
-      if (isDirty_binaryMapToRefFlowFunction_38) {
-        mapRef2RefFlowFunction_40.inputUpdated(binaryMapToRefFlowFunction_38);
-      }
-    }
-    if (guardCheck_mapRef2RefFlowFunction_14()) {
-      auditInvocation(mapRef2RefFlowFunction_14, "mapRef2RefFlowFunction_14", "map", typedEvent);
-      isDirty_mapRef2RefFlowFunction_14 = mapRef2RefFlowFunction_14.map();
-      if (isDirty_mapRef2RefFlowFunction_14) {
-        binaryMapToRefFlowFunction_60.inputUpdated(mapRef2RefFlowFunction_14);
-      }
-    }
-    if (guardCheck_mapRef2RefFlowFunction_16()) {
-      auditInvocation(mapRef2RefFlowFunction_16, "mapRef2RefFlowFunction_16", "map", typedEvent);
-      isDirty_mapRef2RefFlowFunction_16 = mapRef2RefFlowFunction_16.map();
-      if (isDirty_mapRef2RefFlowFunction_16) {
-        binaryMapToRefFlowFunction_60.input2Updated(mapRef2RefFlowFunction_16);
-      }
-    }
-    if (guardCheck_binaryMapToRefFlowFunction_60()) {
-      auditInvocation(
-          binaryMapToRefFlowFunction_60, "binaryMapToRefFlowFunction_60", "map", typedEvent);
-      isDirty_binaryMapToRefFlowFunction_60 = binaryMapToRefFlowFunction_60.map();
-      if (isDirty_binaryMapToRefFlowFunction_60) {
-        mapRef2RefFlowFunction_62.inputUpdated(binaryMapToRefFlowFunction_60);
-      }
-    }
-    if (guardCheck_mapRef2RefFlowFunction_23()) {
-      auditInvocation(mapRef2RefFlowFunction_23, "mapRef2RefFlowFunction_23", "map", typedEvent);
-      isDirty_mapRef2RefFlowFunction_23 = mapRef2RefFlowFunction_23.map();
-      if (isDirty_mapRef2RefFlowFunction_23) {
-        mapRef2RefFlowFunction_25.inputUpdated(mapRef2RefFlowFunction_23);
-      }
     }
     if (guardCheck_mapRef2RefFlowFunction_25()) {
       auditInvocation(mapRef2RefFlowFunction_25, "mapRef2RefFlowFunction_25", "map", typedEvent);
@@ -1955,13 +1891,6 @@ public class FluxtionPnlCalculator
       if (isDirty_mapRef2RefFlowFunction_33) {
         binaryMapToRefFlowFunction_52.input2Updated(mapRef2RefFlowFunction_33);
         binaryMapToRefFlowFunction_68.input2Updated(mapRef2RefFlowFunction_33);
-      }
-    }
-    if (guardCheck_mapRef2RefFlowFunction_40()) {
-      auditInvocation(mapRef2RefFlowFunction_40, "mapRef2RefFlowFunction_40", "map", typedEvent);
-      isDirty_mapRef2RefFlowFunction_40 = mapRef2RefFlowFunction_40.map();
-      if (isDirty_mapRef2RefFlowFunction_40) {
-        mapRef2RefFlowFunction_42.inputUpdated(mapRef2RefFlowFunction_40);
       }
     }
     if (guardCheck_mapRef2RefFlowFunction_42()) {
@@ -2034,13 +1963,6 @@ public class FluxtionPnlCalculator
       isDirty_globalNetMtm = globalNetMtm.push();
       if (isDirty_globalNetMtm) {
         pushFlowFunction_58.inputUpdated(globalNetMtm);
-      }
-    }
-    if (guardCheck_mapRef2RefFlowFunction_62()) {
-      auditInvocation(mapRef2RefFlowFunction_62, "mapRef2RefFlowFunction_62", "map", typedEvent);
-      isDirty_mapRef2RefFlowFunction_62 = mapRef2RefFlowFunction_62.map();
-      if (isDirty_mapRef2RefFlowFunction_62) {
-        mapRef2RefFlowFunction_64.inputUpdated(mapRef2RefFlowFunction_62);
       }
     }
     if (guardCheck_mapRef2RefFlowFunction_64()) {
@@ -3329,7 +3251,7 @@ public class FluxtionPnlCalculator
   }
 
   private boolean guardCheck_filterFlowFunction_8() {
-    return isDirty_handlerSignal_positionUpdate | isDirty_mergeFlowFunction_6;
+    return isDirty_mergeFlowFunction_6;
   }
 
   private boolean guardCheck_flatMapFlowFunction_3() {

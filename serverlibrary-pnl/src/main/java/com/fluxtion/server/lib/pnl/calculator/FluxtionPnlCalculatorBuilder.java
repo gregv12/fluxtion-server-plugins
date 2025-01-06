@@ -129,7 +129,6 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .console("feeSnapshot:{}");
 
         instrumentFeeMap = tradeStream
-                .publishTrigger(positionUpdateEob)
                 .groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new)
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTrigger(positionUpdateEob)
