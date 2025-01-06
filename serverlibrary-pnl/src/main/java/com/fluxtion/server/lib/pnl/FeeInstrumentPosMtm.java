@@ -27,7 +27,6 @@ public class FeeInstrumentPosMtm {
                     instrumentPos.instrument(),
                     (a, b) -> b == null ? instrumentPos.position() : b + instrumentPos.position());
         }
-        log.info("Merge snapshot \nsnapshot:{}\noriginal:{}\nresult:{}", instrumentPos, instrumentPosMtm, offSetPosMtm);
         return offSetPosMtm;
     }
 

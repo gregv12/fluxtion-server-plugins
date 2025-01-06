@@ -125,8 +125,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .groupBy(InstrumentPosition::instrument)
                 .resetTrigger(positionSnapshotReset)
                 .publishTriggerOverride(positionUpdateEob)
-                .id("feeSnapshot")
-                .console("feeSnapshot:{}");
+                .id("feeSnapshot");
 
         instrumentFeeMap = tradeStream
                 .groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new)
@@ -158,9 +157,6 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .updateTrigger(positionUpdateEob)
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTriggerOverride(positionUpdateEob);
-
-
-//        globalNetMtm.map(GroupBy::toMap).push(positionCache::positionsUpdated);
 
         //global mtm net of fees
         JoinFlowBuilder.leftJoin(globalNetMtm, instrumentFeeMap, NetMarkToMarket::combine)
