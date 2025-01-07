@@ -40,6 +40,23 @@ public class PositionCache extends BaseNode {
         Map<String, Double> feesMap = positionCheckpoint.getFees();
         feesMap.forEach((inst, pos) -> positionSnapshot.getFeePositions().add(new InstrumentPosition(new Instrument(inst), pos)));
 
+        //
+        applicationCheckpoint.instrumentPositions.forEach((instString, posCheckpoint) -> {
+            Instrument instrument = new Instrument(instString);
+            var instPosSnapshot = positionSnapshot.getInstrumentPositionMap()
+                    .computeIfAbsent(instrument, instKey -> new PositionSnapshot.InstrumentPositionSnapshot());
+            //trade positions for an instrument
+            posCheckpoint.getPositions()
+                    .forEach((inst, pos) -> {
+                        instPosSnapshot.getPositions().add(new InstrumentPosition(new Instrument(inst), pos));
+                    });
+            //fee positions for an instrument
+            posCheckpoint.getFees()
+                    .forEach((inst, pos) -> {
+                        instPosSnapshot.getFeePositions().add(new InstrumentPosition(new Instrument(inst), pos));
+                    });
+        });
+
         auditLog.info("cacheRegistered", cache)
                 .info("keys", cache.keys().toString())
                 .info("sequenceNumber", sequenceNumber)

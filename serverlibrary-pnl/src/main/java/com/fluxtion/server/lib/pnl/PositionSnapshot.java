@@ -5,10 +5,13 @@
 
 package com.fluxtion.server.lib.pnl;
 
+import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import lombok.Data;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 @Data
 public class PositionSnapshot {
@@ -23,4 +26,11 @@ public class PositionSnapshot {
 
     private Collection<InstrumentPosition> positions = new ArrayList<>();
     private Collection<InstrumentPosition> feePositions = new ArrayList<>();
+    private Map<Instrument, InstrumentPositionSnapshot> instrumentPositionMap = new HashMap<>();
+
+    @Data
+    public static class InstrumentPositionSnapshot {
+        private Collection<InstrumentPosition> positions = new ArrayList<>();
+        private Collection<InstrumentPosition> feePositions = new ArrayList<>();
+    }
 }
