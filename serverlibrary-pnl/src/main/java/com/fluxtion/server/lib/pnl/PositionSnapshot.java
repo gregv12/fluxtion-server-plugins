@@ -26,7 +26,20 @@ public class PositionSnapshot {
 
     private Collection<InstrumentPosition> positions = new ArrayList<>();
     private Collection<InstrumentPosition> feePositions = new ArrayList<>();
-    private Map<Instrument, InstrumentPositionSnapshot> instrumentPositionMap = new HashMap<>();
+    private Map<Instrument, InstrumentPositionSnapshot> instrumentPositionSnopshotMap = new HashMap<>();
+
+    public Map<Instrument, InstrumentPosMtm> getInstrumentPositionMap() {
+        Map<Instrument, InstrumentPosMtm> instrumentPositionMap = new HashMap<>();
+        instrumentPositionSnopshotMap.forEach((instrument, positionSnapshot) -> {
+            InstrumentPosMtm instrumentPosMtm = new InstrumentPosMtm();
+            instrumentPosMtm.setBookName(instrument.instrumentName());
+            positionSnapshot.getPositions().forEach((inst) -> {
+                instrumentPosMtm.getPositionMap().put(instrument, inst.position());
+            });
+            instrumentPositionMap.put(instrument, instrumentPosMtm);
+        });
+        return instrumentPositionMap;
+    }
 
     @Data
     public static class InstrumentPositionSnapshot {

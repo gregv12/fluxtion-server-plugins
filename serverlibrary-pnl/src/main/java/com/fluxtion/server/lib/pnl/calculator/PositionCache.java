@@ -43,7 +43,7 @@ public class PositionCache extends BaseNode {
         //
         applicationCheckpoint.instrumentPositions.forEach((instString, posCheckpoint) -> {
             Instrument instrument = new Instrument(instString);
-            var instPosSnapshot = positionSnapshot.getInstrumentPositionMap()
+            var instPosSnapshot = positionSnapshot.getInstrumentPositionSnopshotMap()
                     .computeIfAbsent(instrument, instKey -> new PositionSnapshot.InstrumentPositionSnapshot());
             //trade positions for an instrument
             posCheckpoint.getPositions()

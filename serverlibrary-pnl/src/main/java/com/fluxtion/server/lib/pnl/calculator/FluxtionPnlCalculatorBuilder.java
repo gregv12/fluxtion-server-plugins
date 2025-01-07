@@ -169,13 +169,11 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     }
 
     private void buildInstrumentMtm() {
-        //TODO add snapshot of asset position by instrument
-        DataFlow.groupByFromMap(PositionSnapshot::getInstrumentPositionMap)
-                .map(GroupBy::toMap)
-                .console("instrumentMtm:{}");
-
         //instrument mtm for trading
         var instTradeMtm = JoinFlowBuilder.outerJoin(dealtOnlyInstPosition, contraOnlyInstPosition, InstrumentPosMtm::merge)
+                .defaultValue(GroupBy.emptyCollection())
+                .publishTrigger(positionUpdateEob)
+                .outerJoin(DataFlow.groupByFromMap(PositionSnapshot::getInstrumentPositionMap), InstrumentPosMtm::merge)
                 .mapValues(derivedRateNode::calculateInstrumentPosMtm)
                 .updateTrigger(positionUpdateEob)
                 .defaultValue(GroupBy.emptyCollection())
