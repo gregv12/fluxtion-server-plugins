@@ -12,12 +12,16 @@ import com.fluxtion.compiler.builder.dataflow.DataFlow;
 import com.fluxtion.compiler.builder.dataflow.FlowBuilder;
 import com.fluxtion.compiler.builder.dataflow.GroupByFlowBuilder;
 import com.fluxtion.compiler.builder.dataflow.JoinFlowBuilder;
+import com.fluxtion.runtime.audit.EventLogControlEvent;
 import com.fluxtion.runtime.dataflow.groupby.GroupBy;
 import com.fluxtion.runtime.event.Signal;
+import com.fluxtion.runtime.node.NamedFeedTableNode;
 import com.fluxtion.server.lib.pnl.*;
-import com.fluxtion.server.lib.pnl.dto.DtoHelper;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
+import com.fluxtion.server.lib.pnl.refdata.Symbol;
 import lombok.Getter;
+
+import java.util.Map;
 
 import static com.fluxtion.server.lib.pnl.PnlCalculator.GLOBAL_NET_MTM_SINK;
 import static com.fluxtion.server.lib.pnl.PnlCalculator.INSTRUMENT_NET_MTM_SINK;
@@ -32,24 +36,39 @@ import static com.fluxtion.server.lib.pnl.PnlCalculator.INSTRUMENT_NET_MTM_SINK;
 @Getter
 public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
 
-
     private EventProcessorConfig eventProcessorConfig;
     private FlowBuilder<Signal> positionUpdateEob;
     private FlowBuilder<Signal> positionSnapshotReset;
     private FlowBuilder<Trade> tradeStream;
     private FlowBuilder<Trade> tradeBatchStream;
-    private GroupByFlowBuilder<Instrument, FeeInstrumentPosMtm> instrumentFeeMap;
+    private GroupByFlowBuilder<Instrument, InstrumentPosMtm> dealtInstPosition;
+    private GroupByFlowBuilder<Instrument, InstrumentPosMtm> contraInstPosition;
     private GroupByFlowBuilder<Instrument, InstrumentPosMtm> dealtAndContraInstPosition;
     private GroupByFlowBuilder<Instrument, InstrumentPosMtm> contraAndDealtInstPosition;
-    private GroupByFlowBuilder<Instrument, InstrumentPosMtm> dealtOnlyInstPosition;
-    private GroupByFlowBuilder<Instrument, InstrumentPosMtm> contraOnlyInstPosition;
     private DerivedRateNode derivedRateNode;
     private EventFeedConnector eventFeedConnector;
+    private FlowBuilder<NetMarkToMarket> globalNetMtm;
+    private FlowBuilder<Map<Instrument, NetMarkToMarket>> instrumentNetMtm;
 
     public static FluxtionPnlCalculatorBuilder buildPnlCalculator(EventProcessorConfig config) {
         FluxtionPnlCalculatorBuilder calculatorBuilder = new FluxtionPnlCalculatorBuilder();
         calculatorBuilder.buildGraph(config);
         return calculatorBuilder;
+    }
+
+    public static class DebugFluxtionPnlCalculatorBuilder extends FluxtionPnlCalculatorBuilder {
+
+        @Override
+        public void configureGeneration(FluxtionCompilerConfig compilerConfig) {
+            compilerConfig.setClassName("DebugFluxtionPnlCalculator");
+            compilerConfig.setPackageName("com.fluxtion.server.lib.pnl.calculator");
+        }
+
+        @Override
+        public void buildGraph(EventProcessorConfig eventProcessorConfig) {
+            super.buildGraph(eventProcessorConfig);
+            eventProcessorConfig.addEventAudit(EventLogControlEvent.LogLevel.INFO);
+        }
     }
 
     @Override
@@ -64,98 +83,151 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         buildSharedNodes();
         buildTradeStream();
         buildPositionMap();
-        buildInstrumentFeeMap();
         buildGlobalMtm();
         buildInstrumentMtm();
+        buildCheckpoint();
 
         //no buffer/trigger support required on this  processor
-        eventProcessorConfig.addEventAudit();
         eventProcessorConfig.setSupportBufferAndTrigger(false);
     }
 
     private void buildSharedNodes() {
         positionUpdateEob = DataFlow.subscribeToSignal("positionUpdate");
         positionSnapshotReset = DataFlow.subscribeToSignal("positionSnapshotReset");
-        derivedRateNode = eventProcessorConfig.addNode(new DerivedRateNode(), "derivedRateNode");
-        eventFeedConnector = eventProcessorConfig.addNode(new EventFeedConnector(), "eventFeedBatcher");
+        var symbolTable = new NamedFeedTableNode<String, Symbol>("symbolFeed", Symbol::symbolName);
+        derivedRateNode = eventProcessorConfig.addNode(new DerivedRateNode(symbolTable), "derivedRateNode");
+        eventFeedConnector = eventProcessorConfig.addNode(new EventFeedConnector(symbolTable), "eventFeedBatcher");
     }
 
     private void buildTradeStream() {
-        tradeBatchStream = DataFlow.subscribe(TradeBatch.class).flatMap(TradeBatch::getTrades);
-        tradeStream = DataFlow.subscribe(Trade.class).merge(tradeBatchStream);
+        tradeBatchStream = DataFlow.subscribe(TradeBatch.class)
+                .flatMap(TradeBatch::getTrades, PnlCalculator.POSITION_UPDATE_EOB)
+                .map(eventFeedConnector::validateBatchTrade);
+
+        tradeStream = DataFlow.subscribe(Trade.class)
+                .map(eventFeedConnector::validateTrade)
+                .merge(tradeBatchStream)
+                .filter(new TradeSequenceFilter()::checkTradeSequenceNumber);
     }
 
     private void buildPositionMap() {
-        //position by instrument aggregates dealt and contra quantities
-        dealtAndContraInstPosition = tradeStream
+        //position by instrument aggregates single side, either dealt and contra quantity
+        dealtInstPosition = tradeStream
                 .groupBy(Trade::getDealtInstrument, SingleInstrumentPosMtmAggregate::dealt)
                 .resetTrigger(positionSnapshotReset);
-        contraAndDealtInstPosition = tradeStream
+        contraInstPosition = tradeStream
                 .groupBy(Trade::getContraInstrument, SingleInstrumentPosMtmAggregate::contra)
                 .resetTrigger(positionSnapshotReset);
 
-        //position by instrument aggregates single side, either dealt and contra quantity
-        dealtOnlyInstPosition = tradeStream
+        //position by instrument aggregates dealt and contra quantities
+        dealtAndContraInstPosition = tradeStream
                 .groupBy(Trade::getDealtInstrument, InstrumentPosMtmAggregate::dealt)
                 .resetTrigger(positionSnapshotReset)
                 .publishTrigger(positionSnapshotReset);
-        contraOnlyInstPosition = tradeStream
+        contraAndDealtInstPosition = tradeStream
                 .groupBy(Trade::getContraInstrument, InstrumentPosMtmAggregate::contra)
                 .resetTrigger(positionSnapshotReset)
                 .publishTrigger(positionSnapshotReset);
     }
 
-    private void buildInstrumentFeeMap() {
-        instrumentFeeMap = DataFlow.subscribe(Trade.class)
-                .merge(tradeBatchStream)
+    private void buildGlobalMtm() {
+        //Asset position map created by PositionSnapshot
+        var snapshotPositionMap = DataFlow.subscribe(PositionSnapshot.class)
+                .flatMap(PositionSnapshot::getPositions)
+                .groupBy(InstrumentPosition::instrument)
+                .resetTrigger(positionSnapshotReset)
+                .publishTriggerOverride(positionUpdateEob);
+
+        //global mtm for trading + snapshot positions
+        var globalTradeMtm = JoinFlowBuilder.outerJoin(
+                        dealtInstPosition,
+                        contraInstPosition,
+                        InstrumentPosMtm::merge)
+                .defaultValue(GroupBy.emptyCollection())
+                .publishTrigger(positionUpdateEob)
+                .outerJoin(snapshotPositionMap, InstrumentPosMtm::addSnapshot)
+                .defaultValue(GroupBy.emptyCollection())
+                .mapValues(derivedRateNode::calculateInstrumentPosMtm)
+                .updateTrigger(positionUpdateEob)
+                .defaultValue(GroupBy.emptyCollection())
+                .publishTriggerOverride(positionUpdateEob);
+
+        //FeeInstrumentPosMtm
+        var snapshotFeePositionMap = DataFlow.subscribe(PositionSnapshot.class)
+                .flatMap(PositionSnapshot::getFeePositions)
+                .groupBy(InstrumentPosition::instrument)
+                .resetTrigger(positionSnapshotReset)
+                .publishTriggerOverride(positionUpdateEob);
+
+        var instrumentFeeMap = tradeStream
                 .groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new)
+                .defaultValue(GroupBy.emptyCollection())
+                .publishTrigger(positionUpdateEob)
+                .outerJoin(snapshotFeePositionMap, FeeInstrumentPosMtm::addSnapshot)
                 .resetTrigger(positionSnapshotReset)
                 .defaultValue(GroupBy.emptyCollection())
                 .mapValues(derivedRateNode::calculateFeeMtm)
                 .publishTriggerOverride(positionUpdateEob)
                 .updateTrigger(positionUpdateEob);
-    }
-
-    private void buildGlobalMtm() {
-        //Asset position map created by PositionSnapshot
-        var snapshotPositionMap = DataFlow.subscribe(PositionSnapshot.class)
-                .flatMap(PositionSnapshot::getPositions).id("flatMapSnapshotPositions")
-                .groupBy(InstrumentPosition::instrument).id("groupBySnapshotPositions")
-                .resetTrigger(positionSnapshotReset)
-                .publishTriggerOverride(positionUpdateEob);
-
-        //global mtm for trading + snapshot positions
-        var globalNetMtm = JoinFlowBuilder.outerJoin(dealtAndContraInstPosition, contraAndDealtInstPosition, InstrumentPosMtm::merge)
-                .outerJoin(snapshotPositionMap, InstrumentPosMtm::overwriteInstrumentPositionWithSnapshot)
-                .mapValues(derivedRateNode::calculateInstrumentPosMtm)
-                .updateTrigger(positionUpdateEob)
-                .defaultValue(GroupBy.emptyCollection())
-                .publishTriggerOverride(positionUpdateEob);
 
         //global mtm net of fees
-        JoinFlowBuilder.leftJoin(globalNetMtm, instrumentFeeMap, NetMarkToMarket::combine)
+        globalNetMtm = JoinFlowBuilder.leftJoin(
+                        globalTradeMtm,
+                        instrumentFeeMap,
+                        NetMarkToMarket::combine)
                 .updateTrigger(positionUpdateEob)
                 .map(GroupBy::toMap)
                 .map(NetMarkToMarket::markToMarketSum)
                 .id("globalNetMtm")
-                .sink(GLOBAL_NET_MTM_SINK)
-                .map(DtoHelper::formatPosition)
-                .sink(PnlCalculator.POSITION_SNAPSHOT_SINK);
+                .sink(GLOBAL_NET_MTM_SINK);
     }
 
     private void buildInstrumentMtm() {
+        //instrument mtm fees mtm
+        var instrumentFeeMap = JoinFlowBuilder.outerJoin(
+                        tradeStream.groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new),
+                        tradeStream.groupBy(Trade::getContraInstrument, FeeInstrumentPosMtmAggregate::new),
+                        FeeInstrumentPosMtm::merge)
+                .defaultValue(GroupBy.emptyCollection())
+                .publishTrigger(positionUpdateEob)
+                .outerJoin(
+                        DataFlow.groupByFromMap(PositionSnapshot::getInstrumentFeePositionMap).defaultValue(GroupBy.emptyCollection()),
+                        FeeInstrumentPosMtm::merge)
+                .resetTrigger(positionSnapshotReset)
+                .defaultValue(GroupBy.emptyCollection())
+                .mapValues(derivedRateNode::calculateFeeMtm)
+                .publishTriggerOverride(positionUpdateEob)
+                .updateTrigger(positionUpdateEob);
+
         //instrument mtm for trading
-        var instNetMtm = JoinFlowBuilder.outerJoin(dealtOnlyInstPosition, contraOnlyInstPosition, InstrumentPosMtm::merge)
+        var instTradeMtm = JoinFlowBuilder.outerJoin(
+                        dealtAndContraInstPosition,
+                        contraAndDealtInstPosition,
+                        InstrumentPosMtm::merge)
+                .defaultValue(GroupBy.emptyCollection())
+                .publishTrigger(positionUpdateEob)
+                .outerJoin(
+                        DataFlow.groupByFromMap(PositionSnapshot::getInstrumentPositionMap).defaultValue(GroupBy.emptyCollection()),
+                        InstrumentPosMtm::mergeSnapshot)
                 .mapValues(derivedRateNode::calculateInstrumentPosMtm)
+                .defaultValue(GroupBy.emptyCollection())
                 .updateTrigger(positionUpdateEob)
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTriggerOverride(positionUpdateEob);
 
         //instrument mtm net of fees
-        JoinFlowBuilder.leftJoin(instNetMtm, instrumentFeeMap, NetMarkToMarket::combine)
+        instrumentNetMtm = JoinFlowBuilder.leftJoin(
+                        instTradeMtm,
+                        instrumentFeeMap,
+                        NetMarkToMarket::combine)
                 .updateTrigger(positionUpdateEob)
                 .map(GroupBy::toMap)
                 .id("instrumentNetMtm")
                 .sink(INSTRUMENT_NET_MTM_SINK);
+    }
+
+    private void buildCheckpoint() {
+        PositionCache positionCache = eventProcessorConfig.addNode(new PositionCache(), "positionCache");
+        DataFlow.mapBiFunction(positionCache::checkPoint, globalNetMtm, instrumentNetMtm);//this is persistent and aggregates trade instrument positions
     }
 }

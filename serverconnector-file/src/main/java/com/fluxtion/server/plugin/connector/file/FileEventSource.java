@@ -61,18 +61,13 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
     }
 
     @Override
-    public void onStart() {
-        log.info("agent onStart FileEventSource");
-    }
-
-    @Override
     public void start() {
         log.info("start FileEventSource {} file:{}", serviceName, filename);
         tail = readStrategy == ReadStrategy.COMMITED | readStrategy == ReadStrategy.EARLIEST | readStrategy == ReadStrategy.LATEST;
         once = !tail;
         commitRead = readStrategy == ReadStrategy.COMMITED;
         latestRead = readStrategy == ReadStrategy.LATEST | readStrategy == ReadStrategy.ONCE_LATEST;
-        log.info("startComplete FileEventFeed tail:{} once:{}, commitRead:{} latestRead:{} readStrategy:{}", tail, once, commitRead, latestRead, readStrategy);
+        log.info("tail:{} once:{}, commitRead:{} latestRead:{} readStrategy:{}", tail, once, commitRead, latestRead, readStrategy);
 
         File committedReadFile = new File(filename + ".readPointer");
         if (readStrategy == ReadStrategy.ONCE_EARLIEST | readStrategy == ReadStrategy.EARLIEST) {
@@ -104,12 +99,16 @@ public class FileEventSource extends AbstractAgentHostedEventSourceService {
     }
 
     @Override
+    public void onStart() {
+        log.info("agent onStart FileEventSource {} file:{}", serviceName, filename);
+    }
+
+    @Override
     public void startComplete() {
         log.info("startComplete FileEventSource {} file:{}", serviceName, filename);
         startComplete.set(true);
         publishToQueue = true;
         output.dispatchCachedEventLog();
-        log.info("startComplete {} - exit", serviceName);
     }
 
     @Override
