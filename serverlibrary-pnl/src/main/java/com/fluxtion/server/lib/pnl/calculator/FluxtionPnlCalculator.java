@@ -179,7 +179,7 @@ public class FluxtionPnlCalculator
   private final MapTuple mapTuple_675 = new MapTuple<>(NetMarkToMarket::combine);
   private final GroupByMapFlowFunction groupByMapFlowFunction_75 =
       new GroupByMapFlowFunction(mapTuple_675::mapTuple);
-  private final MapTuple mapTuple_693 = new MapTuple<>(InstrumentPosMtm::merge);
+  private final MapTuple mapTuple_693 = new MapTuple<>(InstrumentPosMtm::mergeSnapshot);
   private final GroupByMapFlowFunction groupByMapFlowFunction_67 =
       new GroupByMapFlowFunction(mapTuple_693::mapTuple);
   private final MapTuple mapTuple_698 = new MapTuple<>(InstrumentPosMtm::merge);
@@ -206,7 +206,7 @@ public class FluxtionPnlCalculator
   private final GroupByMapFlowFunction groupByMapFlowFunction_45 =
       new GroupByMapFlowFunction(derivedRateNode::calculateInstrumentPosMtm);
   private final GroupByMapFlowFunction groupByMapFlowFunction_69 =
-      new GroupByMapFlowFunction(derivedRateNode::calculateInstrumentPosMtm);
+      new GroupByMapFlowFunction(derivedRateNode::calculateInstrumentPosMtm_A);
   public final NodeNameAuditor nodeNameLookup = new NodeNameAuditor();
   private final OuterJoin outerJoin_24 = new OuterJoin();
   private final OuterJoin outerJoin_35 = new OuterJoin();

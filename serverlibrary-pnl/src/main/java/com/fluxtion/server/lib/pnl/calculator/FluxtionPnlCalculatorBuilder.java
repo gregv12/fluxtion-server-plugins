@@ -173,8 +173,8 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         var instTradeMtm = JoinFlowBuilder.outerJoin(dealtOnlyInstPosition, contraOnlyInstPosition, InstrumentPosMtm::merge)
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTrigger(positionUpdateEob)
-                .outerJoin(DataFlow.groupByFromMap(PositionSnapshot::getInstrumentPositionMap), InstrumentPosMtm::merge)
-                .mapValues(derivedRateNode::calculateInstrumentPosMtm)
+                .outerJoin(DataFlow.groupByFromMap(PositionSnapshot::getInstrumentPositionMap), InstrumentPosMtm::mergeSnapshot)
+                .mapValues(derivedRateNode::calculateInstrumentPosMtm_A)
                 .updateTrigger(positionUpdateEob)
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTriggerOverride(positionUpdateEob);

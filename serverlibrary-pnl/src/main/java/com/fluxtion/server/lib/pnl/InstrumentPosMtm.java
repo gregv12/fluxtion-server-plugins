@@ -25,6 +25,10 @@ public class InstrumentPosMtm {
         return new InstrumentPosMtm(mtm1).combine(mtm2);
     }
 
+    public static InstrumentPosMtm mergeSnapshot(InstrumentPosMtm mtm1, InstrumentPosMtm mtm2) {
+        return new InstrumentPosMtm(mtm1).combine(mtm2);
+    }
+
     public static InstrumentPosMtm addSnapshot(InstrumentPosMtm instrumentPosMtm, InstrumentPosition instrumentPos) {
         InstrumentPosMtm offSetPosMtm = new InstrumentPosMtm(instrumentPosMtm);
         if (instrumentPos != null) {
