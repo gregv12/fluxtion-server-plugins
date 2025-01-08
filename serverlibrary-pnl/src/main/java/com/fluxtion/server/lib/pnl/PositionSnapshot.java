@@ -37,9 +37,15 @@ public class PositionSnapshot {
         instrumentPositionSnopshotMap.forEach((instrument, positionSnapshot) -> {
             InstrumentPosMtm instrumentPosMtm = new InstrumentPosMtm();
             instrumentPosMtm.setBookName(instrument.instrumentName());
+
             positionSnapshot.getPositions().forEach((inst) -> {
-                instrumentPosMtm.getPositionMap().put(instrument, inst.position());
+                instrumentPosMtm.getPositionMap().put(inst.instrument(), inst.position());
             });
+
+            positionSnapshot.feePositions.forEach((inst) -> {
+                instrumentPosMtm.getPositionMap().put(inst.instrument(), inst.position());
+            });
+
             instrumentPositionMap.put(instrument, instrumentPosMtm);
         });
         return instrumentPositionMap;

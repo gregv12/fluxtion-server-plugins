@@ -106,6 +106,7 @@ public class PositionCache extends BaseNode {
         feesMap.forEach((instrument, pos) -> {
             feesPositionMap.put(instrument.getInstrumentName(), pos);
         });
+        log.info("mtmUpdated", positionCheckpoint);
     }
 
     @Data

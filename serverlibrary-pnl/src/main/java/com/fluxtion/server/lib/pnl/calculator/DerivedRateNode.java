@@ -118,6 +118,10 @@ public class DerivedRateNode extends BaseNode {
         return feeInstrumentPosMtm;
     }
 
+    public InstrumentPosMtm calculateInstrumentPosMtm_A(InstrumentPosMtm instrumentPosMtm) {
+        return calculateInstrumentPosMtm(instrumentPosMtm);
+    }
+
     public InstrumentPosMtm calculateInstrumentPosMtm(InstrumentPosMtm instrumentPosMtm) {
         Map<Instrument, Double> mtmPositionsMap = instrumentPosMtm.resetMtm().getMtmPositionsMap();
         instrumentPosMtm.getPositionMap()
