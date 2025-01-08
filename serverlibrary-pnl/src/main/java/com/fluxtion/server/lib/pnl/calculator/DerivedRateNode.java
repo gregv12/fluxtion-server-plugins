@@ -8,6 +8,9 @@ package com.fluxtion.server.lib.pnl.calculator;
 
 import com.fluxtion.runtime.annotations.OnEventHandler;
 import com.fluxtion.runtime.annotations.builder.FluxtionIgnore;
+import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
+import com.fluxtion.runtime.event.NamedFeedEvent;
+import com.fluxtion.runtime.input.NamedFeed;
 import com.fluxtion.runtime.node.BaseNode;
 import com.fluxtion.runtime.node.NamedFeedTableNode;
 import com.fluxtion.server.lib.pnl.*;
@@ -29,6 +32,8 @@ public class DerivedRateNode extends BaseNode {
     @FluxtionIgnore
     private Instrument mtmInstrument = Instrument.INSTRUMENT_USD;
     @FluxtionIgnore
+    private Map<String, Double> cachedRates = new HashMap<>();
+    @FluxtionIgnore
     private Map<Instrument, Double> directMtmRatesByInstrument = new HashMap<>();
     @FluxtionIgnore
     private Map<Instrument, Double> derivedMtmRatesByInstrument = new HashMap<>();
@@ -41,6 +46,19 @@ public class DerivedRateNode extends BaseNode {
 
     public DerivedRateNode(NamedFeedTableNode<String, Symbol> symbolTable) {
         this.symbolTable = symbolTable;
+    }
+
+    @ServiceRegistered("rateFeed")
+    public void serviceRegistered(NamedFeed feed) {
+        auditLog.info("rateFeed", "registered");
+        NamedFeedEvent<MidPrice>[] midPrices = feed.eventLog();
+        sendEob = false;
+        for (NamedFeedEvent<MidPrice> midPriceEvent : midPrices) {
+            MidPrice midPrice = midPriceEvent.data();
+            midRate(midPrice);
+            auditLog.debug("midPrice", midPrice);
+        }
+        sendEob = true;
     }
 
     @OnEventHandler
@@ -71,6 +89,19 @@ public class DerivedRateNode extends BaseNode {
 
     @OnEventHandler
     public boolean midRate(MidPrice midPrice) {
+        final double epsilon = 0.000000001d;
+        double cachedRate = cachedRates.getOrDefault(midPrice.getSymbolName(), Double.NaN);
+        double newRate = midPrice.getRate();
+
+        if (Math.abs(cachedRate - newRate) < epsilon) {
+            auditLog.debug("ignoreDuplicateRate", midPrice.getSymbolName())
+                    .debug("cachedRate", cachedRate);
+            return false;
+        } else {
+            auditLog.debug(midPrice.getSymbolName(), newRate);
+        }
+        cachedRates.put(midPrice.getSymbolName(), newRate);
+
         if (midPrice.getSymbol() == null) {
             midPrice.setSymbol(symbolTable.getTableMap().get(midPrice.getSymbolName()));
         }
