@@ -5,6 +5,7 @@
 
 package com.fluxtion.server.lib.pnl;
 
+import com.fluxtion.runtime.annotations.builder.FluxtionIgnore;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import lombok.Data;
 
@@ -24,8 +25,11 @@ public class PositionSnapshot {
         return positionSnapshot;
     }
 
+    @FluxtionIgnore
     private Collection<InstrumentPosition> positions = new ArrayList<>();
+    @FluxtionIgnore
     private Collection<InstrumentPosition> feePositions = new ArrayList<>();
+    @FluxtionIgnore
     private Map<Instrument, InstrumentPositionSnapshot> instrumentPositionSnopshotMap = new HashMap<>();
 
     public Map<Instrument, InstrumentPosMtm> getInstrumentPositionMap() {

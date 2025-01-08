@@ -141,7 +141,7 @@ public class DerivedTest {
         ));
 
         Assertions.assertEquals(2, mtmInstUpdates.size());
-//        Assertions.assertEquals(2, mtmInstUpdates.getFirst().size());
+        Assertions.assertEquals(2, mtmInstUpdates.getFirst().size());
         Assertions.assertEquals(2, mtmUpdates.size());
 
         mtm = mtmUpdates.getLast();
@@ -186,6 +186,7 @@ public class DerivedTest {
     @Test
     public void testTrade() {
         setUp();
+        log = true;
         pnlCalculator.processTrade(new Trade(symbolEURJPY, -400, 80000, 13));
         pnlCalculator.processTrade(new Trade(symbolEURUSD, 500, -1100, 13));
         pnlCalculator.processTrade(new Trade(symbolUSDCHF, 500, -1100, 13));
