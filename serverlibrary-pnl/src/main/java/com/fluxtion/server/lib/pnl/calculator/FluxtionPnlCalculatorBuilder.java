@@ -174,7 +174,9 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         var instTradeMtm = JoinFlowBuilder.outerJoin(dealtOnlyInstPosition, contraOnlyInstPosition, InstrumentPosMtm::merge)
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTrigger(positionUpdateEob)
-                .outerJoin(DataFlow.groupByFromMap(PositionSnapshot::getInstrumentPositionMap), InstrumentPosMtm::mergeSnapshot)
+                .outerJoin(
+                        DataFlow.groupByFromMap(PositionSnapshot::getInstrumentPositionMap).defaultValue(GroupBy.emptyCollection()),
+                        InstrumentPosMtm::mergeSnapshot)
                 .mapValues(derivedRateNode::calculateInstrumentPosMtm_A)
                 .defaultValue(GroupBy.emptyCollection())
                 .updateTrigger(positionUpdateEob)
@@ -182,7 +184,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .publishTriggerOverride(positionUpdateEob);
 
         //instrument mtm net of fees
-        instrumentNetMtm = JoinFlowBuilder.leftJoin(instTradeMtm, instrumentFeeMap, NetMarkToMarket::combine)
+        instrumentNetMtm = JoinFlowBuilder.leftJoin(instTradeMtm, instrumentFeeMap, NetMarkToMarket::combineInst)
                 .updateTrigger(positionUpdateEob)
                 .map(GroupBy::toMap)
                 .id("instrumentNetMtm")
