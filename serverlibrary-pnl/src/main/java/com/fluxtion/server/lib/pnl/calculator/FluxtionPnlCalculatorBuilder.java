@@ -41,10 +41,10 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     private FlowBuilder<Signal> positionSnapshotReset;
     private FlowBuilder<Trade> tradeStream;
     private FlowBuilder<Trade> tradeBatchStream;
+    private GroupByFlowBuilder<Instrument, InstrumentPosMtm> dealtInstPosition;
+    private GroupByFlowBuilder<Instrument, InstrumentPosMtm> contraInstPosition;
     private GroupByFlowBuilder<Instrument, InstrumentPosMtm> dealtAndContraInstPosition;
     private GroupByFlowBuilder<Instrument, InstrumentPosMtm> contraAndDealtInstPosition;
-    private GroupByFlowBuilder<Instrument, InstrumentPosMtm> dealtOnlyInstPosition;
-    private GroupByFlowBuilder<Instrument, InstrumentPosMtm> contraOnlyInstPosition;
     private DerivedRateNode derivedRateNode;
     private EventFeedConnector eventFeedConnector;
     private FlowBuilder<NetMarkToMarket> globalNetMtm;
@@ -83,7 +83,6 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         var symbolTable = new NamedFeedTableNode<String, Symbol>("symbolFeed", Symbol::symbolName);
         derivedRateNode = eventProcessorConfig.addNode(new DerivedRateNode(symbolTable), "derivedRateNode");
         eventFeedConnector = eventProcessorConfig.addNode(new EventFeedConnector(symbolTable), "eventFeedBatcher");
-
     }
 
     private void buildTradeStream() {
@@ -98,20 +97,20 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     }
 
     private void buildPositionMap() {
-        //position by instrument aggregates dealt and contra quantities
-        dealtAndContraInstPosition = tradeStream
+        //position by instrument aggregates single side, either dealt and contra quantity
+        dealtInstPosition = tradeStream
                 .groupBy(Trade::getDealtInstrument, SingleInstrumentPosMtmAggregate::dealt)
                 .resetTrigger(positionSnapshotReset);
-        contraAndDealtInstPosition = tradeStream
+        contraInstPosition = tradeStream
                 .groupBy(Trade::getContraInstrument, SingleInstrumentPosMtmAggregate::contra)
                 .resetTrigger(positionSnapshotReset);
 
-        //position by instrument aggregates single side, either dealt and contra quantity
-        dealtOnlyInstPosition = tradeStream
+        //position by instrument aggregates dealt and contra quantities
+        dealtAndContraInstPosition = tradeStream
                 .groupBy(Trade::getDealtInstrument, InstrumentPosMtmAggregate::dealt)
                 .resetTrigger(positionSnapshotReset)
                 .publishTrigger(positionSnapshotReset);
-        contraOnlyInstPosition = tradeStream
+        contraAndDealtInstPosition = tradeStream
                 .groupBy(Trade::getContraInstrument, InstrumentPosMtmAggregate::contra)
                 .resetTrigger(positionSnapshotReset)
                 .publishTrigger(positionSnapshotReset);
@@ -126,7 +125,10 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .publishTriggerOverride(positionUpdateEob);
 
         //global mtm for trading + snapshot positions
-        var globalTradeMtm = JoinFlowBuilder.outerJoin(dealtAndContraInstPosition, contraAndDealtInstPosition, InstrumentPosMtm::merge)
+        var globalTradeMtm = JoinFlowBuilder.outerJoin(
+                        dealtInstPosition,
+                        contraInstPosition,
+                        InstrumentPosMtm::merge)
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTrigger(positionUpdateEob)
                 .outerJoin(snapshotPositionMap, InstrumentPosMtm::addSnapshot)
@@ -155,7 +157,10 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .updateTrigger(positionUpdateEob);
 
         //global mtm net of fees
-        globalNetMtm = JoinFlowBuilder.leftJoin(globalTradeMtm, instrumentFeeMap, NetMarkToMarket::combine)
+        globalNetMtm = JoinFlowBuilder.leftJoin(
+                        globalTradeMtm,
+                        instrumentFeeMap,
+                        NetMarkToMarket::combine)
                 .updateTrigger(positionUpdateEob)
                 .map(GroupBy::toMap)
                 .map(NetMarkToMarket::markToMarketSum)
@@ -181,7 +186,10 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .updateTrigger(positionUpdateEob);
 
         //instrument mtm for trading
-        var instTradeMtm = JoinFlowBuilder.outerJoin(dealtOnlyInstPosition, contraOnlyInstPosition, InstrumentPosMtm::merge)
+        var instTradeMtm = JoinFlowBuilder.outerJoin(
+                        dealtAndContraInstPosition,
+                        contraAndDealtInstPosition,
+                        InstrumentPosMtm::merge)
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTrigger(positionUpdateEob)
                 .outerJoin(
@@ -194,7 +202,10 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .publishTriggerOverride(positionUpdateEob);
 
         //instrument mtm net of fees
-        instrumentNetMtm = JoinFlowBuilder.leftJoin(instTradeMtm, instrumentFeeMap, NetMarkToMarket::combineInst)
+        instrumentNetMtm = JoinFlowBuilder.leftJoin(
+                        instTradeMtm,
+                        instrumentFeeMap,
+                        NetMarkToMarket::combineInst)
                 .updateTrigger(positionUpdateEob)
                 .map(GroupBy::toMap)
                 .id("instrumentNetMtm")
