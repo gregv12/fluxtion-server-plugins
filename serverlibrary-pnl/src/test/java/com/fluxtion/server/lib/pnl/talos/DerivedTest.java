@@ -14,6 +14,7 @@ import com.fluxtion.server.lib.pnl.*;
 import com.fluxtion.server.lib.pnl.calculator.DerivedRateNode;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
+import com.fluxtion.server.plugin.cache.InMemoryCache;
 import lombok.Data;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
@@ -53,12 +54,16 @@ public class DerivedTest {
     private boolean log = false;
     private final List<NetMarkToMarket> mtmUpdates = new ArrayList<>();
     private final List<Map<Instrument, NetMarkToMarket>> mtmInstUpdates = new ArrayList<>();
+    private final InMemoryCache cache = new InMemoryCache();
 
     @BeforeEach
     public void setUp() {
         pnlCalculator = new PnlCalculator();
+        cache.getCache().clear();
         mtmUpdates.clear();
         mtmInstUpdates.clear();
+
+        pnlCalculator.setCache(cache);
         pnlCalculator.addAggregateMtMListener(m -> {
             mtmUpdates.add(m);
             if (log) {
@@ -89,7 +94,6 @@ public class DerivedTest {
 
     @Test
     public void testCalculator() {
-        setUp();
         pnlCalculator.addSymbol(symbolEURUSD);
 
         pnlCalculator.priceUpdate("EURCHF", 1.2);
@@ -118,7 +122,6 @@ public class DerivedTest {
 
     @Test
     public void testPositionSnapshot() {
-        setUp();
         pnlCalculator.processTrade(new Trade(symbolUSDJPY, 100, -20000, 13));
         Assertions.assertEquals(1, mtmInstUpdates.size());
         Assertions.assertEquals(2, mtmInstUpdates.getFirst().size());
@@ -166,7 +169,6 @@ public class DerivedTest {
 
     @Test
     public void initialSnapshot() {
-        setUp();
         pnlCalculator.positionReset(PositionSnapshot.of(
                 new InstrumentPosition(EUR, 50),
                 new InstrumentPosition(GBP, 12_000),
@@ -186,8 +188,6 @@ public class DerivedTest {
 
     @Test
     public void testTrade() {
-        setUp();
-        log = true;
         pnlCalculator.processTrade(new Trade(symbolEURJPY, -400, 80000, 13));
         pnlCalculator.processTrade(new Trade(symbolEURUSD, 500, -1100, 13));
         pnlCalculator.processTrade(new Trade(symbolUSDCHF, 500, -1100, 13));
@@ -213,7 +213,6 @@ public class DerivedTest {
 
     @Test
     public void testTradeBatch() {
-        setUp();
         pnlCalculator.processTradeBatch(
                 TradeBatch.of(200,
                         new Trade(symbolEURJPY, -400, 80000, 13),
@@ -243,7 +242,6 @@ public class DerivedTest {
 
     @Test
     public void testTradeBatchFeesDifferentInstrument() {
-        setUp();
         pnlCalculator.processTradeBatch(
                 TradeBatch.of(200,
                         new Trade(symbolEURJPY, -400, 80000, 10),
@@ -274,7 +272,6 @@ public class DerivedTest {
 
     @Test
     public void testMtm() {
-        setUp();
         pnlCalculator.processTradeBatch(
                 TradeBatch.of(200,
                         new Trade(symbolEURUSD, 500, -1000, 13),
@@ -307,8 +304,6 @@ public class DerivedTest {
 
     @Test
     public void testMtm_USDTMXN() {
-        setUp();
-
         pnlCalculator.addSymbol(symbolUSDTMXN);
         pnlCalculator.addSymbol(symbolMXNUSDT);
 
@@ -336,8 +331,6 @@ public class DerivedTest {
 
     @Test
     public void midRateBatchTest() {
-        setUp();
-
         pnlCalculator.addSymbol(symbolUSDTMXN);
         pnlCalculator.addSymbol(symbolMXNUSDT);
 
@@ -364,7 +357,6 @@ public class DerivedTest {
 
     @Test
     public void testMtmMissingRateFOrZeroPosition() {
-        setUp();
         pnlCalculator.processTradeBatch(
                 TradeBatch.of(200,
                         new Trade(symbolEURUSD, 500, -1000, 13),
@@ -392,7 +384,6 @@ public class DerivedTest {
 
     @Test
     public void testFeesInDifferentInstrument() {
-        setUp();
         PnlCalculator pnlCalculator = new PnlCalculator();
 
         pnlCalculator.addSymbol(symbolEURUSD);
@@ -431,7 +422,6 @@ public class DerivedTest {
 
     @Test
     public void testMtmRatesFirst() {
-        setUp();
         pnlCalculator.addSymbol(symbolBTCEUR);
         pnlCalculator.addSymbol(symbolBTCUSD);
         pnlCalculator.addSymbol(symbolEURUSD);
@@ -459,13 +449,12 @@ public class DerivedTest {
         //instrument - EUR
         NetMarkToMarket eurMtM = mtmInstUpdates.getLast().get(EUR);
         Assertions.assertEquals(-44004.0, eurMtM.tradePnl(), 0.0000001);
-        Assertions.assertEquals(0, eurMtM.fees(), 0.0000001);
-        Assertions.assertEquals(-44004.0, eurMtM.pnlNetFees(), 0.0000001);
+        Assertions.assertEquals(98.676, eurMtM.fees(), 0.0000001);
+        Assertions.assertEquals(-44102.676, eurMtM.pnlNetFees(), 0.0000001);
     }
 
     @Test
     public void testMtmRatesAfterTrades() {
-        setUp();
         pnlCalculator.addSymbol(symbolBTCEUR);
         pnlCalculator.addSymbol(symbolBTCUSD);
         pnlCalculator.addSymbol(symbolEURUSD);
@@ -494,8 +483,8 @@ public class DerivedTest {
         //instrument - EUR
         NetMarkToMarket eurMtM = mtmInstUpdates.getLast().get(EUR);
         Assertions.assertEquals(-44004.0, eurMtM.tradePnl(), 0.0000001);
-        Assertions.assertEquals(0, eurMtM.fees(), 0.0000001);
-        Assertions.assertEquals(-44004.0, eurMtM.pnlNetFees(), 0.0000001);
+        Assertions.assertEquals(98.676, eurMtM.fees(), 0.0000001);
+        Assertions.assertEquals(-44102.676, eurMtM.pnlNetFees(), 0.0000001);
     }
 
     @SneakyThrows

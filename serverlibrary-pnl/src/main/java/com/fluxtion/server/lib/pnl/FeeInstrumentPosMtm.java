@@ -21,7 +21,7 @@ public class FeeInstrumentPosMtm {
     private Map<Instrument, Double> feesMtmPositionMap = new HashMap<>();
 
     public static FeeInstrumentPosMtm addSnapshot(FeeInstrumentPosMtm instrumentPosMtm, InstrumentPosition instrumentPos) {
-        FeeInstrumentPosMtm offSetPosMtm = instrumentPosMtm == null ? new FeeInstrumentPosMtm() : instrumentPosMtm;
+        FeeInstrumentPosMtm offSetPosMtm = new FeeInstrumentPosMtm().combine(instrumentPosMtm);
         if (instrumentPos != null) {
             offSetPosMtm.getFeesPositionMap().compute(
                     instrumentPos.instrument(),

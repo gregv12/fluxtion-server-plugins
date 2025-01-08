@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -30,5 +30,9 @@ public class FeeInstrumentPosMtmAggregate implements AggregateFlowFunction<Trade
     public FeeInstrumentPosMtm reset() {
         feeInstrumentPosMtm = new FeeInstrumentPosMtm();
         return feeInstrumentPosMtm;
+    }
+
+    public static FeeInstrumentPosMtm merge(FeeInstrumentPosMtm leftPos, FeeInstrumentPosMtm rightPos) {
+        return new FeeInstrumentPosMtm().combine(leftPos).combine(rightPos);
     }
 }

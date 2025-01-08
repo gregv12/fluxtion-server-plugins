@@ -36,8 +36,7 @@ public record NetMarkToMarket(InstrumentPosMtm instrumentMtm, FeeInstrumentPosMt
         });
         instrumentPosMtm.setBookName("global");
 
-        NetMarkToMarket sumMtm = new NetMarkToMarket(instrumentPosMtm, feesMtm);
-        return sumMtm;
+        return new NetMarkToMarket(instrumentPosMtm, feesMtm);
     }
 
 }

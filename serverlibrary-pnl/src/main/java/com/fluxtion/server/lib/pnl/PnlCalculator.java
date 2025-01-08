@@ -8,9 +8,11 @@ package com.fluxtion.server.lib.pnl;
 
 import com.fluxtion.server.lib.pnl.calculator.DerivedRateNode;
 import com.fluxtion.server.lib.pnl.calculator.FluxtionPnlCalculator;
+import com.fluxtion.server.lib.pnl.calculator.PositionCache;
 import com.fluxtion.server.lib.pnl.refdata.InMemorySymbolLookup;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
+import com.fluxtion.server.plugin.cache.Cache;
 import lombok.Getter;
 import lombok.SneakyThrows;
 
@@ -39,6 +41,11 @@ public class PnlCalculator {
     public PnlCalculator setMtmInstrument(Instrument instrument) {
         fluxtionPnlCalculator.onEvent(new MtmInstrument(instrument));
         fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
+        return this;
+    }
+
+    public PnlCalculator setCache(Cache cache) {
+        fluxtionPnlCalculator.registerService(cache, Cache.class, PositionCache.ID);
         return this;
     }
 

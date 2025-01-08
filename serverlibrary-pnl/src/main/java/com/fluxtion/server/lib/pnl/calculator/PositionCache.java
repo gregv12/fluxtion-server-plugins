@@ -22,11 +22,12 @@ import java.util.Map;
 @Log4j2
 public class PositionCache extends BaseNode {
 
+    public static final String ID = "positionCache";
     private Cache cache;
     private long sequenceNumber = 0;
     private ApplicationCheckpoint applicationCheckpoint = new ApplicationCheckpoint();
 
-    @ServiceRegistered("positionCache")
+    @ServiceRegistered(ID)
     public void cacheRegistered(Cache cache) {
         this.cache = cache;
         sequenceNumber = cache.keys().stream().mapToLong(Long::parseLong).max().orElse(0);
@@ -34,6 +35,7 @@ public class PositionCache extends BaseNode {
         applicationCheckpoint = cache.getOrDefault(sequenceNumber + "", applicationCheckpoint);
         PositionSnapshot positionSnapshot = new PositionSnapshot();
         PositionCheckpoint positionCheckpoint = applicationCheckpoint.getGlobalPosition();
+
         Map<String, Double> positionMap = positionCheckpoint.getPositions();
         positionMap.forEach((inst, pos) -> positionSnapshot.getPositions().add(new InstrumentPosition(new Instrument(inst), pos)));
 
@@ -52,8 +54,8 @@ public class PositionCache extends BaseNode {
                     });
             //fee positions for an instrument
             posCheckpoint.getFees()
-                    .forEach((inst, pos) -> {
-                        instPosSnapshot.getFeePositions().add(new InstrumentPosition(new Instrument(inst), pos));
+                    .forEach((inst, posFee) -> {
+                        instPosSnapshot.getFeePositions().add(new InstrumentPosition(new Instrument(inst), posFee));
                     });
         });
 
@@ -64,6 +66,7 @@ public class PositionCache extends BaseNode {
                 .info("applicationCheckpoint", applicationCheckpoint)
                 .info();
 
+        log.debug("loaded checkpoint:{}\nsnapshot:{}", applicationCheckpoint, positionSnapshot);
         getContext().getStaticEventProcessor().onEvent(positionSnapshot);
         getContext().getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
     }
@@ -76,7 +79,6 @@ public class PositionCache extends BaseNode {
     }
 
     public Object checkPoint(NetMarkToMarket netMarkToMarket, Map<Instrument, NetMarkToMarket> instrumentNetMarkToMarketMap) {
-        log.info("checkPoint globalMtm:{}, instMtm:{}", netMarkToMarket, instrumentNetMarkToMarketMap);
         mtmUpdated(netMarkToMarket, applicationCheckpoint.getGlobalPosition());
 
         instrumentNetMarkToMarketMap.forEach((instrument, netMtm) -> {
@@ -90,6 +92,7 @@ public class PositionCache extends BaseNode {
             auditLog.info("cacheUpdateId", sequenceNumber);
             cache.put(sequenceNumber + "", applicationCheckpoint);
         }
+        log.debug("checkPoint:{} \nglobalMtm:{} \ninstMtm:{} \ncheckPoint{}", sequenceNumber, netMarkToMarket, instrumentNetMarkToMarketMap, applicationCheckpoint);
         return null;
     }
 
@@ -106,7 +109,6 @@ public class PositionCache extends BaseNode {
         feesMap.forEach((instrument, pos) -> {
             feesPositionMap.put(instrument.getInstrumentName(), pos);
         });
-        log.info("mtmUpdated", positionCheckpoint);
     }
 
     @Data

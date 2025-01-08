@@ -41,7 +41,6 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     private FlowBuilder<Signal> positionSnapshotReset;
     private FlowBuilder<Trade> tradeStream;
     private FlowBuilder<Trade> tradeBatchStream;
-    private GroupByFlowBuilder<Instrument, FeeInstrumentPosMtm> instrumentFeeMap;
     private GroupByFlowBuilder<Instrument, InstrumentPosMtm> dealtAndContraInstPosition;
     private GroupByFlowBuilder<Instrument, InstrumentPosMtm> contraAndDealtInstPosition;
     private GroupByFlowBuilder<Instrument, InstrumentPosMtm> dealtOnlyInstPosition;
@@ -120,34 +119,18 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     }
 
     private void buildInstrumentFeeMap() {
-        //FeeInstrumentPosMtm
-        var snapshotPositionMap = DataFlow.subscribe(PositionSnapshot.class)
-                .flatMap(PositionSnapshot::getFeePositions)
-                .groupBy(InstrumentPosition::instrument)
-                .resetTrigger(positionSnapshotReset)
-                .publishTriggerOverride(positionUpdateEob)
-                .id("feeSnapshot");
 
-        instrumentFeeMap = tradeStream
-                .groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new)
-                .defaultValue(GroupBy.emptyCollection())
-                .publishTrigger(positionUpdateEob)
-                .outerJoin(snapshotPositionMap, FeeInstrumentPosMtm::addSnapshot).id("joinFeeSnapshot")
-                .resetTrigger(positionSnapshotReset)
-                .defaultValue(GroupBy.emptyCollection())
-                .mapValues(derivedRateNode::calculateFeeMtm)
-                .publishTriggerOverride(positionUpdateEob)
-                .updateTrigger(positionUpdateEob);
 
     }
 
     private void buildGlobalMtm() {
         //Asset position map created by PositionSnapshot
         var snapshotPositionMap = DataFlow.subscribe(PositionSnapshot.class)
-                .flatMap(PositionSnapshot::getPositions).id("flatMapSnapshotPositions")
-                .groupBy(InstrumentPosition::instrument).id("groupBySnapshotPositions")
+                .flatMap(PositionSnapshot::getPositions)
+                .groupBy(InstrumentPosition::instrument)
                 .resetTrigger(positionSnapshotReset)
-                .publishTriggerOverride(positionUpdateEob);
+                .publishTriggerOverride(positionUpdateEob)
+                .console("positionSnapshotGlobal -> {}\n");
 
         //global mtm for trading + snapshot positions
         var globalTradeMtm = JoinFlowBuilder.outerJoin(dealtAndContraInstPosition, contraAndDealtInstPosition, InstrumentPosMtm::merge)
@@ -160,6 +143,26 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTriggerOverride(positionUpdateEob);
 
+        //FeeInstrumentPosMtm
+        var snapshotFeePositionMap = DataFlow.subscribe(PositionSnapshot.class)
+                .flatMap(PositionSnapshot::getFeePositions)
+                .groupBy(InstrumentPosition::instrument)
+                .resetTrigger(positionSnapshotReset)
+                .publishTriggerOverride(positionUpdateEob);
+
+        var instrumentFeeMap = tradeStream
+                .groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new)
+                .console("globalFeeMap -> {}\n")//this needs to merge dealt and contra into a single position
+                .defaultValue(GroupBy.emptyCollection())
+                .publishTrigger(positionUpdateEob)
+                .outerJoin(snapshotFeePositionMap, FeeInstrumentPosMtm::addSnapshot)
+                .console("mergedGlobalFeeMap -> {}\n")
+                .resetTrigger(positionSnapshotReset)
+                .defaultValue(GroupBy.emptyCollection())
+                .mapValues(derivedRateNode::calculateFeeMtm)
+                .publishTriggerOverride(positionUpdateEob)
+                .updateTrigger(positionUpdateEob);
+
         //global mtm net of fees
         globalNetMtm = JoinFlowBuilder.leftJoin(globalTradeMtm, instrumentFeeMap, NetMarkToMarket::combine)
                 .updateTrigger(positionUpdateEob)
@@ -170,6 +173,23 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     }
 
     private void buildInstrumentMtm() {
+        //instrument mtm fees mtm
+        var instrumentFeeMap = JoinFlowBuilder.outerJoin(
+                        tradeStream.groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new),
+                        tradeStream.groupBy(Trade::getContraInstrument, FeeInstrumentPosMtmAggregate::new),
+                        FeeInstrumentPosMtmAggregate::merge)
+                .defaultValue(GroupBy.emptyCollection())
+                .publishTrigger(positionUpdateEob)
+                .outerJoin(
+                        DataFlow.groupByFromMap(PositionSnapshot::getInstrumentFeePositionMap).defaultValue(GroupBy.emptyCollection()),
+                        FeeInstrumentPosMtmAggregate::merge)//needs fixing so merges  FeeInstrumentPosMtmAggregate::merge
+                .console("mergedFeeByInstrument -> {}\n")
+                .resetTrigger(positionSnapshotReset)
+                .defaultValue(GroupBy.emptyCollection())
+                .mapValues(derivedRateNode::calculateFeeMtm)
+                .publishTriggerOverride(positionUpdateEob)
+                .updateTrigger(positionUpdateEob);
+
         //instrument mtm for trading
         var instTradeMtm = JoinFlowBuilder.outerJoin(dealtOnlyInstPosition, contraOnlyInstPosition, InstrumentPosMtm::merge)
                 .defaultValue(GroupBy.emptyCollection())
@@ -193,6 +213,6 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
 
     private void buildCheckpoint() {
         PositionCache positionCache = eventProcessorConfig.addNode(new PositionCache(), "positionCache");
-        DataFlow.mapBiFunction(positionCache::checkPoint, globalNetMtm, instrumentNetMtm);
+        DataFlow.mapBiFunction(positionCache::checkPoint, globalNetMtm, instrumentNetMtm);//this is persistent and aggregates trade instrument positions
     }
 }
