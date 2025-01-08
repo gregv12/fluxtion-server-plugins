@@ -12,6 +12,7 @@ import com.fluxtion.compiler.builder.dataflow.DataFlow;
 import com.fluxtion.compiler.builder.dataflow.FlowBuilder;
 import com.fluxtion.compiler.builder.dataflow.GroupByFlowBuilder;
 import com.fluxtion.compiler.builder.dataflow.JoinFlowBuilder;
+import com.fluxtion.runtime.audit.EventLogControlEvent;
 import com.fluxtion.runtime.dataflow.groupby.GroupBy;
 import com.fluxtion.runtime.event.Signal;
 import com.fluxtion.runtime.node.NamedFeedTableNode;
@@ -55,6 +56,21 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         return calculatorBuilder;
     }
 
+    public static class DebugFluxtionPnlCalculatorBuilder extends FluxtionPnlCalculatorBuilder {
+
+        @Override
+        public void configureGeneration(FluxtionCompilerConfig compilerConfig) {
+            compilerConfig.setClassName("DebugFluxtionPnlCalculator");
+            compilerConfig.setPackageName("com.fluxtion.server.lib.pnl.calculator");
+        }
+
+        @Override
+        public void buildGraph(EventProcessorConfig eventProcessorConfig) {
+            super.buildGraph(eventProcessorConfig);
+            eventProcessorConfig.addEventAudit(EventLogControlEvent.LogLevel.INFO);
+        }
+    }
+
     @Override
     public void configureGeneration(FluxtionCompilerConfig compilerConfig) {
         compilerConfig.setClassName("FluxtionPnlCalculator");
@@ -72,7 +88,6 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         buildCheckpoint();
 
         //no buffer/trigger support required on this  processor
-//        eventProcessorConfig.addEventAudit(EventLogControlEvent.LogLevel.INFO);
         eventProcessorConfig.setSupportBufferAndTrigger(false);
     }
 

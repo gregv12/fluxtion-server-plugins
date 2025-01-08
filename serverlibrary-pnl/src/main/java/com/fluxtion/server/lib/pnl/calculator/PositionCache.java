@@ -87,7 +87,6 @@ public class PositionCache extends BaseNode {
             mtmUpdated(netMtm, checkpoint);
         });
 
-
         if (cache != null) {
             auditLog.info("cacheUpdateId", sequenceNumber);
             cache.put(sequenceNumber + "", applicationCheckpoint);
