@@ -30,6 +30,10 @@ public class FeeInstrumentPosMtm {
         return offSetPosMtm;
     }
 
+    public static FeeInstrumentPosMtm merge(FeeInstrumentPosMtm leftPos, FeeInstrumentPosMtm rightPos) {
+        return new FeeInstrumentPosMtm().combine(leftPos).combine(rightPos);
+    }
+
     public FeeInstrumentPosMtm reset() {
         this.bookName = null;
         this.fees = 0.0;

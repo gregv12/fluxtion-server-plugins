@@ -31,8 +31,4 @@ public class FeeInstrumentPosMtmAggregate implements AggregateFlowFunction<Trade
         feeInstrumentPosMtm = new FeeInstrumentPosMtm();
         return feeInstrumentPosMtm;
     }
-
-    public static FeeInstrumentPosMtm merge(FeeInstrumentPosMtm leftPos, FeeInstrumentPosMtm rightPos) {
-        return new FeeInstrumentPosMtm().combine(leftPos).combine(rightPos);
-    }
 }

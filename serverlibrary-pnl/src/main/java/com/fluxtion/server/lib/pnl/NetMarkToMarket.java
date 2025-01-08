@@ -20,15 +20,9 @@ public record NetMarkToMarket(InstrumentPosMtm instrumentMtm, FeeInstrumentPosMt
         return new NetMarkToMarket(instrumentMtm, feesMtm == null ? new FeeInstrumentPosMtm() : feesMtm);
     }
 
-    public static NetMarkToMarket combineInst(InstrumentPosMtm instrumentMtm, FeeInstrumentPosMtm feesMtm) {
-        return new NetMarkToMarket(instrumentMtm, feesMtm == null ? new FeeInstrumentPosMtm() : feesMtm);
-    }
-
     public static NetMarkToMarket markToMarketSum(Map<Instrument, NetMarkToMarket> instrumentNetMarkToMarketMap) {
-
         InstrumentPosMtm instrumentPosMtm = new InstrumentPosMtm();
         FeeInstrumentPosMtm feesMtm = new FeeInstrumentPosMtm();
-
 
         instrumentNetMarkToMarketMap.values().forEach(m -> {
             instrumentPosMtm.combine(m.instrumentMtm());

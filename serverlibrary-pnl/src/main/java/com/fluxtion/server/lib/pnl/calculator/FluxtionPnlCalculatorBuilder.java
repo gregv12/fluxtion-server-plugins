@@ -12,7 +12,6 @@ import com.fluxtion.compiler.builder.dataflow.DataFlow;
 import com.fluxtion.compiler.builder.dataflow.FlowBuilder;
 import com.fluxtion.compiler.builder.dataflow.GroupByFlowBuilder;
 import com.fluxtion.compiler.builder.dataflow.JoinFlowBuilder;
-import com.fluxtion.runtime.audit.EventLogControlEvent;
 import com.fluxtion.runtime.dataflow.groupby.GroupBy;
 import com.fluxtion.runtime.event.Signal;
 import com.fluxtion.runtime.node.NamedFeedTableNode;
@@ -73,7 +72,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         buildCheckpoint();
 
         //no buffer/trigger support required on this  processor
-        eventProcessorConfig.addEventAudit(EventLogControlEvent.LogLevel.INFO);
+//        eventProcessorConfig.addEventAudit(EventLogControlEvent.LogLevel.INFO);
         eventProcessorConfig.setSupportBufferAndTrigger(false);
     }
 
@@ -173,12 +172,12 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         var instrumentFeeMap = JoinFlowBuilder.outerJoin(
                         tradeStream.groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new),
                         tradeStream.groupBy(Trade::getContraInstrument, FeeInstrumentPosMtmAggregate::new),
-                        FeeInstrumentPosMtmAggregate::merge)
+                        FeeInstrumentPosMtm::merge)
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTrigger(positionUpdateEob)
                 .outerJoin(
                         DataFlow.groupByFromMap(PositionSnapshot::getInstrumentFeePositionMap).defaultValue(GroupBy.emptyCollection()),
-                        FeeInstrumentPosMtmAggregate::merge)
+                        FeeInstrumentPosMtm::merge)
                 .resetTrigger(positionSnapshotReset)
                 .defaultValue(GroupBy.emptyCollection())
                 .mapValues(derivedRateNode::calculateFeeMtm)
@@ -195,7 +194,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .outerJoin(
                         DataFlow.groupByFromMap(PositionSnapshot::getInstrumentPositionMap).defaultValue(GroupBy.emptyCollection()),
                         InstrumentPosMtm::mergeSnapshot)
-                .mapValues(derivedRateNode::calculateInstrumentPosMtm_A)
+                .mapValues(derivedRateNode::calculateInstrumentPosMtm)
                 .defaultValue(GroupBy.emptyCollection())
                 .updateTrigger(positionUpdateEob)
                 .defaultValue(GroupBy.emptyCollection())
@@ -205,7 +204,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         instrumentNetMtm = JoinFlowBuilder.leftJoin(
                         instTradeMtm,
                         instrumentFeeMap,
-                        NetMarkToMarket::combineInst)
+                        NetMarkToMarket::combine)
                 .updateTrigger(positionUpdateEob)
                 .map(GroupBy::toMap)
                 .id("instrumentNetMtm")
