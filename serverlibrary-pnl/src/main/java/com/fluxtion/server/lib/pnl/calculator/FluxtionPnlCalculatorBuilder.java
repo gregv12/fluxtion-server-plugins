@@ -68,7 +68,6 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         buildSharedNodes();
         buildTradeStream();
         buildPositionMap();
-        buildInstrumentFeeMap();
         buildGlobalMtm();
         buildInstrumentMtm();
         buildCheckpoint();
@@ -118,19 +117,13 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .publishTrigger(positionSnapshotReset);
     }
 
-    private void buildInstrumentFeeMap() {
-
-
-    }
-
     private void buildGlobalMtm() {
         //Asset position map created by PositionSnapshot
         var snapshotPositionMap = DataFlow.subscribe(PositionSnapshot.class)
                 .flatMap(PositionSnapshot::getPositions)
                 .groupBy(InstrumentPosition::instrument)
                 .resetTrigger(positionSnapshotReset)
-                .publishTriggerOverride(positionUpdateEob)
-                .console("positionSnapshotGlobal -> {}\n");
+                .publishTriggerOverride(positionUpdateEob);
 
         //global mtm for trading + snapshot positions
         var globalTradeMtm = JoinFlowBuilder.outerJoin(dealtAndContraInstPosition, contraAndDealtInstPosition, InstrumentPosMtm::merge)
@@ -152,11 +145,9 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
 
         var instrumentFeeMap = tradeStream
                 .groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new)
-                .console("globalFeeMap -> {}\n")//this needs to merge dealt and contra into a single position
                 .defaultValue(GroupBy.emptyCollection())
                 .publishTrigger(positionUpdateEob)
                 .outerJoin(snapshotFeePositionMap, FeeInstrumentPosMtm::addSnapshot)
-                .console("mergedGlobalFeeMap -> {}\n")
                 .resetTrigger(positionSnapshotReset)
                 .defaultValue(GroupBy.emptyCollection())
                 .mapValues(derivedRateNode::calculateFeeMtm)
@@ -182,8 +173,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                 .publishTrigger(positionUpdateEob)
                 .outerJoin(
                         DataFlow.groupByFromMap(PositionSnapshot::getInstrumentFeePositionMap).defaultValue(GroupBy.emptyCollection()),
-                        FeeInstrumentPosMtmAggregate::merge)//needs fixing so merges  FeeInstrumentPosMtmAggregate::merge
-                .console("mergedFeeByInstrument -> {}\n")
+                        FeeInstrumentPosMtmAggregate::merge)
                 .resetTrigger(positionSnapshotReset)
                 .defaultValue(GroupBy.emptyCollection())
                 .mapValues(derivedRateNode::calculateFeeMtm)
