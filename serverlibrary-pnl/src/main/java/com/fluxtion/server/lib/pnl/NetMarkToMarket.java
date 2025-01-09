@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -21,10 +21,8 @@ public record NetMarkToMarket(InstrumentPosMtm instrumentMtm, FeeInstrumentPosMt
     }
 
     public static NetMarkToMarket markToMarketSum(Map<Instrument, NetMarkToMarket> instrumentNetMarkToMarketMap) {
-
         InstrumentPosMtm instrumentPosMtm = new InstrumentPosMtm();
         FeeInstrumentPosMtm feesMtm = new FeeInstrumentPosMtm();
-
 
         instrumentNetMarkToMarketMap.values().forEach(m -> {
             instrumentPosMtm.combine(m.instrumentMtm());
@@ -32,8 +30,7 @@ public record NetMarkToMarket(InstrumentPosMtm instrumentMtm, FeeInstrumentPosMt
         });
         instrumentPosMtm.setBookName("global");
 
-        NetMarkToMarket sumMtm = new NetMarkToMarket(instrumentPosMtm, feesMtm);
-        return sumMtm;
+        return new NetMarkToMarket(instrumentPosMtm, feesMtm);
     }
 
 }

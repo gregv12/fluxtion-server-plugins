@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -22,6 +22,7 @@ import lombok.extern.log4j.Log4j2;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -73,17 +74,9 @@ public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService 
         registry.registerCommand("cache." + serviceName + ".keys", this::listKeys);
     }
 
-    private void getCommand(List<String> args, Consumer<String> out, Consumer<String> err) {
-        if (args.size() >= 2) {
-            String key = args.get(1);
-            out.accept(key + " -> " + get(key));
-        } else {
-            err.accept("provide key as first argument");
-        }
-    }
-
-    private void listKeys(List<String> args, Consumer<String> out, Consumer<String> err) {
-        out.accept("keys:\n" + String.join("\n", cacheMap.keySet()));
+    @Override
+    public Collection<String> keys() {
+        return cacheMap.keySet();
     }
 
     @Override
@@ -131,6 +124,7 @@ public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService 
         if (updated.get()) {
             mapper.writerWithDefaultPrettyPrinter()
                     .writeValue(new File(fileName), cacheMap);
+            log.info("cache updated:{} keys:{}", fileName, cacheMap.keySet().stream().mapToLong(Long::parseLong).sorted().toArray());
         }
         updated.set(false);
         return 0;
@@ -145,6 +139,19 @@ public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService 
     @Override
     public void tearDown() {
         mapper.writeValue(new File(fileName), cacheMap);
+    }
+
+    private void getCommand(List<String> args, Consumer<String> out, Consumer<String> err) {
+        if (args.size() >= 2) {
+            String key = args.get(1);
+            out.accept(key + " -> " + get(key));
+        } else {
+            err.accept("provide key as first argument");
+        }
+    }
+
+    private void listKeys(List<String> args, Consumer<String> out, Consumer<String> err) {
+        out.accept("keys:\n" + String.join("\n", cacheMap.keySet()));
     }
 
     @Data

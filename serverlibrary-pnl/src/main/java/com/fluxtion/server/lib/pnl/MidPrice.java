@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -7,12 +7,23 @@ package com.fluxtion.server.lib.pnl;
 
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
-import lombok.Value;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Value
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class MidPrice {
-    Symbol symbol;
-    double rate;
+    private transient Symbol symbol;
+    private String symbolName;
+    private double rate;
+
+    public MidPrice(Symbol symbol, double rate) {
+        this.symbol = symbol;
+        this.rate = rate;
+        this.symbolName = symbol.symbolName();
+    }
 
     public Instrument dealtInstrument() {
         return getSymbol().dealtInstrument();

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -8,23 +8,31 @@ package com.fluxtion.server.lib.pnl.calculator;
 
 import com.fluxtion.runtime.annotations.OnEventHandler;
 import com.fluxtion.runtime.annotations.builder.FluxtionIgnore;
-import com.fluxtion.server.lib.pnl.FeeInstrumentPosMtm;
-import com.fluxtion.server.lib.pnl.InstrumentPosMtm;
-import com.fluxtion.server.lib.pnl.MidPrice;
-import com.fluxtion.server.lib.pnl.MtmInstrument;
+import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
+import com.fluxtion.runtime.event.NamedFeedEvent;
+import com.fluxtion.runtime.input.NamedFeed;
+import com.fluxtion.runtime.node.BaseNode;
+import com.fluxtion.runtime.node.NamedFeedTableNode;
+import com.fluxtion.server.lib.pnl.*;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
+import com.fluxtion.server.lib.pnl.refdata.Symbol;
 import lombok.Data;
 import org.jgrapht.GraphPath;
 import org.jgrapht.graph.DefaultDirectedWeightedGraph;
 import org.jgrapht.graph.DefaultWeightedEdge;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Data
-public class DerivedRateNode {
+public class DerivedRateNode extends BaseNode {
 
+    private final NamedFeedTableNode<String, Symbol> symbolTable;
+    @FluxtionIgnore
     private Instrument mtmInstrument = Instrument.INSTRUMENT_USD;
+    @FluxtionIgnore
+    private Map<String, Double> cachedRates = new HashMap<>();
     @FluxtionIgnore
     private Map<Instrument, Double> directMtmRatesByInstrument = new HashMap<>();
     @FluxtionIgnore
@@ -33,6 +41,25 @@ public class DerivedRateNode {
     private final DefaultDirectedWeightedGraph<Instrument, DefaultWeightedEdge> graph = new DefaultDirectedWeightedGraph<>(DefaultWeightedEdge.class);
     @FluxtionIgnore
     private final BellmanFordShortestPath<Instrument, DefaultWeightedEdge> shortestPath = new BellmanFordShortestPath<>(graph);
+    @FluxtionIgnore
+    private boolean sendEob = true;
+
+    public DerivedRateNode(NamedFeedTableNode<String, Symbol> symbolTable) {
+        this.symbolTable = symbolTable;
+    }
+
+    @ServiceRegistered("rateFeed")
+    public void serviceRegistered(NamedFeed feed) {
+        auditLog.info("rateFeed", "registered");
+        NamedFeedEvent<MidPrice>[] midPrices = feed.eventLog();
+        sendEob = false;
+        for (NamedFeedEvent<MidPrice> midPriceEvent : midPrices) {
+            MidPrice midPrice = midPriceEvent.data();
+            midRate(midPrice);
+            auditLog.debug("midPrice", midPrice);
+        }
+        sendEob = true;
+    }
 
     @OnEventHandler
     public boolean updateMtmInstrument(MtmInstrument mtmInstrumentUpdate) {
@@ -46,7 +73,38 @@ public class DerivedRateNode {
     }
 
     @OnEventHandler
+    public boolean midRateBatch(MidPriceBatch midPriceBatch) {
+        sendEob = false;
+        List<MidPrice> trades = midPriceBatch.getTrades();
+        for (int i = 0, tradesSize = trades.size(); i < tradesSize; i++) {
+            MidPrice midPrice = trades.get(i);
+            midRate(midPrice);
+        }
+        sendEob = true;
+        if (context != null) {
+            context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
+        }
+        return false;
+    }
+
+    @OnEventHandler
     public boolean midRate(MidPrice midPrice) {
+        final double epsilon = 0.000000001d;
+        double cachedRate = cachedRates.getOrDefault(midPrice.getSymbolName(), Double.NaN);
+        double newRate = midPrice.getRate();
+
+        if (Math.abs(cachedRate - newRate) < epsilon) {
+            auditLog.debug("ignoreDuplicateRate", midPrice.getSymbolName())
+                    .debug("cachedRate", cachedRate);
+            return false;
+        } else {
+            auditLog.debug(midPrice.getSymbolName(), newRate);
+        }
+        cachedRates.put(midPrice.getSymbolName(), newRate);
+
+        if (midPrice.getSymbol() == null) {
+            midPrice.setSymbol(symbolTable.getTableMap().get(midPrice.getSymbolName()));
+        }
         Instrument dealtInstrument = midPrice.dealtInstrument();
         Instrument contraInstrument = midPrice.contraInstrument();
 
@@ -73,6 +131,11 @@ public class DerivedRateNode {
             graph.setEdgeWeight(graph.addEdge(dealtInstrument, contraInstrument), logRate);
             graph.setEdgeWeight(graph.addEdge(contraInstrument, dealtInstrument), logInverseRate);
         }
+
+        if (context != null & sendEob) {
+            context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
+        }
+
         return false;
     }
 

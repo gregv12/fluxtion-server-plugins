@@ -1,19 +1,28 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 package com.fluxtion.server.lib.pnl.talos;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fluxtion.runtime.node.NamedFeedTableNode;
 import com.fluxtion.server.lib.pnl.*;
 import com.fluxtion.server.lib.pnl.calculator.DerivedRateNode;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
+import com.fluxtion.server.plugin.cache.InMemoryCache;
+import lombok.Data;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -45,12 +54,16 @@ public class DerivedTest {
     private boolean log = false;
     private final List<NetMarkToMarket> mtmUpdates = new ArrayList<>();
     private final List<Map<Instrument, NetMarkToMarket>> mtmInstUpdates = new ArrayList<>();
+    private final InMemoryCache cache = new InMemoryCache();
 
     @BeforeEach
     public void setUp() {
         pnlCalculator = new PnlCalculator();
+        cache.getCache().clear();
         mtmUpdates.clear();
         mtmInstUpdates.clear();
+
+        pnlCalculator.setCache(cache);
         pnlCalculator.addAggregateMtMListener(m -> {
             mtmUpdates.add(m);
             if (log) {
@@ -67,7 +80,10 @@ public class DerivedTest {
 
     @Test
     public void testCrossRate() {
-        DerivedRateNode derivedRateNode = new DerivedRateNode();
+        setUp();
+        DerivedRateNode derivedRateNode = new DerivedRateNode(new NamedFeedTableNode<>(
+                "symbolFeed",
+                "com.fluxtion.server.lib.pnl.refdata.Symbol::symbolName"));
         derivedRateNode.midRate(new MidPrice(symbolEURCHF, 0.5));
         derivedRateNode.midRate(new MidPrice(symbolUSDCHF, 1.0));
 
@@ -131,6 +147,7 @@ public class DerivedTest {
         ));
 
         Assertions.assertEquals(2, mtmInstUpdates.size());
+        //TODO fix this assertion
 //        Assertions.assertEquals(2, mtmInstUpdates.getFirst().size());
         Assertions.assertEquals(2, mtmUpdates.size());
 
@@ -296,7 +313,6 @@ public class DerivedTest {
     @Test
     public void testMtm_USDTMXN() {
         setUp();
-
         pnlCalculator.addSymbol(symbolUSDTMXN);
         pnlCalculator.addSymbol(symbolMXNUSDT);
 
@@ -311,8 +327,40 @@ public class DerivedTest {
         Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
 
         //publish rate, MtM should be calculated
+        mtmUpdates.clear();
+        mtmInstUpdates.clear();
         pnlCalculator.priceUpdate(symbolUSDMXN, 20);
         pnlCalculator.priceUpdate(symbolUSDUSDT, 1);
+
+        Assertions.assertEquals(2, mtmUpdates.size());
+        Assertions.assertEquals(2, mtmInstUpdates.size());
+        Assertions.assertTrue(Double.isFinite(pnlCalculator.pnl()));
+        Assertions.assertEquals(459.4695, pnlCalculator.pnl(), 0.0000001);
+    }
+
+    @Test
+    public void midRateBatchTest() {
+        setUp();
+        pnlCalculator.addSymbol(symbolUSDTMXN);
+        pnlCalculator.addSymbol(symbolMXNUSDT);
+
+        pnlCalculator.processTrade(new Trade(symbolUSDTMXN, 30_000, -606_060.61, 13));
+        pnlCalculator.processTrade(new Trade(symbolMXNUSDT, 1_015_250, -50_000, 13));
+
+        //positions but no MtM
+        Map<Instrument, Double> positionMap = mtmUpdates.getLast().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(-20_000, positionMap.get(USDT));
+        Assertions.assertEquals(0, positionMap.getOrDefault(USD, 0.0));
+        Assertions.assertEquals(409189.39, positionMap.get(MXN));
+        Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
+
+        //publish rate as batch, MtM should be calculated and published once for batch
+        mtmUpdates.clear();
+        mtmInstUpdates.clear();
+        pnlCalculator.priceUpdate(new MidPrice(symbolUSDMXN, 20), new MidPrice(symbolUSDUSDT, 1));
+
+        Assertions.assertEquals(1, mtmUpdates.size());
+        Assertions.assertEquals(1, mtmInstUpdates.size());
         Assertions.assertTrue(Double.isFinite(pnlCalculator.pnl()));
         Assertions.assertEquals(459.4695, pnlCalculator.pnl(), 0.0000001);
     }
@@ -347,7 +395,6 @@ public class DerivedTest {
 
     @Test
     public void testFeesInDifferentInstrument() {
-        setUp();
         PnlCalculator pnlCalculator = new PnlCalculator();
 
         pnlCalculator.addSymbol(symbolEURUSD);
@@ -414,8 +461,8 @@ public class DerivedTest {
         //instrument - EUR
         NetMarkToMarket eurMtM = mtmInstUpdates.getLast().get(EUR);
         Assertions.assertEquals(-44004.0, eurMtM.tradePnl(), 0.0000001);
-        Assertions.assertEquals(0, eurMtM.fees(), 0.0000001);
-        Assertions.assertEquals(-44004.0, eurMtM.pnlNetFees(), 0.0000001);
+        Assertions.assertEquals(98.676, eurMtM.fees(), 0.0000001);
+        Assertions.assertEquals(-44102.676, eurMtM.pnlNetFees(), 0.0000001);
     }
 
     @Test
@@ -449,7 +496,53 @@ public class DerivedTest {
         //instrument - EUR
         NetMarkToMarket eurMtM = mtmInstUpdates.getLast().get(EUR);
         Assertions.assertEquals(-44004.0, eurMtM.tradePnl(), 0.0000001);
-        Assertions.assertEquals(0, eurMtM.fees(), 0.0000001);
-        Assertions.assertEquals(-44004.0, eurMtM.pnlNetFees(), 0.0000001);
+        Assertions.assertEquals(98.676, eurMtM.fees(), 0.0000001);
+        Assertions.assertEquals(-44102.676, eurMtM.pnlNetFees(), 0.0000001);
+    }
+
+    @SneakyThrows
+//    @Test
+    public void midPriceSerialisationTest() {
+        MidPrice midPrice = new MidPrice(symbolEURUSD, 10.5);
+
+
+        ObjectMapper objectMapper = JsonMapper.builder()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                .configure(MapperFeature.PROPAGATE_TRANSIENT_MARKER, true).build();
+//        String ser = objectMapper.writeValueAsString(midPrice);
+//        System.out.println(ser);
+//
+//        String in = "{\"symbolName\":\"EURUSD\",\"rate\":10.5}";
+//        System.out.println(objectMapper.readValue(in, MidPrice.class));
+//
+//
+//        Symbol symbol = new Symbol("EURUSD", "EUR", "USD");
+//        ser = objectMapper.writeValueAsString(symbol);
+//        System.out.println(ser);
+//
+//        in = "{\"symbolName\":\"EURUSD\",\"dealt\":\"EUR\",\"contra\":\"USD\"}";
+//        System.out.println(objectMapper.readValue(in, Symbol.class));
+
+
+        MtmCheckpoint mtmCheckpoint = new MtmCheckpoint();
+        mtmCheckpoint.getFees().put("USD", 10.5);
+        mtmCheckpoint.getFees().put("EUR", 30.1);
+        //
+        mtmCheckpoint.getPositions().put("USD", 568.235);
+        mtmCheckpoint.getPositions().put("EUR", 368.21);
+        mtmCheckpoint.getPositions().put("CHF", 65.5);
+
+        String ser = objectMapper.writeValueAsString(mtmCheckpoint);
+        System.out.println(ser);
+
+        String in = "{\"fees\":{\"EUR\":30.1,\"USD\":10.5},\"positions\":{\"CHF\":65.5,\"EUR\":368.21,\"USD\":568.235}}";
+        System.out.println(objectMapper.readValue(in, MtmCheckpoint.class));
+
+    }
+
+    @Data
+    public static class MtmCheckpoint {
+        private Map<String, Double> fees = new HashMap<>();
+        private Map<String, Double> positions = new HashMap<>();
     }
 }
