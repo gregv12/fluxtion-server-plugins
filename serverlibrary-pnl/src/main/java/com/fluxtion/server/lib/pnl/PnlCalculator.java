@@ -1,8 +1,6 @@
 /*
- *
- *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- *  * SPDX-License-Identifier: AGPL-3.0-only
- *
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-License-Identifier: AGPL-3.0-only
  */
 
 package com.fluxtion.server.lib.pnl;
@@ -10,9 +8,11 @@ package com.fluxtion.server.lib.pnl;
 
 import com.fluxtion.server.lib.pnl.calculator.DerivedRateNode;
 import com.fluxtion.server.lib.pnl.calculator.FluxtionPnlCalculator;
+import com.fluxtion.server.lib.pnl.calculator.PositionCache;
 import com.fluxtion.server.lib.pnl.refdata.InMemorySymbolLookup;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
+import com.fluxtion.server.plugin.cache.Cache;
 import lombok.Getter;
 import lombok.SneakyThrows;
 
@@ -26,7 +26,6 @@ public class PnlCalculator {
     public static final String POSITION_UPDATE_EOB = "positionUpdate";
     public static final String POSITION_SNAPSHOT_RESET = "positionSnapshotReset";
     public static final String GLOBAL_NET_MTM_SINK = "globalNetMtmListener";
-    public static final String POSITION_SNAPSHOT_SINK = "positionSnapshotListener";
     public static final String INSTRUMENT_NET_MTM_SINK = "instrumentNetMtmListener";
 
     private final FluxtionPnlCalculator fluxtionPnlCalculator;
@@ -42,6 +41,11 @@ public class PnlCalculator {
     public PnlCalculator setMtmInstrument(Instrument instrument) {
         fluxtionPnlCalculator.onEvent(new MtmInstrument(instrument));
         fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
+        return this;
+    }
+
+    public PnlCalculator setCache(Cache cache) {
+        fluxtionPnlCalculator.registerService(cache, Cache.class, PositionCache.ID);
         return this;
     }
 
@@ -71,7 +75,6 @@ public class PnlCalculator {
 
     public PnlCalculator priceUpdate(MidPrice midPrice) {
         fluxtionPnlCalculator.onEvent(midPrice);
-        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
         return this;
     }
 
@@ -85,10 +88,11 @@ public class PnlCalculator {
     }
 
     public PnlCalculator priceUpdate(MidPrice... midPrices) {
+        MidPriceBatch midPriceBatch = new MidPriceBatch();
         for (MidPrice midPrice : midPrices) {
-            fluxtionPnlCalculator.onEvent(midPrice);
+            midPriceBatch.getTrades().add(midPrice);
         }
-        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
+        fluxtionPnlCalculator.onEvent(midPriceBatch);
         return this;
     }
 
@@ -96,21 +100,18 @@ public class PnlCalculator {
         for (Trade trade : trades) {
             fluxtionPnlCalculator.onEvent(trade);
         }
-        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
         return this;
     }
 
     public PnlCalculator processTradeBatch(Collection<Trade> trades) {
-        for (Trade trade : trades) {
-            fluxtionPnlCalculator.onEvent(trade);
-        }
-        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
+        TradeBatch tradeBatch = new TradeBatch();
+        tradeBatch.getTrades().addAll(trades);
+        processTradeBatch(tradeBatch);
         return this;
     }
 
     public PnlCalculator processTradeBatch(TradeBatch trades) {
         fluxtionPnlCalculator.onEvent(trades);
-        fluxtionPnlCalculator.publishSignal(POSITION_UPDATE_EOB);
         return this;
     }
 
