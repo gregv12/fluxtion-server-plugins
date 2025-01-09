@@ -144,7 +144,9 @@ public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService 
     private void getCommand(List<String> args, Consumer<String> out, Consumer<String> err) {
         if (args.size() >= 2) {
             String key = args.get(1);
-            out.accept(key + " -> " + get(key));
+            Object data = get(key);
+            log.debug("key:{} data:{}", key, data);
+            out.accept(key + " -> " + data);
         } else {
             err.accept("provide key as first argument");
         }
