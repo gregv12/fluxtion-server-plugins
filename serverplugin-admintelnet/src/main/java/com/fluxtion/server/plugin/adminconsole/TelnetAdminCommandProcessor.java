@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -31,6 +31,9 @@ public class TelnetAdminCommandProcessor implements Lifecycle {
     @Getter
     @Setter
     private int listenPort = 2019;
+    @Getter
+    @Setter
+    private String interfaceName = "127.0.0.1";
     private Telnet telnet;
 
     public TelnetAdminCommandProcessor(int listenPort) {
@@ -57,7 +60,7 @@ public class TelnetAdminCommandProcessor implements Lifecycle {
             log.info("Starting Jline admin command service port: {}", listenPort);
             Terminal terminal = TerminalBuilder.terminal();
             telnet = new Telnet(terminal, this::shell);
-            telnet.telnetd(new String[]{"telnetd", "-i127.0.0.1", "-p" + listenPort, "start"});
+            telnet.telnetd(new String[]{"telnetd", "-i" + interfaceName, "-p" + listenPort, "start"});
         } catch (Exception e) {
             log.error("problem starting Jline admin command service", e);
         }
