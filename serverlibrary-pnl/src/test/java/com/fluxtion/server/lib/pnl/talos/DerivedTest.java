@@ -36,6 +36,7 @@ public class DerivedTest {
     public static final Instrument JPY = new Instrument("JPY");
     public static final Instrument GBP = new Instrument("GBP");
     public static final Instrument BTC = new Instrument("BTC");
+    public static final Instrument BTC_PERP = new Instrument("BTC_PERP");
     public final static Symbol symbolEURUSD = new Symbol("EURUSD", EUR, USD);
     public final static Symbol symbolEURCHF = new Symbol("EURCHF", EUR, CHF);
     public final static Symbol symbolUSDCHF = new Symbol("USDCHF", USD, CHF);
@@ -50,6 +51,7 @@ public class DerivedTest {
     public final static Symbol symbolUSDUSDT = new Symbol("USDUSDT", USD, USDT);
     public final static Symbol symbolBTCEUR = new Symbol("BTCEUR", BTC, EUR);
     public final static Symbol symbolBTCUSD = new Symbol("BTCUSD", BTC, USD);
+    public final static Symbol symbolBTCPERPUSD = new Symbol("BTCPERPUSD", BTC_PERP, USD);
     private PnlCalculator pnlCalculator;
     private boolean log = false;
     private final List<NetMarkToMarket> mtmUpdates = new ArrayList<>();
@@ -391,6 +393,88 @@ public class DerivedTest {
         Assertions.assertEquals(1500, positionMap.get(GBP));
 
         Assertions.assertEquals(300, pnlCalculator.pnl(), 0.0000001);
+    }
+
+    @Test
+    public void testMultiLegFeeVsSingleTrades() {
+        //MULTI LEG TRADE
+        setUp();
+        pnlCalculator.addSymbol(symbolBTCPERPUSD);
+        pnlCalculator.addSymbol(symbolBTCUSD);
+        double BTC_USD_RATE = 95_000;
+        double BTCPERP_USD_RATE = 95_000;
+        pnlCalculator.priceUpdate(symbolBTCUSD, BTC_USD_RATE);
+        pnlCalculator.priceUpdate(symbolBTCPERPUSD, BTCPERP_USD_RATE);
+
+        pnlCalculator.processTradeBatch(
+                TradeBatch.of(
+                        new Trade(symbolBTCPERPUSD, -10, 950_000, 2000),
+                        new Trade(symbolBTCUSD, 10, -949_000, 1500)
+                )
+        );
+
+        //mtm +ve trade 1_000, -ve fees 3500, net -2500
+        Assertions.assertEquals(1_000, pnlCalculator.pnl(), 0.0000001);
+        Assertions.assertEquals(3_500, pnlCalculator.tradeFees(), 0.0000001);
+        Assertions.assertEquals(-2_500, pnlCalculator.netPnl(), 0.0000001);
+
+        //mtm by instrument - start
+        Map<Instrument, NetMarkToMarket> batchInstrumentMtm = mtmInstUpdates.getLast();
+
+        NetMarkToMarket btcMtm = batchInstrumentMtm.get(BTC);
+        Assertions.assertEquals(1_500, btcMtm.feesMtm().getFees(), 0.1);
+        Assertions.assertEquals(1_000, btcMtm.tradePnl(), 0.1);
+        Assertions.assertEquals(-500, btcMtm.pnlNetFees(), 0.1);
+
+        NetMarkToMarket btcPerpMtm = batchInstrumentMtm.get(BTC_PERP);
+        Assertions.assertEquals(2_000, btcPerpMtm.feesMtm().getFees(), 0.1);
+        Assertions.assertEquals(0, btcPerpMtm.tradePnl(), 0.1);
+        Assertions.assertEquals(-2_000, btcPerpMtm.pnlNetFees(), 0.1);
+
+        NetMarkToMarket usdMtm = batchInstrumentMtm.get(USD);
+        Assertions.assertEquals(3_500, usdMtm.feesMtm().getFees(), 0.1);
+        Assertions.assertEquals(1_000, usdMtm.tradePnl(), 0.1);
+        Assertions.assertEquals(-2_500, usdMtm.pnlNetFees(), 0.1);
+        //mtm by instrument - end
+
+        //SINGLE LEG TRADES
+        setUp();
+        pnlCalculator.addSymbol(symbolBTCPERPUSD);
+        pnlCalculator.addSymbol(symbolBTCUSD);
+        pnlCalculator.priceUpdate(symbolBTCUSD, BTC_USD_RATE);
+        pnlCalculator.priceUpdate(symbolBTCPERPUSD, BTCPERP_USD_RATE);
+
+        pnlCalculator.processTrade(new Trade(symbolBTCPERPUSD, -10, 950_000, 2000));
+        pnlCalculator.processTrade(new Trade(symbolBTCUSD, 10, -949_000, 1500));
+
+        //mtm +ve trade 1_000, -ve fees 3500, net -2500
+        Assertions.assertEquals(1_000, pnlCalculator.pnl(), 0.0000001);
+        Assertions.assertEquals(3_500, pnlCalculator.tradeFees(), 0.0000001);
+        Assertions.assertEquals(-2_500, pnlCalculator.netPnl(), 0.0000001);
+
+        //mtm by instrument
+        Map<Instrument, NetMarkToMarket> singleInstrumentMtm = mtmInstUpdates.getLast();
+
+
+        btcMtm = singleInstrumentMtm.get(BTC);
+        Assertions.assertEquals(1_500, btcMtm.feesMtm().getFees(), 0.1);
+        Assertions.assertEquals(1_000, btcMtm.tradePnl(), 0.1);
+        Assertions.assertEquals(-500, btcMtm.pnlNetFees(), 0.1);
+
+        btcPerpMtm = singleInstrumentMtm.get(BTC_PERP);
+        Assertions.assertEquals(2_000, btcPerpMtm.feesMtm().getFees(), 0.1);
+        Assertions.assertEquals(0, btcPerpMtm.tradePnl(), 0.1);
+        Assertions.assertEquals(-2_000, btcPerpMtm.pnlNetFees(), 0.1);
+
+        usdMtm = singleInstrumentMtm.get(USD);
+        Assertions.assertEquals(3_500, usdMtm.feesMtm().getFees(), 0.1);
+        Assertions.assertEquals(1_000, usdMtm.tradePnl(), 0.1);
+        Assertions.assertEquals(-2_500, usdMtm.pnlNetFees(), 0.1);
+        //mtm by instrument - end
+
+        //COMPARE INSTRUMENT POSITIONS FROM BATCH TO SINGLE
+        Assertions.assertNotSame(batchInstrumentMtm, singleInstrumentMtm);
+        Assertions.assertEquals(batchInstrumentMtm, singleInstrumentMtm);
     }
 
     @Test
