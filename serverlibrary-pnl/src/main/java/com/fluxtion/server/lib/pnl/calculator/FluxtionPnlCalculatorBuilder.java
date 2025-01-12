@@ -143,13 +143,10 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                         dealtInstPosition,
                         contraInstPosition,
                         InstrumentPosMtm::merge)
-                .defaultValue(GroupBy.emptyCollection())
                 .publishTrigger(positionUpdateEob)
                 .outerJoin(snapshotPositionMap, InstrumentPosMtm::addSnapshot)
-                .defaultValue(GroupBy.emptyCollection())
                 .mapValues(derivedRateNode::calculateInstrumentPosMtm)
                 .updateTrigger(positionUpdateEob)
-                .defaultValue(GroupBy.emptyCollection())
                 .publishTriggerOverride(positionUpdateEob);
 
         //FeeInstrumentPosMtm
@@ -161,11 +158,9 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
 
         var instrumentFeeMap = tradeStream
                 .groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new)
-                .defaultValue(GroupBy.emptyCollection())
                 .publishTrigger(positionUpdateEob)
                 .outerJoin(snapshotFeePositionMap, FeeInstrumentPosMtm::addSnapshot)
                 .resetTrigger(positionSnapshotReset)
-                .defaultValue(GroupBy.emptyCollection())
                 .mapValues(derivedRateNode::calculateFeeMtm)
                 .publishTriggerOverride(positionUpdateEob)
                 .updateTrigger(positionUpdateEob);
@@ -188,13 +183,12 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                         tradeStream.groupBy(Trade::getDealtInstrument, FeeInstrumentPosMtmAggregate::new),
                         tradeStream.groupBy(Trade::getContraInstrument, FeeInstrumentPosMtmAggregate::new),
                         FeeInstrumentPosMtm::merge)
-                .defaultValue(GroupBy.emptyCollection())
                 .publishTrigger(positionUpdateEob)
                 .outerJoin(
-                        DataFlow.groupByFromMap(PositionSnapshot::getInstrumentFeePositionMap).defaultValue(GroupBy.emptyCollection()),
+                        DataFlow.groupByFromMap(PositionSnapshot::getInstrumentFeePositionMap),
                         FeeInstrumentPosMtm::merge)
                 .resetTrigger(positionSnapshotReset)
-                .defaultValue(GroupBy.emptyCollection())
+                .defaultValue(GroupBy.emptyCollection())//cant remove this
                 .mapValues(derivedRateNode::calculateFeeMtm)
                 .publishTriggerOverride(positionUpdateEob)
                 .updateTrigger(positionUpdateEob);
@@ -204,15 +198,12 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
                         dealtAndContraInstPosition,
                         contraAndDealtInstPosition,
                         InstrumentPosMtm::merge)
-                .defaultValue(GroupBy.emptyCollection())
                 .publishTrigger(positionUpdateEob)
                 .outerJoin(
-                        DataFlow.groupByFromMap(PositionSnapshot::getInstrumentPositionMap).defaultValue(GroupBy.emptyCollection()),
+                        DataFlow.groupByFromMap(PositionSnapshot::getInstrumentPositionMap),
                         InstrumentPosMtm::mergeSnapshot)
                 .mapValues(derivedRateNode::calculateInstrumentPosMtm)
-                .defaultValue(GroupBy.emptyCollection())
                 .updateTrigger(positionUpdateEob)
-                .defaultValue(GroupBy.emptyCollection())
                 .publishTriggerOverride(positionUpdateEob);
 
         //instrument mtm net of fees
