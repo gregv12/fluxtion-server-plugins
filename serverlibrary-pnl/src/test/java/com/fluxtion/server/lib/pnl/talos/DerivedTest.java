@@ -129,10 +129,10 @@ public class DerivedTest {
         setUp();
         pnlCalculator.processTrade(new Trade(symbolUSDJPY, 100, -20000, 13));
         Assertions.assertEquals(1, mtmInstUpdates.size());
-        Assertions.assertEquals(2, mtmInstUpdates.getFirst().size());
+        Assertions.assertEquals(2, mtmInstUpdatesGetFirst().size());
         Assertions.assertEquals(1, mtmUpdates.size());
 
-        NetMarkToMarket mtm = mtmUpdates.getFirst();
+        NetMarkToMarket mtm = mtmUpdatesGetFirst();
         Map<Instrument, Double> positionMap = mtm.instrumentMtm().getPositionMap();
         Assertions.assertEquals(-20000, positionMap.get(JPY));
         Assertions.assertEquals(100, positionMap.get(USD));
@@ -150,10 +150,10 @@ public class DerivedTest {
 
         Assertions.assertEquals(2, mtmInstUpdates.size());
         //TODO fix this assertion
-//        Assertions.assertEquals(2, mtmInstUpdates.getFirst().size());
+//        Assertions.assertEquals(2, mtmInstUpdatesGetFirst().size());
         Assertions.assertEquals(2, mtmUpdates.size());
 
-        mtm = mtmUpdates.getLast();
+        mtm = mtmUpdatesGetLast();
         positionMap = mtm.instrumentMtm().getPositionMap();
         Assertions.assertEquals(50, positionMap.get(EUR));
         Assertions.assertEquals(12_000, positionMap.get(GBP));
@@ -162,7 +162,7 @@ public class DerivedTest {
         Assertions.assertEquals(200, positionMap.get(Instrument.INSTRUMENT_USD));
 
         pnlCalculator.processTrade(new Trade(symbolUSDJPY, 100, -20000, 13));
-        mtm = mtmUpdates.getLast();
+        mtm = mtmUpdatesGetLast();
         positionMap = mtm.instrumentMtm().getPositionMap();
         Assertions.assertEquals(-20000, positionMap.get(JPY));//new JPY
         Assertions.assertEquals(50, positionMap.get(EUR));
@@ -183,7 +183,7 @@ public class DerivedTest {
                 new InstrumentPosition(Instrument.INSTRUMENT_USD, 200)
         ));
 
-        var mtm = mtmUpdates.getLast();
+        var mtm = mtmUpdatesGetLast();
         var positionMap = mtm.instrumentMtm().getPositionMap();
         Assertions.assertEquals(50, positionMap.get(EUR));
         Assertions.assertEquals(12_000, positionMap.get(GBP));
@@ -203,14 +203,14 @@ public class DerivedTest {
 
 
         Assertions.assertEquals(5, mtmInstUpdates.size());
-        Assertions.assertEquals(5, mtmInstUpdates.getFirst().size());
+        Assertions.assertEquals(5, mtmInstUpdatesGetFirst().size());
         Assertions.assertEquals(5, mtmUpdates.size());
 
-        Map<Instrument, Double> positionMapFirst = mtmUpdates.getFirst().instrumentMtm().getPositionMap();
+        Map<Instrument, Double> positionMapFirst = mtmUpdatesGetFirst().instrumentMtm().getPositionMap();
         Assertions.assertEquals(-400, positionMapFirst.get(EUR));
         Assertions.assertEquals(80000, positionMapFirst.get(JPY));
 
-        Map<Instrument, Double> positionMap = mtmUpdates.getLast().instrumentMtm().getPositionMap();
+        Map<Instrument, Double> positionMap = mtmUpdatesGetLast().instrumentMtm().getPositionMap();
         Assertions.assertEquals(1300, positionMap.get(EUR));
         Assertions.assertEquals(80000, positionMap.get(JPY));
         Assertions.assertEquals(-1300, positionMap.get(USD));
@@ -232,10 +232,10 @@ public class DerivedTest {
         );
 
         Assertions.assertEquals(1, mtmInstUpdates.size());
-        Assertions.assertEquals(5, mtmInstUpdates.getFirst().size());
+        Assertions.assertEquals(5, mtmInstUpdatesGetFirst().size());
         Assertions.assertEquals(1, mtmUpdates.size());
 
-        Map<Instrument, Double> positionMap = mtmUpdates.getFirst().instrumentMtm().getPositionMap();
+        Map<Instrument, Double> positionMap = mtmUpdatesGetFirst().instrumentMtm().getPositionMap();
         Assertions.assertEquals(1300, positionMap.get(EUR));
         Assertions.assertEquals(80000, positionMap.get(JPY));
         Assertions.assertEquals(-1300, positionMap.get(USD));
@@ -243,7 +243,7 @@ public class DerivedTest {
         Assertions.assertEquals(500, positionMap.get(GBP));
 
         //fees
-        Map<Instrument, Double> feePosMtm = mtmUpdates.getFirst().feesMtm().getFeesPositionMap();
+        Map<Instrument, Double> feePosMtm = mtmUpdatesGetFirst().feesMtm().getFeesPositionMap();
         Assertions.assertEquals(1, feePosMtm.size());
         Assertions.assertEquals(65, feePosMtm.get(USD));
     }
@@ -262,10 +262,10 @@ public class DerivedTest {
         );
 
         Assertions.assertEquals(1, mtmInstUpdates.size());
-        Assertions.assertEquals(5, mtmInstUpdates.getFirst().size());
+        Assertions.assertEquals(5, mtmInstUpdatesGetFirst().size());
         Assertions.assertEquals(1, mtmUpdates.size());
 
-        Map<Instrument, Double> positionMap = mtmUpdates.getFirst().instrumentMtm().getPositionMap();
+        Map<Instrument, Double> positionMap = mtmUpdatesGetFirst().instrumentMtm().getPositionMap();
         Assertions.assertEquals(1300, positionMap.get(EUR));
         Assertions.assertEquals(80000, positionMap.get(JPY));
         Assertions.assertEquals(-1300, positionMap.get(USD));
@@ -273,7 +273,7 @@ public class DerivedTest {
         Assertions.assertEquals(500, positionMap.get(GBP));
 
         //fees
-        Map<Instrument, Double> feePosMtm = mtmUpdates.getFirst().feesMtm().getFeesPositionMap();
+        Map<Instrument, Double> feePosMtm = mtmUpdatesGetFirst().feesMtm().getFeesPositionMap();
         Assertions.assertEquals(2, feePosMtm.size());
         Assertions.assertEquals(50, feePosMtm.get(GBP));
         Assertions.assertEquals(30.0005, feePosMtm.get(USD));
@@ -290,7 +290,7 @@ public class DerivedTest {
         );
 
 
-        Map<Instrument, Double> positionMap = mtmUpdates.getFirst().instrumentMtm().getPositionMap();
+        Map<Instrument, Double> positionMap = mtmUpdatesGetFirst().instrumentMtm().getPositionMap();
         Assertions.assertEquals(500, positionMap.get(EUR));
         Assertions.assertEquals(-3800, positionMap.get(USD));
         Assertions.assertEquals(1500, positionMap.get(GBP));
@@ -322,7 +322,7 @@ public class DerivedTest {
         pnlCalculator.processTrade(new Trade(symbolMXNUSDT, 1_015_250, -50_000, 13));
 
         //positions but no MtM
-        Map<Instrument, Double> positionMap = mtmUpdates.getLast().instrumentMtm().getPositionMap();
+        Map<Instrument, Double> positionMap = mtmUpdatesGetLast().instrumentMtm().getPositionMap();
         Assertions.assertEquals(-20_000, positionMap.get(USDT));
         Assertions.assertEquals(0, positionMap.getOrDefault(USD, 0.0));
         Assertions.assertEquals(409189.39, positionMap.get(MXN));
@@ -350,7 +350,7 @@ public class DerivedTest {
         pnlCalculator.processTrade(new Trade(symbolMXNUSDT, 1_015_250, -50_000, 13));
 
         //positions but no MtM
-        Map<Instrument, Double> positionMap = mtmUpdates.getLast().instrumentMtm().getPositionMap();
+        Map<Instrument, Double> positionMap = mtmUpdatesGetLast().instrumentMtm().getPositionMap();
         Assertions.assertEquals(-20_000, positionMap.get(USDT));
         Assertions.assertEquals(0, positionMap.getOrDefault(USD, 0.0));
         Assertions.assertEquals(409189.39, positionMap.get(MXN));
@@ -379,7 +379,7 @@ public class DerivedTest {
 
         pnlCalculator.priceUpdate(symbolGBPUSD, 2);
         Assertions.assertTrue(Double.isNaN(pnlCalculator.pnl()));
-        Map<Instrument, Double> positionMap = mtmUpdates.getFirst().instrumentMtm().getPositionMap();
+        Map<Instrument, Double> positionMap = mtmUpdatesGetFirst().instrumentMtm().getPositionMap();
         Assertions.assertEquals(500, positionMap.get(EUR));
         Assertions.assertEquals(-3800, positionMap.get(USD));
         Assertions.assertEquals(1500, positionMap.get(GBP));
@@ -387,7 +387,7 @@ public class DerivedTest {
         //clear EUR rate force pnl to NaN
         pnlCalculator.processTrade(new Trade(symbolEURUSD, -500, +1100, 13));
 
-        positionMap = mtmUpdates.getLast().instrumentMtm().getPositionMap();
+        positionMap = mtmUpdatesGetLast().instrumentMtm().getPositionMap();
         Assertions.assertEquals(0, positionMap.get(EUR));
         Assertions.assertEquals(-2700, positionMap.get(USD));
         Assertions.assertEquals(1500, positionMap.get(GBP));
@@ -419,7 +419,7 @@ public class DerivedTest {
         Assertions.assertEquals(-2_500, pnlCalculator.netPnl(), 0.0000001);
 
         //mtm by instrument - start
-        Map<Instrument, NetMarkToMarket> batchInstrumentMtm = mtmInstUpdates.getLast();
+        Map<Instrument, NetMarkToMarket> batchInstrumentMtm = mtmInstUpdatesGetLast();
 
         NetMarkToMarket btcMtm = batchInstrumentMtm.get(BTC);
         Assertions.assertEquals(1_500, btcMtm.feesMtm().getFees(), 0.1);
@@ -453,7 +453,7 @@ public class DerivedTest {
         Assertions.assertEquals(-2_500, pnlCalculator.netPnl(), 0.0000001);
 
         //mtm by instrument
-        Map<Instrument, NetMarkToMarket> singleInstrumentMtm = mtmInstUpdates.getLast();
+        Map<Instrument, NetMarkToMarket> singleInstrumentMtm = mtmInstUpdatesGetLast();
 
 
         btcMtm = singleInstrumentMtm.get(BTC);
@@ -529,7 +529,7 @@ public class DerivedTest {
         pnlCalculator.processTrade(new Trade(symbolBTCEUR, 1, -91390, 27.41, EUR));
 
         //aggregate
-        Map<Instrument, Double> positionMap = mtmUpdates.getLast().instrumentMtm().getPositionMap();
+        Map<Instrument, Double> positionMap = mtmUpdatesGetLast().instrumentMtm().getPositionMap();
         Assertions.assertEquals(-274170.0, positionMap.get(EUR));
         Assertions.assertEquals(3, positionMap.get(BTC));
         Assertions.assertEquals(-44004.0, pnlCalculator.pnl(), 0.0000001);
@@ -537,13 +537,13 @@ public class DerivedTest {
         Assertions.assertEquals(-44102.676, pnlCalculator.netPnl(), 0.0000001);
 
         //instrument - BTC
-        NetMarkToMarket btcMtM = mtmInstUpdates.getLast().get(BTC);
+        NetMarkToMarket btcMtM = mtmInstUpdatesGetLast().get(BTC);
         Assertions.assertEquals(-44004.0, btcMtM.tradePnl(), 0.0000001);
         Assertions.assertEquals(98.676, btcMtM.fees(), 0.0000001);
         Assertions.assertEquals(-44102.676, btcMtM.pnlNetFees(), 0.0000001);
 
         //instrument - EUR
-        NetMarkToMarket eurMtM = mtmInstUpdates.getLast().get(EUR);
+        NetMarkToMarket eurMtM = mtmInstUpdatesGetLast().get(EUR);
         Assertions.assertEquals(-44004.0, eurMtM.tradePnl(), 0.0000001);
         Assertions.assertEquals(98.676, eurMtM.fees(), 0.0000001);
         Assertions.assertEquals(-44102.676, eurMtM.pnlNetFees(), 0.0000001);
@@ -564,7 +564,7 @@ public class DerivedTest {
         pnlCalculator.priceUpdate("BTCUSD", 95_000);
 
         //aggregate
-        Map<Instrument, Double> positionMap = mtmUpdates.getLast().instrumentMtm().getPositionMap();
+        Map<Instrument, Double> positionMap = mtmUpdatesGetLast().instrumentMtm().getPositionMap();
         Assertions.assertEquals(-274170.0, positionMap.get(EUR));
         Assertions.assertEquals(3, positionMap.get(BTC));
         Assertions.assertEquals(-44004.0, pnlCalculator.pnl(), 0.0000001);
@@ -572,13 +572,13 @@ public class DerivedTest {
         Assertions.assertEquals(-44102.676, pnlCalculator.netPnl(), 0.0000001);
 
         //instrument - BTC
-        NetMarkToMarket btcMtM = mtmInstUpdates.getLast().get(BTC);
+        NetMarkToMarket btcMtM = mtmInstUpdatesGetLast().get(BTC);
         Assertions.assertEquals(-44004.0, btcMtM.tradePnl(), 0.0000001);
         Assertions.assertEquals(98.676, btcMtM.fees(), 0.0000001);
         Assertions.assertEquals(-44102.676, btcMtM.pnlNetFees(), 0.0000001);
 
         //instrument - EUR
-        NetMarkToMarket eurMtM = mtmInstUpdates.getLast().get(EUR);
+        NetMarkToMarket eurMtM = mtmInstUpdatesGetLast().get(EUR);
         Assertions.assertEquals(-44004.0, eurMtM.tradePnl(), 0.0000001);
         Assertions.assertEquals(98.676, eurMtM.fees(), 0.0000001);
         Assertions.assertEquals(-44102.676, eurMtM.pnlNetFees(), 0.0000001);
@@ -628,5 +628,21 @@ public class DerivedTest {
     public static class MtmCheckpoint {
         private Map<String, Double> fees = new HashMap<>();
         private Map<String, Double> positions = new HashMap<>();
+    }
+
+    protected Map<Instrument, NetMarkToMarket> mtmInstUpdatesGetFirst() {
+        return mtmInstUpdates.get(0);
+    }
+
+    protected Map<Instrument, NetMarkToMarket> mtmInstUpdatesGetLast() {
+        return mtmInstUpdates.get(mtmUpdates.size() - 1);
+    }
+
+    protected NetMarkToMarket mtmUpdatesGetFirst() {
+        return mtmUpdates.get(0);
+    }
+
+    protected NetMarkToMarket mtmUpdatesGetLast() {
+        return mtmUpdates.get(mtmUpdates.size() - 1);
     }
 }
