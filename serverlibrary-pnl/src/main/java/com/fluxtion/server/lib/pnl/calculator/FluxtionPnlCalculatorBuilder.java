@@ -23,8 +23,7 @@ import lombok.Getter;
 
 import java.util.Map;
 
-import static com.fluxtion.server.lib.pnl.PnlCalculator.GLOBAL_NET_MTM_SINK;
-import static com.fluxtion.server.lib.pnl.PnlCalculator.INSTRUMENT_NET_MTM_SINK;
+import static com.fluxtion.server.lib.pnl.PnlCalculator.*;
 
 /**
  * Builds the {@link FluxtionPnlCalculator} AOT using the Fluxtion maven plugin.
@@ -92,8 +91,8 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     }
 
     private void buildSharedNodes() {
-        positionUpdateEob = DataFlow.subscribeToSignal("positionUpdate");
-        positionSnapshotReset = DataFlow.subscribeToSignal("positionSnapshotReset");
+        positionUpdateEob = DataFlow.subscribeToSignal(PnlCalculator.POSITION_UPDATE_EOB);
+        positionSnapshotReset = DataFlow.subscribeToSignal(PnlCalculator.POSITION_SNAPSHOT_RESET);
         var symbolTable = new NamedFeedTableNode<String, Symbol>("symbolFeed", Symbol::symbolName);
         derivedRateNode = eventProcessorConfig.addNode(new DerivedRateNode(symbolTable), "derivedRateNode");
         eventFeedConnector = eventProcessorConfig.addNode(new EventFeedConnector(symbolTable), "eventFeedBatcher");
@@ -101,7 +100,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
 
     private void buildTradeStream() {
         tradeBatchStream = DataFlow.subscribe(TradeBatch.class)
-                .flatMap(TradeBatch::getTrades, PnlCalculator.POSITION_UPDATE_EOB)
+                .flatMap(TradeBatch::getTrades, POSITION_UPDATE_EOB)
                 .map(eventFeedConnector::validateBatchTrade);
 
         tradeStream = DataFlow.subscribe(Trade.class)
