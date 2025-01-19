@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -50,6 +50,7 @@ public class SpringEventHandlerLoader implements Lifecycle {
         adminCommandRegistry.registerCommand("springLoader.interpretProcessor", this::interpretProcessor);
         adminCommandRegistry.registerCommand("springLoader.reloadInterpretProcessor", this::compileReloadProcessor);
         adminCommandRegistry.registerCommand("springLoader.reloadCompileProcessor", this::interpretReloadProcessor);
+        adminCommandRegistry.registerCommand("springLoader.listLoaded", this::listProcessors);
     }
 
     @ServiceRegistered
@@ -92,6 +93,12 @@ public class SpringEventHandlerLoader implements Lifecycle {
 
     private void compileReloadProcessor(List<String> args, Consumer<String> out, Consumer<String> err) {
         reloadProcessor(true, args, out, err);
+    }
+
+    private void listProcessors(List<String> args, Consumer<String> out, Consumer<String> err) {
+        loadAtStartup.forEach(config -> {
+            out.accept(config.getGroup() + "/" + config.springFile + "\n");
+        });
     }
 
 

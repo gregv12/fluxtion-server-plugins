@@ -17,11 +17,13 @@
 package com.fluxtion.server.lib.pnl.calculator;
 
 import com.fluxtion.runtime.StaticEventProcessor;
+import com.fluxtion.runtime.annotations.OnEventHandler;
 import com.fluxtion.runtime.lifecycle.BatchHandler;
 import com.fluxtion.runtime.lifecycle.Lifecycle;
 import com.fluxtion.runtime.EventProcessor;
 import com.fluxtion.runtime.callback.InternalEventProcessor;
 import com.fluxtion.runtime.EventProcessorContext;
+import com.fluxtion.runtime.annotations.ExportService;
 import com.fluxtion.runtime.audit.Auditor;
 import com.fluxtion.runtime.audit.EventLogManager;
 import com.fluxtion.runtime.audit.NodeNameAuditor;
@@ -90,8 +92,8 @@ import java.util.function.Consumer;
  *
  * <pre>
  * generation time                 : Not available
- * eventProcessorGenerator version : 9.6.1
- * api version                     : 9.6.1
+ * eventProcessorGenerator version : 9.7.6-SNAPSHOT
+ * api version                     : 9.7.6-SNAPSHOT
  * </pre>
  *
  * Event classes supported:
@@ -120,8 +122,8 @@ import java.util.function.Consumer;
 public class FluxtionPnlCalculator
     implements EventProcessor<FluxtionPnlCalculator>,
         /*--- @ExportService start ---*/
-        ConfigListener,
-        ServiceListener,
+        @ExportService ConfigListener,
+        @ExportService ServiceListener,
         /*--- @ExportService end ---*/
         StaticEventProcessor,
         InternalEventProcessor,
@@ -129,265 +131,274 @@ public class FluxtionPnlCalculator
         Lifecycle {
 
   //Node declarations
-  private final InstanceCallbackEvent_0 callBackTriggerEvent_0 = new InstanceCallbackEvent_0();
-  private final CallBackNode callBackNode_88 = new CallBackNode<>(callBackTriggerEvent_0);
-  private final InstanceCallbackEvent_1 callBackTriggerEvent_1 = new InstanceCallbackEvent_1();
-  private final CallBackNode callBackNode_112 = new CallBackNode<>(callBackTriggerEvent_1);
-  private final InstanceCallbackEvent_2 callBackTriggerEvent_2 = new InstanceCallbackEvent_2();
-  private final CallBackNode callBackNode_182 = new CallBackNode<>(callBackTriggerEvent_2);
-  private final CallbackDispatcherImpl callbackDispatcher = new CallbackDispatcherImpl();
-  public final Clock clock = new Clock();
-  private final EmptyGroupBy emptyGroupBy_422 = new EmptyGroupBy<>();
-  private final DefaultValue defaultValue_63 = new DefaultValue<>(emptyGroupBy_422);
-  private final GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_9 =
+  private final transient InstanceCallbackEvent_0 callBackTriggerEvent_0 =
+      new InstanceCallbackEvent_0();
+  private final transient CallBackNode callBackNode_88 = new CallBackNode<>(callBackTriggerEvent_0);
+  private final transient InstanceCallbackEvent_1 callBackTriggerEvent_1 =
+      new InstanceCallbackEvent_1();
+  private final transient CallBackNode callBackNode_112 =
+      new CallBackNode<>(callBackTriggerEvent_1);
+  private final transient InstanceCallbackEvent_2 callBackTriggerEvent_2 =
+      new InstanceCallbackEvent_2();
+  private final transient CallBackNode callBackNode_182 =
+      new CallBackNode<>(callBackTriggerEvent_2);
+  private final transient CallbackDispatcherImpl callbackDispatcher = new CallbackDispatcherImpl();
+  public final transient Clock clock = new Clock();
+  private final transient EmptyGroupBy emptyGroupBy_422 = new EmptyGroupBy<>();
+  private final transient DefaultValue defaultValue_63 = new DefaultValue<>(emptyGroupBy_422);
+  private final transient GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_9 =
       new GroupByFlowFunctionWrapper<>(
           Trade::getDealtInstrument, Mappers::identity, SingleInstrumentPosMtmAggregate::dealt);
-  private final GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_11 =
+  private final transient GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_11 =
       new GroupByFlowFunctionWrapper<>(
           Trade::getContraInstrument, Mappers::identity, SingleInstrumentPosMtmAggregate::contra);
-  private final GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_13 =
+  private final transient GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_13 =
       new GroupByFlowFunctionWrapper<>(
           Trade::getDealtInstrument, Mappers::identity, InstrumentPosMtmAggregate::dealt);
-  private final GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_15 =
+  private final transient GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_15 =
       new GroupByFlowFunctionWrapper<>(
           Trade::getContraInstrument, Mappers::identity, InstrumentPosMtmAggregate::contra);
-  private final GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_18 =
+  private final transient GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_18 =
       new GroupByFlowFunctionWrapper<>(
           InstrumentPosition::instrument, Mappers::identity, AggregateIdentityFlowFunction::new);
-  private final GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_31 =
+  private final transient GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_31 =
       new GroupByFlowFunctionWrapper<>(
           InstrumentPosition::instrument, Mappers::identity, AggregateIdentityFlowFunction::new);
-  private final GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_33 =
+  private final transient GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_33 =
       new GroupByFlowFunctionWrapper<>(
           Trade::getDealtInstrument, Mappers::identity, FeeInstrumentPosMtmAggregate::new);
-  private final GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_48 =
+  private final transient GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_48 =
       new GroupByFlowFunctionWrapper<>(
           Trade::getDealtInstrument, Mappers::identity, FeeInstrumentPosMtmAggregate::new);
-  private final GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_50 =
+  private final transient GroupByFlowFunctionWrapper groupByFlowFunctionWrapper_50 =
       new GroupByFlowFunctionWrapper<>(
           Trade::getContraInstrument, Mappers::identity, FeeInstrumentPosMtmAggregate::new);
-  private final GroupByHashMap groupByHashMap_57 = new GroupByHashMap<>();
-  private final GroupByHashMap groupByHashMap_72 = new GroupByHashMap<>();
-  private final LeftJoin leftJoin_41 = new LeftJoin();
-  private final LeftJoin leftJoin_80 = new LeftJoin();
-  private final MapTuple mapTuple_680 = new MapTuple<>(NetMarkToMarket::combine);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_82 =
+  private final transient GroupByHashMap groupByHashMap_57 = new GroupByHashMap<>();
+  private final transient GroupByHashMap groupByHashMap_72 = new GroupByHashMap<>();
+  private final transient LeftJoin leftJoin_41 = new LeftJoin();
+  private final transient LeftJoin leftJoin_80 = new LeftJoin();
+  private final transient MapTuple mapTuple_680 = new MapTuple<>(NetMarkToMarket::combine);
+  private final transient GroupByMapFlowFunction groupByMapFlowFunction_82 =
       new GroupByMapFlowFunction(mapTuple_680::mapTuple);
-  private final MapTuple mapTuple_686 = new MapTuple<>(FeeInstrumentPosMtm::merge);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_61 =
+  private final transient MapTuple mapTuple_686 = new MapTuple<>(FeeInstrumentPosMtm::merge);
+  private final transient GroupByMapFlowFunction groupByMapFlowFunction_61 =
       new GroupByMapFlowFunction(mapTuple_686::mapTuple);
-  private final MapTuple mapTuple_690 = new MapTuple<>(FeeInstrumentPosMtm::merge);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_54 =
+  private final transient MapTuple mapTuple_690 = new MapTuple<>(FeeInstrumentPosMtm::merge);
+  private final transient GroupByMapFlowFunction groupByMapFlowFunction_54 =
       new GroupByMapFlowFunction(mapTuple_690::mapTuple);
-  private final MapTuple mapTuple_703 = new MapTuple<>(InstrumentPosMtm::mergeSnapshot);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_76 =
+  private final transient MapTuple mapTuple_703 = new MapTuple<>(InstrumentPosMtm::mergeSnapshot);
+  private final transient GroupByMapFlowFunction groupByMapFlowFunction_76 =
       new GroupByMapFlowFunction(mapTuple_703::mapTuple);
-  private final MapTuple mapTuple_707 = new MapTuple<>(InstrumentPosMtm::merge);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_69 =
+  private final transient MapTuple mapTuple_707 = new MapTuple<>(InstrumentPosMtm::merge);
+  private final transient GroupByMapFlowFunction groupByMapFlowFunction_69 =
       new GroupByMapFlowFunction(mapTuple_707::mapTuple);
-  private final MapTuple mapTuple_718 = new MapTuple<>(NetMarkToMarket::combine);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_43 =
+  private final transient MapTuple mapTuple_718 = new MapTuple<>(NetMarkToMarket::combine);
+  private final transient GroupByMapFlowFunction groupByMapFlowFunction_43 =
       new GroupByMapFlowFunction(mapTuple_718::mapTuple);
-  private final MapTuple mapTuple_723 = new MapTuple<>(FeeInstrumentPosMtm::addSnapshot);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_37 =
+  private final transient MapTuple mapTuple_723 = new MapTuple<>(FeeInstrumentPosMtm::addSnapshot);
+  private final transient GroupByMapFlowFunction groupByMapFlowFunction_37 =
       new GroupByMapFlowFunction(mapTuple_723::mapTuple);
-  private final MapTuple mapTuple_733 = new MapTuple<>(InstrumentPosMtm::addSnapshot);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_26 =
+  private final transient MapTuple mapTuple_733 = new MapTuple<>(InstrumentPosMtm::addSnapshot);
+  private final transient GroupByMapFlowFunction groupByMapFlowFunction_26 =
       new GroupByMapFlowFunction(mapTuple_733::mapTuple);
-  private final MapTuple mapTuple_737 = new MapTuple<>(InstrumentPosMtm::merge);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_22 =
+  private final transient MapTuple mapTuple_737 = new MapTuple<>(InstrumentPosMtm::merge);
+  private final transient GroupByMapFlowFunction groupByMapFlowFunction_22 =
       new GroupByMapFlowFunction(mapTuple_737::mapTuple);
-  private final NamedFeedTableNode namedFeedTableNode_87 =
+  private final transient NamedFeedTableNode namedFeedTableNode_87 =
       new NamedFeedTableNode<>("symbolFeed", Symbol::symbolName);
-  public final DerivedRateNode derivedRateNode = new DerivedRateNode(namedFeedTableNode_87);
-  public final EventFeedConnector eventFeedBatcher = new EventFeedConnector(namedFeedTableNode_87);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_28 =
+  public final transient DerivedRateNode derivedRateNode =
+      new DerivedRateNode(namedFeedTableNode_87);
+  public final transient EventFeedConnector eventFeedBatcher =
+      new EventFeedConnector(namedFeedTableNode_87);
+  private final transient GroupByMapFlowFunction groupByMapFlowFunction_28 =
       new GroupByMapFlowFunction(derivedRateNode::calculateInstrumentPosMtm);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_39 =
+  private final transient GroupByMapFlowFunction groupByMapFlowFunction_39 =
       new GroupByMapFlowFunction(derivedRateNode::calculateFeeMtm);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_65 =
+  private final transient GroupByMapFlowFunction groupByMapFlowFunction_65 =
       new GroupByMapFlowFunction(derivedRateNode::calculateFeeMtm);
-  private final GroupByMapFlowFunction groupByMapFlowFunction_78 =
+  private final transient GroupByMapFlowFunction groupByMapFlowFunction_78 =
       new GroupByMapFlowFunction(derivedRateNode::calculateInstrumentPosMtm);
-  public final NodeNameAuditor nodeNameLookup = new NodeNameAuditor();
-  private final OuterJoin outerJoin_20 = new OuterJoin();
-  private final OuterJoin outerJoin_24 = new OuterJoin();
-  private final OuterJoin outerJoin_35 = new OuterJoin();
-  private final OuterJoin outerJoin_52 = new OuterJoin();
-  private final OuterJoin outerJoin_59 = new OuterJoin();
-  private final OuterJoin outerJoin_67 = new OuterJoin();
-  private final OuterJoin outerJoin_74 = new OuterJoin();
-  public final PositionCache positionCache = new PositionCache();
-  private final SubscriptionManagerNode subscriptionManager = new SubscriptionManagerNode();
-  private final MutableEventProcessorContext context =
+  public final transient NodeNameAuditor nodeNameLookup = new NodeNameAuditor();
+  private final transient OuterJoin outerJoin_20 = new OuterJoin();
+  private final transient OuterJoin outerJoin_24 = new OuterJoin();
+  private final transient OuterJoin outerJoin_35 = new OuterJoin();
+  private final transient OuterJoin outerJoin_52 = new OuterJoin();
+  private final transient OuterJoin outerJoin_59 = new OuterJoin();
+  private final transient OuterJoin outerJoin_67 = new OuterJoin();
+  private final transient OuterJoin outerJoin_74 = new OuterJoin();
+  public final transient PositionCache positionCache = new PositionCache();
+  private final transient SubscriptionManagerNode subscriptionManager =
+      new SubscriptionManagerNode();
+  private final transient MutableEventProcessorContext context =
       new MutableEventProcessorContext(
           nodeNameLookup, callbackDispatcher, subscriptionManager, callbackDispatcher);
-  private final SinkPublisher globalNetMtmListener = new SinkPublisher<>("globalNetMtmListener");
-  private final DefaultEventHandlerNode handlerPositionSnapshot =
+  private final transient SinkPublisher globalNetMtmListener =
+      new SinkPublisher<>("globalNetMtmListener");
+  private final transient DefaultEventHandlerNode handlerPositionSnapshot =
       new DefaultEventHandlerNode<>(
           2147483647,
           "",
           com.fluxtion.server.lib.pnl.PositionSnapshot.class,
           "handlerPositionSnapshot",
           context);
-  private final FlatMapFlowFunction flatMapFlowFunction_17 =
+  private final transient FlatMapFlowFunction flatMapFlowFunction_17 =
       new FlatMapFlowFunction<>(handlerPositionSnapshot, PositionSnapshot::getPositions);
-  private final FlatMapFlowFunction flatMapFlowFunction_30 =
+  private final transient FlatMapFlowFunction flatMapFlowFunction_30 =
       new FlatMapFlowFunction<>(handlerPositionSnapshot, PositionSnapshot::getFeePositions);
-  private final DefaultEventHandlerNode handlerSignal_positionSnapshotReset =
+  private final transient DefaultEventHandlerNode handlerSignal_positionSnapshotReset =
       new DefaultEventHandlerNode<>(
           2147483647,
           "positionSnapshotReset",
           com.fluxtion.runtime.event.Signal.class,
           "handlerSignal_positionSnapshotReset",
           context);
-  private final DefaultEventHandlerNode handlerSignal_positionUpdate =
+  private final transient DefaultEventHandlerNode handlerSignal_positionUpdate =
       new DefaultEventHandlerNode<>(
           2147483647,
           "positionUpdate",
           com.fluxtion.runtime.event.Signal.class,
           "handlerSignal_positionUpdate",
           context);
-  private final DefaultEventHandlerNode handlerTrade =
+  private final transient DefaultEventHandlerNode handlerTrade =
       new DefaultEventHandlerNode<>(
           2147483647, "", com.fluxtion.server.lib.pnl.Trade.class, "handlerTrade", context);
-  private final DefaultEventHandlerNode handlerTradeBatch =
+  private final transient DefaultEventHandlerNode handlerTradeBatch =
       new DefaultEventHandlerNode<>(
           2147483647,
           "",
           com.fluxtion.server.lib.pnl.TradeBatch.class,
           "handlerTradeBatch",
           context);
-  private final FlatMapFlowFunction flatMapFlowFunction_3 =
+  private final transient FlatMapFlowFunction flatMapFlowFunction_3 =
       new FlatMapFlowFunction<>(handlerTradeBatch, TradeBatch::getTrades);
-  private final SinkPublisher instrumentNetMtmListener =
+  private final transient SinkPublisher instrumentNetMtmListener =
       new SinkPublisher<>("instrumentNetMtmListener");
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_4 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_4 =
       new MapRef2RefFlowFunction<>(flatMapFlowFunction_3, eventFeedBatcher::validateBatchTrade);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_5 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_5 =
       new MapRef2RefFlowFunction<>(handlerTrade, eventFeedBatcher::validateTrade);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_19 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_19 =
       new MapRef2RefFlowFunction<>(
           flatMapFlowFunction_17, groupByFlowFunctionWrapper_18::aggregate);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_32 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_32 =
       new MapRef2RefFlowFunction<>(
           flatMapFlowFunction_30, groupByFlowFunctionWrapper_31::aggregate);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_56 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_56 =
       new MapRef2RefFlowFunction<>(
           handlerPositionSnapshot, PositionSnapshot::getInstrumentFeePositionMap);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_58 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_58 =
       new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_56, groupByHashMap_57::fromMap);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_71 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_71 =
       new MapRef2RefFlowFunction<>(
           handlerPositionSnapshot, PositionSnapshot::getInstrumentPositionMap);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_73 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_73 =
       new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_71, groupByHashMap_72::fromMap);
-  private final MergeFlowFunction mergeFlowFunction_6 =
+  private final transient MergeFlowFunction mergeFlowFunction_6 =
       new MergeFlowFunction<>(Arrays.asList(mapRef2RefFlowFunction_5, mapRef2RefFlowFunction_4));
-  public final ServiceRegistryNode serviceRegistry = new ServiceRegistryNode();
-  private final TradeSequenceFilter tradeSequenceFilter_7 = new TradeSequenceFilter();
-  private final FilterFlowFunction filterFlowFunction_8 =
+  public final transient ServiceRegistryNode serviceRegistry = new ServiceRegistryNode();
+  private final transient TradeSequenceFilter tradeSequenceFilter_7 = new TradeSequenceFilter();
+  private final transient FilterFlowFunction filterFlowFunction_8 =
       new FilterFlowFunction<>(
           mergeFlowFunction_6, tradeSequenceFilter_7::checkTradeSequenceNumber);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_10 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_10 =
       new MapRef2RefFlowFunction<>(filterFlowFunction_8, groupByFlowFunctionWrapper_9::aggregate);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_12 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_12 =
       new MapRef2RefFlowFunction<>(filterFlowFunction_8, groupByFlowFunctionWrapper_11::aggregate);
-  private final BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_21 =
+  private final transient BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_21 =
       new BinaryMapToRefFlowFunction<>(
           mapRef2RefFlowFunction_10, mapRef2RefFlowFunction_12, outerJoin_20::join);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_14 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_14 =
       new MapRef2RefFlowFunction<>(filterFlowFunction_8, groupByFlowFunctionWrapper_13::aggregate);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_16 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_16 =
       new MapRef2RefFlowFunction<>(filterFlowFunction_8, groupByFlowFunctionWrapper_15::aggregate);
-  private final BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_68 =
+  private final transient BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_68 =
       new BinaryMapToRefFlowFunction<>(
           mapRef2RefFlowFunction_14, mapRef2RefFlowFunction_16, outerJoin_67::join);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_23 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_23 =
       new MapRef2RefFlowFunction<>(
           binaryMapToRefFlowFunction_21, groupByMapFlowFunction_22::mapValues);
-  private final BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_25 =
+  private final transient BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_25 =
       new BinaryMapToRefFlowFunction<>(
           mapRef2RefFlowFunction_23, mapRef2RefFlowFunction_19, outerJoin_24::join);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_27 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_27 =
       new MapRef2RefFlowFunction<>(
           binaryMapToRefFlowFunction_25, groupByMapFlowFunction_26::mapValues);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_29 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_29 =
       new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_27, groupByMapFlowFunction_28::mapValues);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_34 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_34 =
       new MapRef2RefFlowFunction<>(filterFlowFunction_8, groupByFlowFunctionWrapper_33::aggregate);
-  private final BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_36 =
+  private final transient BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_36 =
       new BinaryMapToRefFlowFunction<>(
           mapRef2RefFlowFunction_34, mapRef2RefFlowFunction_32, outerJoin_35::join);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_38 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_38 =
       new MapRef2RefFlowFunction<>(
           binaryMapToRefFlowFunction_36, groupByMapFlowFunction_37::mapValues);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_40 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_40 =
       new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_38, groupByMapFlowFunction_39::mapValues);
-  private final BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_42 =
+  private final transient BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_42 =
       new BinaryMapToRefFlowFunction<>(
           mapRef2RefFlowFunction_29, mapRef2RefFlowFunction_40, leftJoin_41::join);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_44 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_44 =
       new MapRef2RefFlowFunction<>(
           binaryMapToRefFlowFunction_42, groupByMapFlowFunction_43::mapValues);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_45 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_45 =
       new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_44, GroupBy<Object, Object>::toMap);
-  public final MapRef2RefFlowFunction globalNetMtm =
+  public final transient MapRef2RefFlowFunction globalNetMtm =
       new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_45, NetMarkToMarket::markToMarketSum);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_49 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_49 =
       new MapRef2RefFlowFunction<>(filterFlowFunction_8, groupByFlowFunctionWrapper_48::aggregate);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_51 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_51 =
       new MapRef2RefFlowFunction<>(filterFlowFunction_8, groupByFlowFunctionWrapper_50::aggregate);
-  private final BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_53 =
+  private final transient BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_53 =
       new BinaryMapToRefFlowFunction<>(
           mapRef2RefFlowFunction_49, mapRef2RefFlowFunction_51, outerJoin_52::join);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_55 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_55 =
       new MapRef2RefFlowFunction<>(
           binaryMapToRefFlowFunction_53, groupByMapFlowFunction_54::mapValues);
-  private final BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_60 =
+  private final transient BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_60 =
       new BinaryMapToRefFlowFunction<>(
           mapRef2RefFlowFunction_55, mapRef2RefFlowFunction_58, outerJoin_59::join);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_62 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_62 =
       new MapRef2RefFlowFunction<>(
           binaryMapToRefFlowFunction_60, groupByMapFlowFunction_61::mapValues);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_64 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_64 =
       new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_62, defaultValue_63::getOrDefault);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_66 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_66 =
       new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_64, groupByMapFlowFunction_65::mapValues);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_70 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_70 =
       new MapRef2RefFlowFunction<>(
           binaryMapToRefFlowFunction_68, groupByMapFlowFunction_69::mapValues);
-  private final BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_75 =
+  private final transient BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_75 =
       new BinaryMapToRefFlowFunction<>(
           mapRef2RefFlowFunction_70, mapRef2RefFlowFunction_73, outerJoin_74::join);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_77 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_77 =
       new MapRef2RefFlowFunction<>(
           binaryMapToRefFlowFunction_75, groupByMapFlowFunction_76::mapValues);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_79 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_79 =
       new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_77, groupByMapFlowFunction_78::mapValues);
-  private final BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_81 =
+  private final transient BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_81 =
       new BinaryMapToRefFlowFunction<>(
           mapRef2RefFlowFunction_79, mapRef2RefFlowFunction_66, leftJoin_80::join);
-  private final MapRef2RefFlowFunction mapRef2RefFlowFunction_83 =
+  private final transient MapRef2RefFlowFunction mapRef2RefFlowFunction_83 =
       new MapRef2RefFlowFunction<>(
           binaryMapToRefFlowFunction_81, groupByMapFlowFunction_82::mapValues);
-  public final MapRef2RefFlowFunction instrumentNetMtm =
+  public final transient MapRef2RefFlowFunction instrumentNetMtm =
       new MapRef2RefFlowFunction<>(mapRef2RefFlowFunction_83, GroupBy<Object, Object>::toMap);
-  private final PushFlowFunction pushFlowFunction_47 =
+  private final transient PushFlowFunction pushFlowFunction_47 =
       new PushFlowFunction<>(globalNetMtm, globalNetMtmListener::publish);
-  private final PushFlowFunction pushFlowFunction_85 =
+  private final transient PushFlowFunction pushFlowFunction_85 =
       new PushFlowFunction<>(instrumentNetMtm, instrumentNetMtmListener::publish);
-  private final BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_86 =
+  private final transient BinaryMapToRefFlowFunction binaryMapToRefFlowFunction_86 =
       new BinaryMapToRefFlowFunction<>(
           pushFlowFunction_47, pushFlowFunction_85, positionCache::checkPoint);
-  private final ExportFunctionAuditEvent functionAudit = new ExportFunctionAuditEvent();
+  private final transient ExportFunctionAuditEvent functionAudit = new ExportFunctionAuditEvent();
   //Dirty flags
   private boolean initCalled = false;
   private boolean processing = false;
   private boolean buffering = false;
-  private final IdentityHashMap<Object, BooleanSupplier> dirtyFlagSupplierMap =
+  private final transient IdentityHashMap<Object, BooleanSupplier> dirtyFlagSupplierMap =
       new IdentityHashMap<>(61);
-  private final IdentityHashMap<Object, Consumer<Boolean>> dirtyFlagUpdateMap =
+  private final transient IdentityHashMap<Object, Consumer<Boolean>> dirtyFlagUpdateMap =
       new IdentityHashMap<>(61);
 
   private boolean isDirty_binaryMapToRefFlowFunction_21 = false;
@@ -718,6 +729,7 @@ public class FluxtionPnlCalculator
 
   //EVENT DISPATCH - START
   @Override
+  @OnEventHandler(failBuildIfMissingBooleanReturn = false)
   public void onEvent(Object event) {
     if (buffering) {
       triggerCalculation();
