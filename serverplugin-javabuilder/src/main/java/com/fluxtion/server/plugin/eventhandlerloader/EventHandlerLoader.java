@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -15,6 +15,7 @@ import com.fluxtion.runtime.annotations.feature.Experimental;
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
 import com.fluxtion.runtime.audit.Auditor;
 import com.fluxtion.runtime.audit.EventLogControlEvent;
+import com.fluxtion.runtime.lifecycle.Lifecycle;
 import com.fluxtion.runtime.partition.LambdaReflection.SerializableConsumer;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import com.fluxtion.server.service.servercontrol.FluxtionServerController;
@@ -22,6 +23,8 @@ import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 import org.yaml.snakeyaml.Yaml;
 
@@ -30,19 +33,19 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Consumer;
 
 @Experimental
 @Log4j2
-public class EventHandlerLoader {
+public class EventHandlerLoader implements Lifecycle {
 
     private FluxtionServerController serverController;
     private static final String DEFAULT_GROUP_JAVA_SRC = "javaSourceLoader";
     private static final String DEFAULT_GROUP_YAML = "yamlLoader";
+    @Getter
+    @Setter
+    private Set<EventLoadAtStartup> loadAtStartup = new HashSet<>();
 
     @ServiceRegistered
     public void adminRegistry(AdminCommandRegistry adminCommandRegistry, String name) {
@@ -59,6 +62,24 @@ public class EventHandlerLoader {
         this.serverController = serverController;
     }
 
+    @Override
+    public void init() {
+    }
+
+    @Override
+    public void start() {
+        log.info("Start yaml EventHandler loader startUpConfig:{}", loadAtStartup);
+        loadAtStartup.forEach(cfg -> {
+            loadProcessorYaml(cfg.isCompile(),
+                    List.of("loadProcessor", cfg.getYamlFile(), cfg.getGroup()),
+                    log::info,
+                    log::error);
+        });
+    }
+
+    @Override
+    public void tearDown() {
+    }
 
     private void interpretProcessor(List<String> args, Consumer<String> out, Consumer<String> err) {
         loadProcessor(false, args, out, err);
@@ -172,5 +193,15 @@ public class EventHandlerLoader {
         private EventLogControlEvent.LogLevel logLevel = EventLogControlEvent.LogLevel.NONE;
         private boolean checkDirtyFlags = true;
         private HashMap<String, Auditor> auditorMap = new HashMap<>();
+    }
+
+    @Data
+    public static final class EventLoadAtStartup {
+        private String yamlFile;
+        private String group = DEFAULT_GROUP_YAML;
+        private boolean addEventAuditor = true;
+        private boolean compile = true;
+        private EventLogControlEvent.LogLevel traceLogLevel;
+        private EventLogControlEvent.LogLevel initialLogLevel = EventLogControlEvent.LogLevel.INFO;
     }
 }
