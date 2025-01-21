@@ -47,6 +47,9 @@ public class EventHandlerLoader implements Lifecycle {
     @Getter
     @Setter
     private Set<EventLoadAtStartup> loadAtStartup = new HashSet<>();
+    private EventLogControlEvent.LogLevel initialLogLevel = EventLogControlEvent.LogLevel.INFO;
+    private EventLogControlEvent.LogLevel traceLogLevel;
+    private boolean addEventAuditor = false;
 
     @ServiceRegistered
     public void adminRegistry(AdminCommandRegistry adminCommandRegistry, String name) {
@@ -71,11 +74,17 @@ public class EventHandlerLoader implements Lifecycle {
     public void start() {
         log.info("Start yaml EventHandler loader startUpConfig:{}", loadAtStartup);
         loadAtStartup.forEach(cfg -> {
+            initialLogLevel = cfg.getInitialLogLevel();
+            traceLogLevel = cfg.getTraceLogLevel();
+            addEventAuditor = cfg.isAddEventAuditor();
             loadProcessorYaml(cfg.isCompile(),
                     List.of("loadProcessor", cfg.getYamlFile(), cfg.getGroup()),
                     log::info,
                     log::error);
         });
+        initialLogLevel = EventLogControlEvent.LogLevel.INFO;
+        traceLogLevel = null;
+        addEventAuditor = false;
     }
 
     @Override
@@ -127,6 +136,7 @@ public class EventHandlerLoader implements Lifecycle {
                 EventProcessor<?> eventProcessor = compileProcessor ? Fluxtion.compile(buildGraph) : Fluxtion.interpret(buildGraph);
 
                 eventProcessor.init();
+                eventProcessor.setAuditLogLevel(initialLogLevel);
 
                 out.accept("compiled and loaded processor" + eventProcessor.toString());
                 serverController.addEventProcessor(javaSourceFiler, group, new YieldingIdleStrategy(), () -> eventProcessor);
@@ -173,7 +183,11 @@ public class EventHandlerLoader implements Lifecycle {
                     cfg.addAuditor(entry.getValue(), entry.getKey());
                 });
 
-                cfg.addEventAudit(yamlCfg.logLevel);
+                if (addEventAuditor | yamlCfg.enableAudit) {
+                    cfg.addEventAudit();
+                    cfg.addEventAudit(traceLogLevel == null ? yamlCfg.traceLogeLevel : traceLogLevel);
+                }
+
             };
 
             EventProcessor<?> eventProcessor = compileProcessor ? Fluxtion.compile(buildGraph) : Fluxtion.interpret(buildGraph);
@@ -191,7 +205,8 @@ public class EventHandlerLoader implements Lifecycle {
     public static class EventProcessorYamlCfg {
         private List<Object> nodes = new ArrayList<>();
         private Map<String, Object> namedNodes = new HashMap<>();
-        private EventLogControlEvent.LogLevel logLevel = EventLogControlEvent.LogLevel.NONE;
+        private boolean enableAudit = false;
+        private EventLogControlEvent.LogLevel traceLogeLevel = EventLogControlEvent.LogLevel.NONE;
         private boolean checkDirtyFlags = true;
         private HashMap<String, Auditor> auditorMap = new HashMap<>();
         private FluxtionCompilerConfig compilerConfig;
@@ -201,7 +216,7 @@ public class EventHandlerLoader implements Lifecycle {
     public static final class EventLoadAtStartup {
         private String yamlFile;
         private String group = DEFAULT_GROUP_YAML;
-        private boolean addEventAuditor = true;
+        private boolean addEventAuditor = false;
         private boolean compile = true;
         private EventLogControlEvent.LogLevel traceLogLevel;
         private EventLogControlEvent.LogLevel initialLogLevel = EventLogControlEvent.LogLevel.INFO;
