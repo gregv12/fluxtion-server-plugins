@@ -18,6 +18,9 @@ import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
 import lombok.Data;
 import org.jgrapht.GraphPath;
+import org.jgrapht.alg.shortestpath.BellmanFordShortestPath;
+import org.jgrapht.alg.shortestpath.KShortestSimplePaths;
+import org.jgrapht.alg.shortestpath.NegativeCycleDetectedException;
 import org.jgrapht.graph.DefaultDirectedWeightedGraph;
 import org.jgrapht.graph.DefaultWeightedEdge;
 
@@ -41,6 +44,8 @@ public class DerivedRateNode extends BaseNode {
     private final DefaultDirectedWeightedGraph<Instrument, DefaultWeightedEdge> graph = new DefaultDirectedWeightedGraph<>(DefaultWeightedEdge.class);
     @FluxtionIgnore
     private final BellmanFordShortestPath<Instrument, DefaultWeightedEdge> shortestPath = new BellmanFordShortestPath<>(graph);
+    @FluxtionIgnore
+    private final KShortestSimplePaths<Instrument, DefaultWeightedEdge> simplePaths = new KShortestSimplePaths<>(graph, 8);
     @FluxtionIgnore
     private boolean sendEob = true;
 
@@ -169,8 +174,13 @@ public class DerivedRateNode extends BaseNode {
                     instrument,
                     positionInstrument -> {
                         if (graph.containsVertex(positionInstrument) & graph.containsVertex(mtmInstrument)) {
-                            GraphPath<Instrument, DefaultWeightedEdge> path = shortestPath.getPath(positionInstrument, mtmInstrument);
-                            double log10Rate = shortestPath.getPathWeight(positionInstrument, mtmInstrument);
+                            double log10Rate;
+                            try {
+                                log10Rate = shortestPath.getPathWeight(positionInstrument, mtmInstrument);
+                            } catch (NegativeCycleDetectedException e) {
+                                GraphPath<Instrument, DefaultWeightedEdge> cycle = simplePaths.getPaths(positionInstrument, mtmInstrument, 2).getFirst();
+                                log10Rate = cycle.getWeight();
+                            }
                             return Double.isInfinite(log10Rate) ? Double.NaN : Math.pow(10, log10Rate);
                         }
                         return Double.NaN;

@@ -61,6 +61,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         public void configureGeneration(FluxtionCompilerConfig compilerConfig) {
             compilerConfig.setClassName("DebugFluxtionPnlCalculator");
             compilerConfig.setPackageName("com.fluxtion.server.lib.pnl.calculator");
+            compilerConfig.setGenerateDescription(false);
         }
 
         @Override
@@ -74,6 +75,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     public void configureGeneration(FluxtionCompilerConfig compilerConfig) {
         compilerConfig.setClassName("FluxtionPnlCalculator");
         compilerConfig.setPackageName("com.fluxtion.server.lib.pnl.calculator");
+        compilerConfig.setGenerateDescription(false);
     }
 
     @Override
