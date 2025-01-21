@@ -8,6 +8,7 @@ package com.fluxtion.server.plugin.eventhandlerloader;
 import com.fluxtion.agrona.concurrent.YieldingIdleStrategy;
 import com.fluxtion.compiler.EventProcessorConfig;
 import com.fluxtion.compiler.Fluxtion;
+import com.fluxtion.compiler.FluxtionCompilerConfig;
 import com.fluxtion.compiler.FluxtionGraphBuilder;
 import com.fluxtion.compiler.generation.compiler.classcompiler.StringCompilation;
 import com.fluxtion.runtime.EventProcessor;
@@ -193,6 +194,7 @@ public class EventHandlerLoader implements Lifecycle {
         private EventLogControlEvent.LogLevel logLevel = EventLogControlEvent.LogLevel.NONE;
         private boolean checkDirtyFlags = true;
         private HashMap<String, Auditor> auditorMap = new HashMap<>();
+        private FluxtionCompilerConfig compilerConfig;
     }
 
     @Data
