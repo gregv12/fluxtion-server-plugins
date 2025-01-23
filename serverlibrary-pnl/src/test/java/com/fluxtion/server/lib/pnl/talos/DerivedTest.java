@@ -28,30 +28,53 @@ import java.util.Map;
 
 public class DerivedTest {
 
-    public static final Instrument EUR = new Instrument("EUR");
-    public static final Instrument USD = new Instrument("USD");
-    public static final Instrument USDT = new Instrument("USDT");
-    public static final Instrument MXN = new Instrument("MXN");
-    public static final Instrument CHF = new Instrument("CHF");
-    public static final Instrument JPY = new Instrument("JPY");
-    public static final Instrument GBP = new Instrument("GBP");
     public static final Instrument BTC = new Instrument("BTC");
     public static final Instrument BTC_PERP = new Instrument("BTC_PERP");
+    public static final Instrument CHF = new Instrument("CHF");
+    public static final Instrument GBP = new Instrument("GBP");
+    public static final Instrument EUR = new Instrument("EUR");
+    public static final Instrument JPY = new Instrument("JPY");
+    public static final Instrument MXN = new Instrument("MXN");
+    public static final Instrument USD = new Instrument("USD");
+    public static final Instrument TRY = new Instrument("TRY");
+    public static final Instrument USDT = new Instrument("USDT");
+
+    //CHF symbols
+    public final static Symbol symbolCHFUSD = new Symbol("CHFUSD", CHF, USD);
+
+    //EUR symbols
     public final static Symbol symbolEURUSD = new Symbol("EURUSD", EUR, USD);
     public final static Symbol symbolEURCHF = new Symbol("EURCHF", EUR, CHF);
-    public final static Symbol symbolUSDCHF = new Symbol("USDCHF", USD, CHF);
-    public final static Symbol symbolCHFUSD = new Symbol("CHFUSD", CHF, USD);
-    public final static Symbol symbolEURJPY = new Symbol("EURJPY", EUR, JPY);
-    public final static Symbol symbolUSDJPY = new Symbol("USDJPY", USD, JPY);
-    public final static Symbol symbolGBPUSD = new Symbol("GBPUSD", GBP, USD);
     public final static Symbol symbolEURGBP = new Symbol("EURGBP", EUR, GBP);
-    public final static Symbol symbolUSDTMXN = new Symbol("USDTMXN", USDT, MXN);
+    public final static Symbol symbolEURJPY = new Symbol("EURJPY", EUR, JPY);
+
+    //GBP symbols
+    public final static Symbol symbolGBPUSD = new Symbol("GBPUSD", GBP, USD);
+
+    //MXN symbols
     public final static Symbol symbolMXNUSDT = new Symbol("MXNUSDT", MXN, USDT);
+
+    //JPY
+    public final static Symbol symbolJPYTRY = new Symbol("JPYTRY", JPY, TRY);
+
+    //JPY
+    public final static Symbol symbolTRYUSD = new Symbol("TRYUSD", TRY, USD);
+
+    //USD symbols
+    public final static Symbol symbolUSDCHF = new Symbol("USDCHF", USD, CHF);
+    public final static Symbol symbolUSDEUR = new Symbol("USDEUR", USD, EUR);
+    public final static Symbol symbolUSDJPY = new Symbol("USDJPY", USD, JPY);
     public final static Symbol symbolUSDMXN = new Symbol("USDMXN", USD, MXN);
     public final static Symbol symbolUSDUSDT = new Symbol("USDUSDT", USD, USDT);
+
+    //USDT symbols
+    public final static Symbol symbolUSDTMXN = new Symbol("USDTMXN", USDT, MXN);
+
+    //BTC symbols
     public final static Symbol symbolBTCEUR = new Symbol("BTCEUR", BTC, EUR);
     public final static Symbol symbolBTCUSD = new Symbol("BTCUSD", BTC, USD);
     public final static Symbol symbolBTCPERPUSD = new Symbol("BTCPERPUSD", BTC_PERP, USD);
+
     private PnlCalculator pnlCalculator;
     private boolean log = false;
     private final List<NetMarkToMarket> mtmUpdates = new ArrayList<>();
@@ -85,7 +108,7 @@ public class DerivedTest {
         setUp();
         DerivedRateNode derivedRateNode = new DerivedRateNode(new NamedFeedTableNode<>(
                 "symbolFeed",
-                "com.fluxtion.server.lib.pnl.refdata.Symbol::symbolName"));
+                Symbol::symbolName));
         derivedRateNode.midRate(new MidPrice(symbolEURCHF, 0.5));
         derivedRateNode.midRate(new MidPrice(symbolUSDCHF, 1.0));
 
@@ -93,6 +116,21 @@ public class DerivedTest {
 
         derivedRateNode.midRate(new MidPrice(symbolEURUSD, 1.6));
         Assertions.assertEquals(1.6, derivedRateNode.getRateForInstrument(EUR));
+    }
+
+    @Test
+    public void negativeCycle() {
+        setUp();
+        DerivedRateNode derivedRateNode = new DerivedRateNode(new NamedFeedTableNode<>(
+                "symbolFeed",
+                Symbol::symbolName));
+        derivedRateNode.midRate(new MidPrice(symbolUSDEUR, 0.82));
+        derivedRateNode.midRate(new MidPrice(symbolEURJPY, 129.7));
+        derivedRateNode.midRate(new MidPrice(symbolJPYTRY, 12.0));
+        derivedRateNode.midRate(new MidPrice(symbolTRYUSD, 0.0008));
+
+        var jpy = derivedRateNode.getRateForInstrument(JPY);
+        Assertions.assertEquals(0.0094, jpy, 0.00001);
     }
 
     @Test
