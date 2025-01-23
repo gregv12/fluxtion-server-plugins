@@ -71,7 +71,6 @@ public class EventFeedConnector extends EventLogNode implements EventProcessorCo
             if (validateBatchTrade(trade) == null) {
                 return null;
             }
-            publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
             return trade;
         } catch (Exception e) {
             auditLog.warn("tradeValidation", "failed")

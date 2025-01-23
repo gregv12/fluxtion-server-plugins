@@ -27,7 +27,6 @@ public class Trade {
         this.dealtVolume = dealtVolume;
         this.contraVolume = contraVolume;
         this.fee = fee;
-        this.feeInstrument = Instrument.INSTRUMENT_USD;
         globalSequenceNumber++;
         this.id = globalSequenceNumber;
     }
@@ -60,5 +59,12 @@ public class Trade {
 
     public Instrument getContraInstrument() {
         return symbol.contraInstrument();
+    }
+
+    public Instrument getFeeInstrument() {
+        if(feeInstrument == null){
+            feeInstrument = Instrument.INSTRUMENT_USD;
+        }
+        return feeInstrument;
     }
 }
