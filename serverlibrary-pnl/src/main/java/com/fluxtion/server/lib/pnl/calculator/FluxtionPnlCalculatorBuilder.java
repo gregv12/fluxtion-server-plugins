@@ -103,12 +103,13 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
     private void buildTradeStream() {
         tradeBatchStream = DataFlow.subscribe(TradeBatch.class)
                 .flatMap(TradeBatch::getTrades, POSITION_UPDATE_EOB)
+                .filter(new TradeSequenceFilter()::checkTradeSequenceNumber)
                 .map(eventFeedConnector::validateBatchTrade);
 
         tradeStream = DataFlow.subscribe(Trade.class)
                 .map(eventFeedConnector::validateTrade)
-                .merge(tradeBatchStream)
-                .filter(new TradeSequenceFilter()::checkTradeSequenceNumber);
+                .filter(new TradeSequenceFilter(true)::checkTradeSequenceNumber)
+                .merge(tradeBatchStream);
     }
 
     private void buildPositionMap() {

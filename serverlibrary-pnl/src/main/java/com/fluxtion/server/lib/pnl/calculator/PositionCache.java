@@ -68,7 +68,6 @@ public class PositionCache extends BaseNode {
 
         log.debug("loaded checkpoint:{}\nsnapshot:{}", applicationCheckpoint, positionSnapshot);
         getContext().getStaticEventProcessor().onEvent(positionSnapshot);
-        getContext().getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
     }
 
     @OnEventHandler
