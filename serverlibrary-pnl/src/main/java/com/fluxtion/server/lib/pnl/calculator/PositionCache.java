@@ -77,6 +77,12 @@ public class PositionCache extends BaseNode {
         return false;
     }
 
+    @OnEventHandler
+    public boolean tradeIn(TradeBatch tradeBatch) {
+        tradeBatch.getTrades().forEach(this::tradeIn);
+        return false;
+    }
+
     public Object checkPoint(NetMarkToMarket netMarkToMarket, Map<Instrument, NetMarkToMarket> instrumentNetMarkToMarketMap) {
         mtmUpdated(netMarkToMarket, applicationCheckpoint.getGlobalPosition());
 

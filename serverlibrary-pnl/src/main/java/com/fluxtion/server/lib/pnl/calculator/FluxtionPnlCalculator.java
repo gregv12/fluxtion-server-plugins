@@ -1635,9 +1635,13 @@ public class FluxtionPnlCalculator
   public void handleEvent(TradeBatch typedEvent) {
     auditEvent(typedEvent);
     //Default, no filter methods
+    isDirty_positionCache = positionCache.tradeIn(typedEvent);
     isDirty_handlerTradeBatch = handlerTradeBatch.onEvent(typedEvent);
     if (isDirty_handlerTradeBatch) {
       flatMapFlowFunction_3.inputUpdatedAndFlatMap(handlerTradeBatch);
+    }
+    if (guardCheck_binaryMapToRefFlowFunction_88()) {
+      binaryMapToRefFlowFunction_88.map();
     }
     afterEvent();
   }

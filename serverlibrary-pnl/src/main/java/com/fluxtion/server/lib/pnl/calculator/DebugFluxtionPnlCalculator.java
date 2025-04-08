@@ -1816,10 +1816,17 @@ public class DebugFluxtionPnlCalculator
   public void handleEvent(TradeBatch typedEvent) {
     auditEvent(typedEvent);
     //Default, no filter methods
+    auditInvocation(positionCache, "positionCache", "tradeIn", typedEvent);
+    isDirty_positionCache = positionCache.tradeIn(typedEvent);
     auditInvocation(handlerTradeBatch, "handlerTradeBatch", "onEvent", typedEvent);
     isDirty_handlerTradeBatch = handlerTradeBatch.onEvent(typedEvent);
     if (isDirty_handlerTradeBatch) {
       flatMapFlowFunction_3.inputUpdatedAndFlatMap(handlerTradeBatch);
+    }
+    if (guardCheck_binaryMapToRefFlowFunction_88()) {
+      auditInvocation(
+          binaryMapToRefFlowFunction_88, "binaryMapToRefFlowFunction_88", "map", typedEvent);
+      binaryMapToRefFlowFunction_88.map();
     }
     afterEvent();
   }
