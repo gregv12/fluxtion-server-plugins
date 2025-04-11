@@ -84,6 +84,7 @@ public class EventFeedConnector extends EventLogNode implements EventProcessorCo
     public Trade validateBatchTrade(Trade trade) {
         try {
             if (trade.getSymbol() == null) {
+                log.info("trade.getSymbol() for:{}", trade.getSymbolName());
                 trade.setSymbol(symbolTable.getTableMap().get(trade.getSymbolName()));
             }
             return trade;
