@@ -687,6 +687,7 @@ public class DebugFluxtionPnlCalculator
     }
     processing = true;
     auditEvent(Lifecycle.LifecycleEvent.Start);
+    derivedRateNode.start();
     eventFeedBatcher.start();
     afterEvent();
     callbackDispatcher.dispatchQueuedCallbacks();

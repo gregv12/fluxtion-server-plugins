@@ -678,6 +678,7 @@ public class FluxtionPnlCalculator
     }
     processing = true;
     auditEvent(Lifecycle.LifecycleEvent.Start);
+    derivedRateNode.start();
     eventFeedBatcher.start();
     afterEvent();
     callbackDispatcher.dispatchQueuedCallbacks();

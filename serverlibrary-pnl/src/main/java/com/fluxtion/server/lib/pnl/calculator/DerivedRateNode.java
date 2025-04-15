@@ -7,6 +7,7 @@ package com.fluxtion.server.lib.pnl.calculator;
 
 
 import com.fluxtion.runtime.annotations.OnEventHandler;
+import com.fluxtion.runtime.annotations.Start;
 import com.fluxtion.runtime.annotations.builder.FluxtionIgnore;
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
 import com.fluxtion.runtime.event.NamedFeedEvent;
@@ -14,8 +15,10 @@ import com.fluxtion.runtime.input.NamedFeed;
 import com.fluxtion.runtime.node.BaseNode;
 import com.fluxtion.runtime.node.NamedFeedTableNode;
 import com.fluxtion.server.lib.pnl.*;
+import com.fluxtion.server.lib.pnl.refdata.DefaultRateMapSupplier;
 import com.fluxtion.server.lib.pnl.refdata.Instrument;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
+import com.fluxtion.server.lib.pnl.refdata.SymbolLookup;
 import lombok.Data;
 import org.jgrapht.GraphPath;
 import org.jgrapht.alg.shortestpath.BFSShortestPath;
@@ -48,6 +51,9 @@ public class DerivedRateNode extends BaseNode {
     private final BFSShortestPath<Instrument, DefaultWeightedEdge> simplePaths = new BFSShortestPath<>(graph);
     @FluxtionIgnore
     private boolean sendEob = true;
+    @FluxtionIgnore
+    private SymbolLookup symbolLookup;
+    private DefaultRateMapSupplier defaultRateMapSupplier;
 
     public DerivedRateNode(NamedFeedTableNode<String, Symbol> symbolTable) {
         this.symbolTable = symbolTable;
@@ -64,6 +70,36 @@ public class DerivedRateNode extends BaseNode {
             auditLog.debug("midPrice", midPrice);
         }
         sendEob = true;
+    }
+
+    @ServiceRegistered
+    public void registerSymbolLookup(SymbolLookup symbolLookup) {
+        auditLog.info("registerSymbolLookup", symbolLookup);
+        this.symbolLookup = symbolLookup;
+    }
+
+    @ServiceRegistered
+    public void registerDefaultRateSupplier(DefaultRateMapSupplier defaultRateMapSupplier) {
+        auditLog.info("registerDefaultRateSupplier", defaultRateMapSupplier);
+        this.defaultRateMapSupplier = defaultRateMapSupplier;
+    }
+
+    @Start
+    public void start() {
+        if(defaultRateMapSupplier != null) {
+            sendEob = false;
+            defaultRateMapSupplier.getSymbolRateMap().forEach((instrument, rate) -> {
+                if (!cachedRates.containsKey(instrument)) {
+                    auditLog.info("defaultRate", instrument + "-" + rate);
+                    midRate(new MidPrice(instrument, rate));
+                }
+            });
+            sendEob = true;
+            if (context != null) {
+                auditLog.info("calcDefaultRate", true);
+                context.getStaticEventProcessor().publishSignal(PnlCalculator.POSITION_UPDATE_EOB);
+            }
+        }
     }
 
     @OnEventHandler
@@ -108,7 +144,11 @@ public class DerivedRateNode extends BaseNode {
         cachedRates.put(midPrice.getSymbolName(), newRate);
 
         if (midPrice.getSymbol() == null) {
-            midPrice.setSymbol(symbolTable.getTableMap().get(midPrice.getSymbolName()));
+            Symbol symbol = symbolTable.getTableMap().get(midPrice.getSymbolName());
+            if (symbol == null && symbolLookup != null) {
+                symbol = symbolLookup.getSymbolForName(midPrice.getSymbolName());
+            }
+            midPrice.setSymbol(symbol);
         }
         Instrument dealtInstrument = midPrice.dealtInstrument();
         Instrument contraInstrument = midPrice.contraInstrument();
