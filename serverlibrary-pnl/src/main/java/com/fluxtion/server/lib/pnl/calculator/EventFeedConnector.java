@@ -18,6 +18,7 @@ import com.fluxtion.server.config.ConfigMap;
 import com.fluxtion.server.lib.pnl.PnlCalculator;
 import com.fluxtion.server.lib.pnl.Trade;
 import com.fluxtion.server.lib.pnl.refdata.Symbol;
+import com.fluxtion.server.lib.pnl.refdata.SymbolLookup;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import lombok.extern.log4j.Log4j2;
 import org.apache.logging.log4j.LogManager;
@@ -32,6 +33,7 @@ public class EventFeedConnector extends EventLogNode implements EventProcessorCo
     private final NamedFeedTableNode<String, Symbol> symbolTable;
     private EventProcessorContext context;
     private Logger erroLogger = LogManager.getLogger("com.fluxtion.pnl.error");
+    private SymbolLookup symbolLookup;
 
     public EventFeedConnector(NamedFeedTableNode<String, Symbol> symbolTable) {
         this.symbolTable = symbolTable;
@@ -52,6 +54,12 @@ public class EventFeedConnector extends EventLogNode implements EventProcessorCo
         log.info("Initialising EventFeedConnector");
         auditLog.info("lifecycle", "init");
         publishSignal(PnlCalculator.POSITION_SNAPSHOT_RESET);
+    }
+
+    @ServiceRegistered
+    public void registerSymbolLookup(SymbolLookup symbolLookup) {
+        log.info("registerSymbolLookup:{}", symbolLookup);
+        this.symbolLookup = symbolLookup;
     }
 
     @Override
@@ -84,7 +92,12 @@ public class EventFeedConnector extends EventLogNode implements EventProcessorCo
     public Trade validateBatchTrade(Trade trade) {
         try {
             if (trade.getSymbol() == null) {
-                trade.setSymbol(symbolTable.getTableMap().get(trade.getSymbolName()));
+                log.info("trade.getSymbol() for:{}", trade.getSymbolName());
+                Symbol symbol = symbolTable.getTableMap().get(trade.getSymbolName());
+                if (symbol == null && symbolLookup != null) {
+                    symbol = symbolLookup.getSymbolForName(trade.getSymbolName());
+                }
+                trade.setSymbol(symbol);
             }
             return trade;
         } catch (Exception e) {

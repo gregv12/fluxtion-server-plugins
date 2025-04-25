@@ -77,6 +77,12 @@ public class PositionCache extends BaseNode {
         return false;
     }
 
+    @OnEventHandler
+    public boolean tradeIn(TradeBatch tradeBatch) {
+        tradeBatch.getTrades().forEach(this::tradeIn);
+        return false;
+    }
+
     public Object checkPoint(NetMarkToMarket netMarkToMarket, Map<Instrument, NetMarkToMarket> instrumentNetMarkToMarketMap) {
         mtmUpdated(netMarkToMarket, applicationCheckpoint.getGlobalPosition());
 
@@ -96,6 +102,8 @@ public class PositionCache extends BaseNode {
 
     private void mtmUpdated(NetMarkToMarket netMarkToMarket, PositionCheckpoint positionCheckpoint) {
         auditLog.info("netMarkToMarket", netMarkToMarket);
+        positionCheckpoint.setNetMarkToMarket(netMarkToMarket);
+
         Map<String, Double> positionMap = positionCheckpoint.getPositions();
         Map<Instrument, Double> instrumentInstrumentPosMtmMap = netMarkToMarket.instrumentMtm().getPositionMap();
         instrumentInstrumentPosMtmMap.forEach((instrument, pos) -> {
@@ -113,8 +121,9 @@ public class PositionCache extends BaseNode {
     public static class PositionCheckpoint {
         private Map<String, Double> fees = new HashMap<>();
         private Map<String, Double> positions = new HashMap<>();
-    }
+        private NetMarkToMarket netMarkToMarket;
 
+    }
     @Data
     public static class ApplicationCheckpoint {
         private PositionCheckpoint globalPosition = new PositionCheckpoint();

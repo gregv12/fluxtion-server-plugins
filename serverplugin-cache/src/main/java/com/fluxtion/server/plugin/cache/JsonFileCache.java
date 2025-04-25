@@ -88,7 +88,8 @@ public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService 
             typedData.setInstance(value);
             typedData.setData(mapper.writeValueAsString(value));
             cacheMap.put(key, typedData);
-        } catch (IOException e) {
+            doWork();
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
@@ -113,10 +114,12 @@ public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService 
         return null;
     }
 
+    @SneakyThrows
     @Override
     public void remove(String key) {
         updated.set(true);
         cacheMap.remove(key);
+        doWork();
     }
 
     @Override

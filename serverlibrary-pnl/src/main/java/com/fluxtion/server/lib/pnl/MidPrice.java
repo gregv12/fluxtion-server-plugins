@@ -25,6 +25,11 @@ public class MidPrice {
         this.symbolName = symbol.symbolName();
     }
 
+    public MidPrice(String symbolName, double rate) {
+        this.symbolName = symbolName;
+        this.rate = rate;
+    }
+
     public Instrument dealtInstrument() {
         return getSymbol().dealtInstrument();
     }
