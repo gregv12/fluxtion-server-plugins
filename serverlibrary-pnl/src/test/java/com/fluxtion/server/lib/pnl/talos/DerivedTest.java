@@ -288,6 +288,36 @@ public class DerivedTest {
     }
 
     @Test
+    public void testTradeBatchSameSequenceNumber() {
+        setUp();
+        pnlCalculator.processTradeBatch(
+                TradeBatch.of(200,
+                        new Trade(symbolEURJPY, -400, 80000, 13, 10L),
+                        new Trade(symbolEURUSD, 500, -1100, 13, 10L),
+                        new Trade(symbolUSDCHF, 500, -1100, 13, 10L),
+                        new Trade(symbolEURGBP, 1200, -1000, 13, 10L),
+                        new Trade(symbolGBPUSD, 1500, -700, 13, 10L)
+                )
+        );
+
+        Assertions.assertEquals(1, mtmInstUpdates.size());
+        Assertions.assertEquals(5, mtmInstUpdatesGetFirst().size());
+        Assertions.assertEquals(1, mtmUpdates.size());
+
+        Map<Instrument, Double> positionMap = mtmUpdatesGetFirst().instrumentMtm().getPositionMap();
+        Assertions.assertEquals(1300, positionMap.get(EUR));
+        Assertions.assertEquals(80000, positionMap.get(JPY));
+        Assertions.assertEquals(-1300, positionMap.get(USD));
+        Assertions.assertEquals(-1100, positionMap.get(CHF));
+        Assertions.assertEquals(500, positionMap.get(GBP));
+
+        //fees
+        Map<Instrument, Double> feePosMtm = mtmUpdatesGetFirst().feesMtm().getFeesPositionMap();
+        Assertions.assertEquals(1, feePosMtm.size());
+        Assertions.assertEquals(65, feePosMtm.get(USD));
+    }
+
+    @Test
     public void testTradeBatchFeesDifferentInstrument() {
         setUp();
         pnlCalculator.processTradeBatch(

@@ -88,12 +88,14 @@ public class DerivedRateNode extends BaseNode {
     public void start() {
         if(defaultRateMapSupplier != null) {
             sendEob = false;
-            defaultRateMapSupplier.getSymbolRateMap().forEach((instrument, rate) -> {
-                if (!cachedRates.containsKey(instrument)) {
-                    auditLog.info("defaultRate", instrument + "-" + rate);
-                    midRate(new MidPrice(instrument, rate));
+
+            defaultRateMapSupplier.getMidPrices().forEach(midPrice -> {
+                if (!cachedRates.containsKey(midPrice.getSymbolName())) {
+                    auditLog.info("defaultRate", midPrice);
+                    midRate(midPrice);
                 }
             });
+
             sendEob = true;
             if (context != null) {
                 auditLog.info("calcDefaultRate", true);
