@@ -31,6 +31,20 @@ public class Trade {
         this.id = globalSequenceNumber;
     }
 
+    public Trade(Symbol symbol, double dealtVolume, double contraVolume, double fee, long id) {
+        this.symbol = symbol;
+        this.dealtVolume = dealtVolume;
+        this.contraVolume = contraVolume;
+        this.fee = fee;
+        this.id = id;
+        if (id > globalSequenceNumber) {
+            globalSequenceNumber = id;
+        } else {
+            globalSequenceNumber++;
+            this.id = globalSequenceNumber;
+        }
+    }
+
     public Trade(String symbolName, double dealtVolume, double contraVolume, double fee) {
         this.symbolName = symbolName;
         this.dealtVolume = dealtVolume;
@@ -48,6 +62,9 @@ public class Trade {
         this.id = id;
         if (id > globalSequenceNumber) {
             globalSequenceNumber = id;
+        } else {
+            globalSequenceNumber++;
+            this.id = globalSequenceNumber;
         }
     }
 
@@ -70,6 +87,9 @@ public class Trade {
         this.id = id;
         if (id > globalSequenceNumber) {
             globalSequenceNumber = id;
+        } else {
+            globalSequenceNumber++;
+            this.id = globalSequenceNumber;
         }
     }
 
@@ -92,6 +112,9 @@ public class Trade {
         this.id = id;
         if (id > globalSequenceNumber) {
             globalSequenceNumber = id;
+        } else {
+            globalSequenceNumber++;
+            this.id = globalSequenceNumber;
         }
     }
 
