@@ -20,6 +20,16 @@ public class FeeInstrumentPosMtm {
     private Map<Instrument, Double> feesPositionMap = new HashMap<>();
     private Map<Instrument, Double> feesMtmPositionMap = new HashMap<>();
 
+    public FeeInstrumentPosMtm(FeeInstrumentPosMtm feesMtm) {
+        this.bookName = feesMtm.bookName;
+        this.fees = feesMtm.fees;
+        this.feesPositionMap.putAll(feesMtm.feesPositionMap);
+        this.feesMtmPositionMap.putAll(feesMtm.feesMtmPositionMap);
+    }
+
+    public FeeInstrumentPosMtm() {
+    }
+
     public static FeeInstrumentPosMtm addSnapshot(FeeInstrumentPosMtm instrumentPosMtm, InstrumentPosition instrumentPos) {
         FeeInstrumentPosMtm offSetPosMtm = new FeeInstrumentPosMtm().combine(instrumentPosMtm);
         if (instrumentPos != null) {

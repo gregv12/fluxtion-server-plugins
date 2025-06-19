@@ -19,4 +19,11 @@ public class MidPriceBatch {
         batch.trades.addAll(trades);
         return batch;
     }
+
+    @Override
+    public String toString() {
+        return "MidPriceBatch{" +
+                "midPriceQuoteSize=" + trades.size() +
+                '}';
+    }
 }
