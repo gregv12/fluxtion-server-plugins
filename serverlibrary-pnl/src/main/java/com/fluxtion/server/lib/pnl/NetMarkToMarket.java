@@ -16,6 +16,12 @@ public record NetMarkToMarket(InstrumentPosMtm instrumentMtm, FeeInstrumentPosMt
         this(instrumentMtm, feesMtm, instrumentMtm.getTradePnl(), feesMtm.getFees(), (instrumentMtm.getTradePnl() - feesMtm.getFees()));
     }
 
+    public NetMarkToMarket clone(){
+        InstrumentPosMtm instrumentPosMtm = new InstrumentPosMtm(instrumentMtm);
+        FeeInstrumentPosMtm feeInstrumentPosMtm = new FeeInstrumentPosMtm(feesMtm);
+        return new NetMarkToMarket(instrumentPosMtm, feeInstrumentPosMtm, tradePnl, fees, pnlNetFees);
+    }
+
     public static NetMarkToMarket combine(InstrumentPosMtm instrumentMtm, FeeInstrumentPosMtm feesMtm) {
         return new NetMarkToMarket(instrumentMtm, feesMtm == null ? new FeeInstrumentPosMtm() : feesMtm);
     }

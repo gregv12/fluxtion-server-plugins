@@ -34,4 +34,13 @@ public class TradeBatch {
         tradeBatch.setFee(fee);
         return tradeBatch;
     }
+
+    @Override
+    public String toString() {
+        return "TradeBatch{" +
+                "tradesSize=" + trades.size() +
+                ", feeInstrument=" + feeInstrument +
+                ", fee=" + fee +
+                '}';
+    }
 }

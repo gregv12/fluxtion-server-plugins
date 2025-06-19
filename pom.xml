@@ -65,6 +65,8 @@
         <module>serverlibrary-jsonserialiser</module>
         <module>serverplugin-cache</module>
         <module>serverconnector-chronicle</module>
+        <module>serverlibrary-trading-api</module>
+        <module>serverplugin-trading</module>
     </modules>
 
     <dependencies>
