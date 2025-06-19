@@ -67,7 +67,7 @@ public class FluxtionPnlCalculatorBuilder implements FluxtionGraphBuilder {
         @Override
         public void buildGraph(EventProcessorConfig eventProcessorConfig) {
             super.buildGraph(eventProcessorConfig);
-            eventProcessorConfig.addEventAudit(EventLogControlEvent.LogLevel.INFO);
+            eventProcessorConfig.addEventAudit(EventLogControlEvent.LogLevel.DEBUG);
         }
     }
 

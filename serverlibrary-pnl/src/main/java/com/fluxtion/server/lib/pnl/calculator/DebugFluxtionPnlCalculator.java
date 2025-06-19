@@ -486,7 +486,7 @@ public class DebugFluxtionPnlCalculator
     eventLogger.trace = (boolean) true;
     eventLogger.printEventToString = (boolean) true;
     eventLogger.printThreadName = (boolean) true;
-    eventLogger.traceLevel = com.fluxtion.runtime.audit.EventLogControlEvent.LogLevel.INFO;
+    eventLogger.traceLevel = com.fluxtion.runtime.audit.EventLogControlEvent.LogLevel.DEBUG;
     eventLogger.clock = clock;
     binaryMapToRefFlowFunction_23.setDefaultValue(new EmptyGroupBy());
     binaryMapToRefFlowFunction_23.setEventProcessorContext(context);

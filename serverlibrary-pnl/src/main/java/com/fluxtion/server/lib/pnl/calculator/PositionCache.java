@@ -73,12 +73,17 @@ public class PositionCache extends BaseNode {
     @OnEventHandler
     public boolean tradeIn(Trade trade) {
         sequenceNumber = Math.max(trade.getId(), sequenceNumber);
-        auditLog.info("tradeId", trade.getId());
+        auditLog.debug("tradeId", trade.getId());
         return false;
     }
 
     @OnEventHandler
     public boolean tradeIn(TradeBatch tradeBatch) {
+        auditLog.info("batchSize", tradeBatch.getTrades().size());
+        if(!tradeBatch.getTrades().isEmpty()) {
+            auditLog.info("firstId", tradeBatch.getTrades().getFirst().getId())
+                    .info("lastId", tradeBatch.getTrades().getLast().getId());
+        }
         tradeBatch.getTrades().forEach(this::tradeIn);
         return false;
     }
@@ -101,7 +106,7 @@ public class PositionCache extends BaseNode {
     }
 
     private void mtmUpdated(NetMarkToMarket netMarkToMarket, PositionCheckpoint positionCheckpoint) {
-        auditLog.info("netMarkToMarket", netMarkToMarket);
+        auditLog.debug("netMarkToMarket", netMarkToMarket);
         positionCheckpoint.setNetMarkToMarket(netMarkToMarket);
 
         Map<String, Double> positionMap = positionCheckpoint.getPositions();
@@ -123,10 +128,31 @@ public class PositionCache extends BaseNode {
         private Map<String, Double> positions = new HashMap<>();
         private NetMarkToMarket netMarkToMarket;
 
+        public PositionCheckpoint copyFrom(PositionCheckpoint from){
+            this.getFees().clear();
+            this.getPositions().clear();
+
+            this.getFees().putAll(from.fees);
+            this.getPositions().putAll(from.positions);
+            this.setNetMarkToMarket(from.netMarkToMarket.clone());
+
+            return this;
+        }
+
     }
+
     @Data
     public static class ApplicationCheckpoint {
         private PositionCheckpoint globalPosition = new PositionCheckpoint();
         private Map<String, PositionCheckpoint> instrumentPositions = new HashMap<>();
+
+        public ApplicationCheckpoint copyFrom(ApplicationCheckpoint from){
+            globalPosition.copyFrom(from.globalPosition);
+            from.getInstrumentPositions().forEach((inst, pos) -> {
+                instrumentPositions.getOrDefault(inst, new PositionCheckpoint()).copyFrom(pos);
+            });
+            return this;
+
+        }
     }
 }
