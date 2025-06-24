@@ -74,6 +74,7 @@
             <groupId>com.fluxtion</groupId>
             <artifactId>server</artifactId>
             <version>${fluxtion.server.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.fluxtion</groupId>
