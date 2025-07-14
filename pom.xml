@@ -9,7 +9,7 @@
 
     <groupId>com.fluxtion</groupId>
     <artifactId>fluxtion-server-plugins</artifactId>
-    <version>0.1.51-SNAPSHOT</version>
+    <version>0.1.52-SNAPSHOT</version>
     <name>fluxtion :: server-plugins</name>
     <packaging>pom</packaging>
 
@@ -24,7 +24,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <fluxtion.version>9.7.14</fluxtion.version>
-        <fluxtion.server.version>0.1.69</fluxtion.server.version>
+        <fluxtion.server.version>0.1.70</fluxtion.server.version>
         <fluxtion.mavenplugin.version>3.0.14</fluxtion.mavenplugin.version>
         <log4j2.version>2.24.3</log4j2.version>
         <jackson.version>2.18.2</jackson.version>
