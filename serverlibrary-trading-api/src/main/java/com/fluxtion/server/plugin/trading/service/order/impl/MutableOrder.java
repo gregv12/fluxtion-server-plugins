@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 package com.fluxtion.server.plugin.trading.service.order.impl;
 
 import com.fluxtion.server.plugin.trading.service.common.Direction;
@@ -20,6 +25,7 @@ public class MutableOrder implements Order {
     private long currentClOrdId;
     private String venue;
     private String symbol;
+    private String account;
     private String bookName;
     private OrderType orderType;
     private Direction direction;
@@ -39,6 +45,7 @@ public class MutableOrder implements Order {
                 .clOrdId(clOrdId)
                 .currentClOrdId(currentClOrdId)
                 .venue(venue)
+                .account(account)
                 .bookName(bookName)
                 .symbol(symbol)
                 .orderType(orderType)
