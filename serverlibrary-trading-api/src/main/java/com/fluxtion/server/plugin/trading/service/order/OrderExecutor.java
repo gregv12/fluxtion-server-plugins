@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 package com.fluxtion.server.plugin.trading.service.order;
 
 import com.fluxtion.server.plugin.trading.service.common.Direction;
@@ -37,6 +42,25 @@ public interface OrderExecutor extends OrderFeed {
             ExpiryTimeType expiryTimeType,
             LocalDateTime expiryTime,
             long clOrdId) {
+        return createOrder(venue, null, book, direction, symbol, quantity, price, orderType, expiryTimeType, expiryTime, -1);
+    }
+
+    default Order createOrder(
+            String venue,
+            String account,
+            String book,
+            Direction direction,
+            String symbol,
+            double quantity,
+            double price,
+            OrderType orderType,
+            ExpiryTimeType expiryTimeType,
+            LocalDateTime expiryTime,
+            long clOrdId) {
+        throw new UnsupportedOperationException("createOrder not supported");
+    }
+
+    default Order createOrder(NewOrderRequest request) {
         throw new UnsupportedOperationException("createOrder not supported");
     }
 
