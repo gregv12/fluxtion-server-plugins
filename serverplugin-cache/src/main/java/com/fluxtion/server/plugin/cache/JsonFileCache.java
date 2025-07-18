@@ -65,14 +65,14 @@ public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService 
     public void register(AdminCommandRegistry registry, String fileName) {
         log.info("Registering admin command registry {}", registry);
         this.registry = registry;
+        registry.registerCommand("cache." + serviceName + ".get", this::getCommand);
+        registry.registerCommand("cache." + serviceName + ".keys", this::listKeys);
     }
 
     @Override
     public void setEventFlowManager(EventFlowManager eventFlowManager, String serviceName) {
         log.info("setEventFlowManager serviceName:{}", serviceName);
         this.serviceName = serviceName;
-        registry.registerCommand("cache." + serviceName + ".get", this::getCommand);
-        registry.registerCommand("cache." + serviceName + ".keys", this::listKeys);
     }
 
     @Override
