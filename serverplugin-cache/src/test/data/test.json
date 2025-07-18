@@ -1,6 +1,0 @@
-{
-  "1" : {
-    "type" : "com.fluxtion.server.plugin.cache.JsonFileCacheTest$PositionSnapshot",
-    "data" : "{\"tradeId\":10,\"positions\":[{\"instrument\":{\"instrumentName\":\"GBP\"},\"position\":100.0},{\"instrument\":{\"instrumentName\":\"USD\"},\"position\":100.0}]}"
-  }
-}

@@ -6,32 +6,86 @@
 package com.fluxtion.server.plugin.cache;
 
 import lombok.Data;
+import org.jetbrains.annotations.NotNull;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 public class JsonFileCacheTest {
 
     @Test
     public void load() throws Exception {
-        JsonFileCache cache = new JsonFileCache();
-        String fileName = "src/test/data/test.json";
-        File file = new File(fileName);
-        System.out.println(file.getAbsolutePath());
-        System.out.println("exists:" + file.exists());
-        cache.setFileName(fileName);
-        cache.init();
-
         PositionSnapshot positionSnapshot = PositionSnapshot.of(
                 10,
                 new InstrumentPosition(Instrument.INSTRUMENT_GBP, 100),
                 new InstrumentPosition(Instrument.INSTRUMENT_USD, 100)
         );
 
+        JsonFileCache cache = getJsonFileCache("src/test/data/test.json", true);
         cache.put("1", positionSnapshot);
-        cache.doWork();
+//        cache.doWork();
+    }
+
+    @Test
+    public void load2() throws Exception {
+        final Map<String, Map<String, Double>> positionMap = new HashMap<>();
+        Map<String, Double> hedgeMap = Map.of("BTC", 20.2, "ETH", -10.1, "XRP", 100.0);
+        Map<String, Double> clientMap = Map.of("BTC", -20.1, "ETH", 10.5, "XRP", -100.0);
+        positionMap.put("hedge", hedgeMap);
+        positionMap.put("client", clientMap);
+
+        final JsonFileCache cache = getJsonFileCache("src/test/data/position_map.json", true);
+        cache.put("positionMap", positionMap);
+//        cache.doWork();
+
+        final Map<String, Map<String, Double>> positionMapSaved = cache.get("positionMap");
+        Assertions.assertEquals(positionMapSaved, positionMap);
+
+        Double btc_client_original = positionMap.get("hedge").get("BTC");
+        Double btc_client_saved = positionMapSaved.get("hedge").get("BTC");
+        Assertions.assertEquals(btc_client_original, btc_client_saved);
+
+        //update cache
+        Map<String, Double>  hedgeMapNew = Map.of("BTC", 24.0, "ETH", -10.1, "XRP", 100.0);
+        positionMap.put("hedge", hedgeMapNew);
+        cache.put("positionMap", positionMap);
+
+        cache.put("positionMap", positionMap);
+        Assertions.assertNotEquals(btc_client_saved, positionMap);
+
+        final Map<String, Map<String, Double>> positionMapSaved2 = cache.get("positionMap");
+        Assertions.assertEquals(positionMapSaved2, positionMap);
+
+        btc_client_original = positionMap.get("hedge").get("BTC");
+        btc_client_saved = positionMapSaved2.get("hedge").get("BTC");
+        Assertions.assertEquals(btc_client_original, btc_client_saved);
+
+        //load the cache from the file
+        final JsonFileCache cacheLoad2 = getJsonFileCache("src/test/data/position_map.json", false);
+        final Map<String, Map<String, Double>> positionMapSaved3 = cacheLoad2.get("positionMap");
+        Assertions.assertEquals(positionMapSaved3, positionMapSaved2);
+    }
+
+    @NotNull
+    private static JsonFileCache getJsonFileCache(String fileName, boolean deleteExistingFile) {
+        File file = new File(fileName);
+        if (file.exists() & deleteExistingFile) {
+            boolean deleted = file.delete();
+            System.out.println("Deleted existing file: " + deleted);
+        }
+
+        JsonFileCache cache = new JsonFileCache();
+//        File file = new File(fileName);
+//        System.out.println(file.getAbsolutePath());
+//        System.out.println("exists:" + file.exists());
+        cache.setFileName(fileName);
+        cache.init();
+        return cache;
     }
 
     @Data
