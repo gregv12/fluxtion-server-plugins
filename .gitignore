@@ -37,3 +37,5 @@ build/
 ### Mac OS ###
 .DS_Store
 /.idea/
+/serverplugin-cache/src/test/data/position_map.json
+/serverplugin-cache/src/test/data/test.json
