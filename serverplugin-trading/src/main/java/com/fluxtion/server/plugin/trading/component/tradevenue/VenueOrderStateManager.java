@@ -47,6 +47,8 @@ public class VenueOrderStateManager {
     }
 
     public void setClOrderIdSeed(long seedId) {
+        if(seedId < 0) throw new IllegalArgumentException("seedId must be >= 0");
+        if(seedId > 1023) throw new IllegalArgumentException("seedId must be <= 1023");
         this.clOrderIdCounter = new SnowflakeIdGenerator(seedId)::nextId;
     }
 
