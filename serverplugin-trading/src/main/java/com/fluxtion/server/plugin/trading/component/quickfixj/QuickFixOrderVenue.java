@@ -38,6 +38,7 @@ public abstract class QuickFixOrderVenue extends AbstractOrderExecutor implement
     @SneakyThrows
     @Override
     public void init() {
+        super.init();
         log.info("init use local file:{}", localFile);
         if (localFile) {
             connector = createInititatorConnector(
@@ -54,6 +55,7 @@ public abstract class QuickFixOrderVenue extends AbstractOrderExecutor implement
     @SneakyThrows
     @Override
     public void start() {
+        super.start();
         log.info("start");
         loggedOn = false;
         connector.start();

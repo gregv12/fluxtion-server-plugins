@@ -72,7 +72,7 @@ public class MockOrderExecutor extends AbstractOrderExecutorWorker {
 
         MutableOrder mutableOrder = new MutableOrder()
                 .bookName(book)
-                .clOrdId(VenueOrderStateManager.nextClOrderId())
+                .clOrdId(orderStateManager.nextClOrderId())
                 .symbol(symbol)
                 .direction(direction)
                 .quantity(quantity)
@@ -89,7 +89,7 @@ public class MockOrderExecutor extends AbstractOrderExecutorWorker {
         MutableOrder order = getOrderByOriginalClOrderId(orderId);
         log.info("modify newPrice:{} newQuantity:{} order:{}", price, quantity, order);
 
-        nextClOrderId = nextClOrderId < 1 ? VenueOrderStateManager.nextClOrderId() : nextClOrderId;
+        nextClOrderId = nextClOrderId < 1 ? orderStateManager.nextClOrderId() : nextClOrderId;
 
         OrderCancelReplaceRequest orderCancelReplaceRequest = new OrderCancelReplaceRequest(
                 new OrigClOrdID(String.valueOf(order.currentClOrdId())),

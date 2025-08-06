@@ -34,10 +34,10 @@ public class JsonFileCacheTest {
     @Test
     public void load2() throws Exception {
         final Map<String, Map<String, Double>> positionMap = new HashMap<>();
-        Map<String, Double> hedgeMap = Map.of("BTC", 20.2, "ETH", -10.1, "XRP", 100.0);
-        Map<String, Double> clientMap = Map.of("BTC", -20.1, "ETH", 10.5, "XRP", -100.0);
-        positionMap.put("hedge", hedgeMap);
-        positionMap.put("client", clientMap);
+        Map<String, Double> hedgeMap = Map.of("USDT", 77404.0707, "AVAX-USDT", -3886.07);
+        Map<String, Double> clientMap = Map.of("USDT", -78384.787778, "AVAX-USDT", 3910.865, "XRP", -100.0);
+        positionMap.put("hedge-avax-bybit", hedgeMap);
+        positionMap.put("client-avax-bybit", clientMap);
 
         final JsonFileCache cache = getJsonFileCache("src/test/data/position_map.json", true);
         cache.put("positionMap", positionMap);
@@ -46,13 +46,13 @@ public class JsonFileCacheTest {
         final Map<String, Map<String, Double>> positionMapSaved = cache.get("positionMap");
         Assertions.assertEquals(positionMapSaved, positionMap);
 
-        Double btc_client_original = positionMap.get("hedge").get("BTC");
-        Double btc_client_saved = positionMapSaved.get("hedge").get("BTC");
+        Double btc_client_original = positionMap.get("hedge-avax-bybit").get("USDT");
+        Double btc_client_saved = positionMapSaved.get("hedge-avax-bybit").get("USDT");
         Assertions.assertEquals(btc_client_original, btc_client_saved);
 
         //update cache
-        Map<String, Double>  hedgeMapNew = Map.of("BTC", 24.0, "ETH", -10.1, "XRP", 100.0);
-        positionMap.put("hedge", hedgeMapNew);
+        Map<String, Double>  hedgeMapNew = Map.of("USDT", 24.0, "AVAX-USDT", -10.1, "XRP", 100.0);
+        positionMap.put("hedge-avax-bybit", hedgeMapNew);
         cache.put("positionMap", positionMap);
 
         cache.put("positionMap", positionMap);
@@ -61,8 +61,8 @@ public class JsonFileCacheTest {
         final Map<String, Map<String, Double>> positionMapSaved2 = cache.get("positionMap");
         Assertions.assertEquals(positionMapSaved2, positionMap);
 
-        btc_client_original = positionMap.get("hedge").get("BTC");
-        btc_client_saved = positionMapSaved2.get("hedge").get("BTC");
+        btc_client_original = positionMap.get("hedge-avax-bybit").get("USDT");
+        btc_client_saved = positionMapSaved2.get("hedge-avax-bybit").get("USDT");
         Assertions.assertEquals(btc_client_original, btc_client_saved);
 
         //load the cache from the file
