@@ -8,10 +8,10 @@ import org.agrona.collections.Long2ObjectHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 
-//@RequiredArgsConstructor
 public class VenueOrderStateManager {
 
     private static final Logger log = LoggerFactory.getLogger(VenueOrderStateManager.class);
@@ -20,8 +20,8 @@ public class VenueOrderStateManager {
     @Getter
     private final Long2ObjectHashMap<MutableOrder> requestIdToOrderMap = new Long2ObjectHashMap<>();
     private final Consumer<OrderEvent> orderEventPublisher;
-    private static final SnowflakeIdGenerator idGeneratorGlobal = new SnowflakeIdGenerator(System.currentTimeMillis());
-    private final LongSupplier clOrderIdCounter;
+    private static final SnowflakeIdGenerator idGeneratorGlobal = new SnowflakeIdGenerator(0);
+    private LongSupplier clOrderIdCounter;
 
 
     public VenueOrderStateManager(Consumer<OrderEvent> orderEventPublisher) {
@@ -34,8 +34,19 @@ public class VenueOrderStateManager {
         this.clOrderIdCounter = clOrderIdCounter;
     }
 
-    public VenueOrderStateManager(Consumer<OrderEvent> orderEventPublisher, long seedId) {
+    public VenueOrderStateManager(Consumer<OrderEvent> orderEventPublisher, int seedId) {
+        if(seedId < 0) throw new IllegalArgumentException("seedId must be >= 0");
+        if(seedId > 1023) throw new IllegalArgumentException("seedId must be <= 1023");
         this.orderEventPublisher = orderEventPublisher;
+        this.clOrderIdCounter = new SnowflakeIdGenerator(seedId)::nextId;
+    }
+
+    public void setClOrderIdSeed(LongSupplier clOrderIdCounter) {
+        Objects.requireNonNull(clOrderIdCounter, "clOrderIdCounter must not be null");
+        this.clOrderIdCounter = clOrderIdCounter;
+    }
+
+    public void setClOrderIdSeed(long seedId) {
         this.clOrderIdCounter = new SnowflakeIdGenerator(seedId)::nextId;
     }
 

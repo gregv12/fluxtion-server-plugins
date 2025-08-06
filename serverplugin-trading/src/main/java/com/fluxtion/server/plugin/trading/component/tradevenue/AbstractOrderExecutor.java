@@ -34,6 +34,9 @@ public abstract class AbstractOrderExecutor
     @Getter
     @Setter
     protected Set<String> venueNameSet = new HashSet<>();
+    @Getter
+    @Setter
+    protected int clOrderIdSeed = 0;
     protected final VenueOrderStateManager orderStateManager = new VenueOrderStateManager(this::publish);
 
     @Override
@@ -48,6 +51,12 @@ public abstract class AbstractOrderExecutor
     @Override
     public void init() {
         log.info("init");
+        if(clOrderIdSeed < 0) throw new IllegalArgumentException("seedId must be >= 0");
+        if(clOrderIdSeed > 1023) throw new IllegalArgumentException("seedId must be <= 1023");
+        if(clOrderIdSeed != 0) {
+            log.info("clOrderIdSeed:{}", clOrderIdSeed);
+            orderStateManager.setClOrderIdSeed( clOrderIdSeed);
+        }
     }
 
     @Override
