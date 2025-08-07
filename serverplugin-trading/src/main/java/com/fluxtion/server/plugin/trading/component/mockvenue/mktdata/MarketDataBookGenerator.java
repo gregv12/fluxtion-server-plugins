@@ -10,7 +10,7 @@ public class MarketDataBookGenerator {
 
     public static MarketDataBook generateRandom(MarketDataBookConfig config) {
         // Check publish probability first
-        if (RANDOM.nextDouble() < config.getPublishProbability()) {
+        if (RANDOM.nextDouble() >= config.getPublishProbability()) {
             return null;
         }
         
@@ -23,7 +23,7 @@ public class MarketDataBookGenerator {
         // Generate random spread within the configured range
         double spread = roundToDecimalPlaces(
             config.getMinSpread() + RANDOM.nextDouble() * (config.getMaxSpread() - config.getMinSpread()),
-            config.getVolumePrecision()
+            config.getQuantityPrecision()
         );
         
         // Calculate bid and ask prices
@@ -34,11 +34,11 @@ public class MarketDataBookGenerator {
         // Generate random volumes and round them
         double bidVolume = roundToDecimalPlaces(
             config.getMinVolume() + RANDOM.nextDouble() * (config.getMaxVolume() - config.getMinVolume()),
-            config.getVolumePrecision()
+            config.getQuantityPrecision()
         );
         double askVolume = roundToDecimalPlaces(
             config.getMinVolume() + RANDOM.nextDouble() * (config.getMaxVolume() - config.getMinVolume()),
-            config.getVolumePrecision()
+            config.getQuantityPrecision()
         );
 
         return new MarketDataBook(

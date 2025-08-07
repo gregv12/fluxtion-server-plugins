@@ -15,6 +15,6 @@ public class MarketDataBookConfig {
     private String symbol;
     private double publishProbability;
     private int pricePrecision = 3;
-    private int volumePrecision = 3;
+    private int quantityPrecision = 3;
 
 }
