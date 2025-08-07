@@ -14,7 +14,7 @@ public class MarketDataBookConfig {
     private String venueName;
     private String symbol;
     private double publishProbability;
-    private int pricePrecision = 3;
-    private int quantityPrecision = 3;
+    private int precisionDpsPrice = 3;
+    private int precisionDpsVolume = 3;
 
 }
