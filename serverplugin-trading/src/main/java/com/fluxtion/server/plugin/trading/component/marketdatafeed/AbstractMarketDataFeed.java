@@ -69,8 +69,7 @@ public abstract class AbstractMarketDataFeed
 
         EventSubscriptionKey<MarketDataBook> subscriptionKey = new EventSubscriptionKey<>(
                 new EventSourceKey<>(serviceName),
-                MarketDataListener.class,
-                symbol
+                MarketDataListener.class
         );
         SubscriptionManager subscriptionManager = EventFlowManager.currentProcessor().getSubscriptionManager();
         subscriptionManager.subscribe(subscriptionKey);
