@@ -70,8 +70,7 @@ public abstract class AbstractOrderExecutor
 
         EventSubscriptionKey<MarketDataBook> subscriptionKey = new EventSubscriptionKey<>(
                 new EventSourceKey<>(serviceName),
-                OrderListener.class,
-                "orders"
+                OrderListener.class
         );
 
         SubscriptionManager subscriptionManager = EventFlowManager.currentProcessor().getSubscriptionManager();
