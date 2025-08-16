@@ -80,6 +80,7 @@
         <module>serverplugin-cache</module>
         <module>serverconnector-chronicle</module>
         <module>serverconnector-multicast</module>
+        <module>serverconnector-aeron</module>
         <module>serverlibrary-trading-api</module>
         <module>serverplugin-trading</module>
     </modules>
