@@ -15,6 +15,7 @@ import com.fluxtion.server.service.admin.AdminCommandRequest;
 import io.javalin.Javalin;
 import lombok.*;
 import lombok.extern.log4j.Log4j2;
+import java.util.Objects;
 
 @Log4j2
 public class JavalinAdminCommandService implements EventFlowService, Lifecycle {
@@ -43,12 +44,33 @@ public class JavalinAdminCommandService implements EventFlowService, Lifecycle {
         log.info("init Javalin REST service listening on port {}", listenPort);
         javalin = Javalin.create()
                 .post("/admin", ctx -> {
-                    AdminCommandRequest adminCommandRequest = ctx.bodyAsClass(AdminCommandRequest.class);
-                    adminCommandRequest.setOutput(out -> ctx.json(new Message(out.toString())));
-                    adminCommandRequest.setErrOutput(out -> ctx.json(new Message("Failure - " + out)));
+                    AdminCommandRequest adminCommandRequest;
+                    try {
+                        adminCommandRequest = ctx.bodyAsClass(AdminCommandRequest.class);
+                    } catch (Exception e) {
+                        log.warn("Failed to parse body as AdminCommandRequest, using default instance", e);
+                        adminCommandRequest = new AdminCommandRequest();
+                    }
+                    adminCommandRequest.setOutput(out -> {
+                        String msg = Objects.toString(out, "");
+                        msg = msg.replace("\"", "\\\"");
+                        ctx.contentType("application/json");
+                        ctx.result("{\"message\":\"" + msg + "\"}");
+                        ctx.status(200);
+                    });
+                    adminCommandRequest.setErrOutput(out -> {
+                        String msg = "Failure - " + Objects.toString(out, "");
+                        msg = msg.replace("\"", "\\\"");
+                        ctx.contentType("application/json");
+                        ctx.result("{\"message\":\"" + msg + "\"}");
+                        ctx.status(200);
+                    });
                     log.info("adminCommandRequest: {}", adminCommandRequest);
                     if (adminCommandRegistry != null) {
                         adminCommandRegistry.processAdminCommandRequest(adminCommandRequest);
+                    } else {
+                        // Ensure a 200 response even if no registry is wired
+                        ctx.status(200);
                     }
                 })
                 .start(listenPort);
