@@ -36,7 +36,11 @@ public class KafkaMessagePublisher extends AbstractMessageSink<Object> implement
     public void init() {
         properties = properties == null ? new Properties() : properties;
         log.info("Initializing KafkaMessagePublisher {}", properties);
-        producer = new KafkaProducer<>(properties);
+        producer = createProducer(properties);
+    }
+
+    protected KafkaProducer<Object, Object> createProducer(Properties props) {
+        return new KafkaProducer<>(props);
     }
 
     @Override

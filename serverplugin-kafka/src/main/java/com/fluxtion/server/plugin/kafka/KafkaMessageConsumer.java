@@ -58,13 +58,22 @@ public class KafkaMessageConsumer extends AbstractAgentHostedEventSourceService<
     @Override
     public void start() {
         log.info("Starting KafkaMessageConsumer");
-        consumer = new KafkaConsumer<>(properties);
+        consumer = createConsumer(properties);
         consumer.subscribe(List.of(topics));
     }
 
     @Override
     public void tearDown() {
         consumer.close();
+    }
+
+    protected KafkaConsumer<String, String> createConsumer(Properties props) {
+        return new KafkaConsumer<>(props);
+    }
+
+    // for testing
+    void setOutput(com.fluxtion.server.dispatch.EventToQueuePublisher<ConsumerRecords<?, ?>> publisher) {
+        this.output = publisher;
     }
 
     @Override
