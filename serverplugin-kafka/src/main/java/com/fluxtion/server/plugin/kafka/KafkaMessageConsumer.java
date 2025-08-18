@@ -1,15 +1,25 @@
 /*
+ * Copyright (c) 2025 gregory higgins.
+ * All rights reserved.
  *
- *  * SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
- *  * SPDX-License-Identifier: AGPL-3.0-only
- *  *
- *  
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the Server Side Public License, version 1,
+ * as published by MongoDB, Inc.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * Server Side Public License for more details.
+ *
+ * You should have received a copy of the Server Side Public License
+ * along with this program.  If not, see
+ * <http://www.mongodb.com/licensing/server-side-public-license>.
  */
 
 
 package com.fluxtion.server.plugin.kafka;
 
-import com.fluxtion.server.service.AbstractAgentHostedEventSourceService;
+import com.fluxtion.server.service.extension.AbstractAgentHostedEventSourceService;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
@@ -48,13 +58,22 @@ public class KafkaMessageConsumer extends AbstractAgentHostedEventSourceService<
     @Override
     public void start() {
         log.info("Starting KafkaMessageConsumer");
-        consumer = new KafkaConsumer<>(properties);
+        consumer = createConsumer(properties);
         consumer.subscribe(List.of(topics));
     }
 
     @Override
     public void tearDown() {
         consumer.close();
+    }
+
+    protected KafkaConsumer<String, String> createConsumer(Properties props) {
+        return new KafkaConsumer<>(props);
+    }
+
+    // for testing
+    void setOutput(com.fluxtion.server.dispatch.EventToQueuePublisher<ConsumerRecords<?, ?>> publisher) {
+        this.output = publisher;
     }
 
     @Override

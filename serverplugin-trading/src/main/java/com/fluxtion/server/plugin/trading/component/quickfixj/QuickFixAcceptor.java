@@ -2,7 +2,7 @@ package com.fluxtion.server.plugin.trading.component.quickfixj;
 
 import com.fluxtion.runtime.lifecycle.Lifecycle;
 import com.fluxtion.server.dispatch.EventFlowManager;
-import com.fluxtion.server.dispatch.EventFlowService;
+import com.fluxtion.server.service.EventFlowService;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.SneakyThrows;
