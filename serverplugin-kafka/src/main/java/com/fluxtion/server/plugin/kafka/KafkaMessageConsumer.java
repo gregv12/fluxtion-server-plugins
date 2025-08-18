@@ -19,7 +19,7 @@
 
 package com.fluxtion.server.plugin.kafka;
 
-import com.fluxtion.server.service.AbstractAgentHostedEventSourceService;
+import com.fluxtion.server.service.extension.AbstractAgentHostedEventSourceService;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;

@@ -21,10 +21,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assumptions;
 
 import java.net.*;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
+import java.util.Enumeration;
 
 public class MulticastMessageSinkTest {
 
@@ -36,6 +37,7 @@ public class MulticastMessageSinkTest {
 
     @BeforeEach
     void setUp() throws Exception {
+        Assumptions.assumeTrue(MulticastTestSupport.canSendAndReceive(GROUP, PORT), "Multicast not working in this environment; skipping test");
         groupAddr = InetAddress.getByName(GROUP);
         listener = new MulticastSocket(PORT);
         listener.setReuseAddress(true);

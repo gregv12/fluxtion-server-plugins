@@ -19,7 +19,7 @@ package com.fluxtion.server.plugin.connector.aeron;
 
 import com.fluxtion.runtime.event.NamedFeedEvent;
 import com.fluxtion.server.dispatch.EventToQueuePublisher;
-import com.fluxtion.server.service.AbstractAgentHostedEventSourceService;
+import com.fluxtion.server.service.extension.AbstractAgentHostedEventSourceService;
 import io.aeron.Aeron;
 import io.aeron.FragmentAssembler;
 import io.aeron.Subscription;

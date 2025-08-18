@@ -9,7 +9,7 @@ import com.fluxtion.runtime.annotations.Start;
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
 import com.fluxtion.runtime.lifecycle.Lifecycle;
 import com.fluxtion.server.dispatch.EventFlowManager;
-import com.fluxtion.server.dispatch.EventFlowService;
+import com.fluxtion.server.service.EventFlowService;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import com.fluxtion.server.service.admin.AdminCommandRequest;
 import io.javalin.Javalin;
