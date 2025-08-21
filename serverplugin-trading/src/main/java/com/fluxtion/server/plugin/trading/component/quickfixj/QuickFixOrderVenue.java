@@ -127,11 +127,19 @@ public abstract class QuickFixOrderVenue extends AbstractOrderExecutor implement
     }
 
     private static Connector createInititatorConnector(Application fixApp, InputStream initiatorConfig) throws ConfigError {
-
         SessionSettings settings = new SessionSettings(initiatorConfig);
         MessageStoreFactory storeFactory = new FileStoreFactory(settings);
 
-        LogFactory logFactory = new FileLogFactory(settings);
+        String logType = settings.getString("LogType");
+        LogFactory logFactory;
+        if (logType != null && logType.equalsIgnoreCase("SLF4J")) {
+            log.info("LogFactory:SLF4JLogFactory logType:{}", logType);
+            logFactory = new SLF4JLogFactory(settings);
+        } else {
+            log.info("LogFactory:FileLogFactory logType:{}", logType);
+            logFactory = new FileLogFactory(settings);
+        }
+
         MessageFactory messageFactory = new DefaultMessageFactory();
         return new SocketInitiator(fixApp, storeFactory, settings, logFactory, messageFactory);
     }
