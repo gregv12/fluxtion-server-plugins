@@ -22,7 +22,7 @@
 
     <groupId>com.fluxtion</groupId>
     <artifactId>fluxtion-server-plugins</artifactId>
-    <version>0.2.1-SNAPSHOT</version>
+    <version>0.2.2-SNAPSHOT</version>
     <name>fluxtion :: server-plugins</name>
     <packaging>pom</packaging>
 
@@ -155,7 +155,6 @@
                         --add-opens java.base/java.lang.reflect=ALL-UNNAMED
                         --add-opens java.base/sun.nio.ch=ALL-UNNAMED
                         --add-opens java.base/java.lang=ALL-UNNAMED
-                        --illegal-access=permit
                         --add-exports java.base/jdk.internal.ref=ALL-UNNAMED
                         --add-exports jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED
                     </argLine>
