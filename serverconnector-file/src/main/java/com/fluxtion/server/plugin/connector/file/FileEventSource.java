@@ -9,7 +9,7 @@ import com.fluxtion.agrona.IoUtil;
 import com.fluxtion.runtime.event.NamedFeedEvent;
 import com.fluxtion.server.config.ReadStrategy;
 import com.fluxtion.server.dispatch.EventToQueuePublisher;
-import com.fluxtion.server.service.AbstractAgentHostedEventSourceService;
+import com.fluxtion.server.service.extension.AbstractAgentHostedEventSourceService;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;

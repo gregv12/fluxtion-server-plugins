@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ SPDX-FileCopyrightText: © 2024 Gregory Higgins <greg.higgins@v12technology.com>
+  ~ SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
   ~ SPDX-License-Identifier: AGPL-3.0-only
   -->
 
@@ -9,7 +9,7 @@
     <parent>
         <groupId>com.fluxtion</groupId>
         <artifactId>fluxtion-server-plugins</artifactId>
-        <version>0.1.59-SNAPSHOT</version>
+        <version>0.2.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>serverplugin-kafka</artifactId>
@@ -26,6 +26,24 @@
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
             <version>3.9.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.12.0</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

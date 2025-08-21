@@ -6,6 +6,10 @@ import com.fluxtion.server.plugin.trading.service.marketdata.MarketDataBook;
 import com.fluxtion.server.plugin.trading.service.marketdata.MarketDataFeed;
 import com.fluxtion.server.plugin.trading.service.marketdata.MarketDataListener;
 import com.fluxtion.server.plugin.trading.service.marketdata.MarketFeedEvent;
+import com.fluxtion.server.service.EventFlowService;
+import com.fluxtion.server.service.EventSourceKey;
+import com.fluxtion.server.service.EventSubscriptionKey;
+import com.fluxtion.server.service.LifeCycleEventSource;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -71,7 +75,7 @@ public abstract class AbstractMarketDataFeed
                 new EventSourceKey<>(serviceName),
                 MarketDataListener.class
         );
-        SubscriptionManager subscriptionManager = EventFlowManager.currentProcessor().getSubscriptionManager();
+        SubscriptionManager subscriptionManager = ProcessorContext.currentProcessor().getSubscriptionManager();
         subscriptionManager.subscribe(subscriptionKey);
 
         subscribeToSymbol(feedName, venueName, symbol);
