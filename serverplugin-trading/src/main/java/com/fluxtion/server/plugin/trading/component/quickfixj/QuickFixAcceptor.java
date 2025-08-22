@@ -111,7 +111,12 @@ public class QuickFixAcceptor
         SessionSettings settings = new SessionSettings(acceptorConfig);
         MessageStoreFactory storeFactory = new FileStoreFactory(settings);
 
-        String logType = settings.getString("LogType");
+        String logType = null;
+        try {
+            logType = settings.getString("LogType");
+        } catch (ConfigError e) {
+            log.warn("Failed to get LogType from settings", e);
+        }
         LogFactory logFactory;
         if (logType != null && logType.equalsIgnoreCase("SLF4J")) {
             log.info("LogFactory:SLF4JLogFactory logType:{}", logType);
