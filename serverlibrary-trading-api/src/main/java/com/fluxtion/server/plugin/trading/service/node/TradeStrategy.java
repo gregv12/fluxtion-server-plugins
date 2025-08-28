@@ -12,6 +12,16 @@ import lombok.extern.log4j.Log4j2;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * TradeStrategy is a composite trading node that receives market data and order events,
+ * dispatches them to managed listeners, and coordinates lifecycle of TradeServiceListener components.
+ *
+ * Key features:
+ * - Maintains collections for MarketDataListener, OrderListener, and TradeServiceListener.
+ * - Provides addManagedNode(Object) to register components by interface type.
+ * - Forwards callbacks using index-based loops to minimize allocations in hot paths.
+ * - Invokes calculate() on all TradeServiceListener implementations after each callback via calculateAll().
+ */
 @Log4j2
 public class TradeStrategy extends ObjectEventHandlerNode
         implements

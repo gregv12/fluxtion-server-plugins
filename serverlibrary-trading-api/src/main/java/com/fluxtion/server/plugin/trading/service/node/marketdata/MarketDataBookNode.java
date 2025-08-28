@@ -10,6 +10,11 @@ import lombok.extern.log4j.Log4j2;
 import java.util.List;
 import java.util.function.Consumer;
 
+/**
+ * MarketDataBookNode subscribes to a specific feed/venue/symbol and stores the latest
+ * MarketDataBook that matches its subscription. It also exposes an admin command to
+ * query the current book snapshot.
+ */
 @Log4j2
 public class MarketDataBookNode implements MarketDataListener, TradeServiceListener {
 

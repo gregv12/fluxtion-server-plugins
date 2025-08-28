@@ -2,6 +2,10 @@ package com.fluxtion.server.plugin.trading.service.node.making;
 
 import com.fluxtion.server.plugin.trading.service.node.util.MathUtil;
 
+/**
+ * VenueOrderTransformer provides helper methods to normalise price and quantity
+ * values according to MakingVenueConfig limits and precision settings.
+ */
 public class VenueOrderTransformer {
 
     public static double transformPrice(double price, MakingVenueConfig makingVenueConfig) {

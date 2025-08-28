@@ -1,5 +1,9 @@
 package com.fluxtion.server.plugin.trading.service.node.util;
 
+/**
+ * MathUtil provides simple rounding helpers used to conform prices and quantities
+ * to venue precision requirements.
+ */
 public interface MathUtil {
 
     static double truncate(double amount, int decimalPlaces) {

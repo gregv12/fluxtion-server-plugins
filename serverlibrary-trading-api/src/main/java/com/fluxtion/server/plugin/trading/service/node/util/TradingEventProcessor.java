@@ -10,6 +10,11 @@ import lombok.extern.log4j.Log4j2;
 
 import java.util.List;
 
+/**
+ * Utility TradingEventProcessor for dispatching market data and order events from a
+ * single ObjectEventHandlerNode to registered listener lists within the util package.
+ * Uses index-based loops to avoid iterator allocations.
+ */
 @Log4j2
 public class TradingEventProcessor extends ConfigAwareEventProcessor implements MarketDataListener, OrderListener {
 
@@ -20,7 +25,13 @@ public class TradingEventProcessor extends ConfigAwareEventProcessor implements 
     @Getter
     private AdminCommandRegistry adminCommandRegistry;
 
-    public TradingEventProcessor(ObjectEventHandlerNode allEventHandler) {
+    /**
+         * Create a util TradingEventProcessor that inspects the provided handler and
+         * registers it as a MarketDataListener and/or OrderListener as applicable.
+         *
+         * @param allEventHandler the event handler node to source events from
+         */
+        public TradingEventProcessor(ObjectEventHandlerNode allEventHandler) {
         super(allEventHandler);
 
         //add MarketDataListener

@@ -10,6 +10,16 @@ import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 
+/**
+ * MakingOrderNode encapsulates order management logic for a single venue and direction
+ * (bid/ask) according to a MakingVenueConfig. It reacts to order feed events and
+ * issues create/modify/cancel requests through an OrderExecutor.
+ *
+ * Responsibilities include:
+ * - Validating and transforming target price/quantity per venue rules.
+ * - Submitting new orders and tracking lifecycle callbacks.
+ * - Adjusting orders via modifyIfRequired() when target changes.
+ */
 @ToString
 @Log4j2
 public class MakingOrderNode implements OrderListener, TradeServiceListener {
