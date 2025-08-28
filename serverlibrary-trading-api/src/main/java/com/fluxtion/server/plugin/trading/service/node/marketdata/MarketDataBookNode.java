@@ -1,9 +1,14 @@
+/*
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 package com.fluxtion.server.plugin.trading.service.node.marketdata;
 
 import com.fluxtion.runtime.annotations.Start;
 import com.fluxtion.server.plugin.trading.service.marketdata.*;
-import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import com.fluxtion.server.plugin.trading.service.node.TradeServiceListener;
+import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 
@@ -16,15 +21,20 @@ import java.util.function.Consumer;
  * query the current book snapshot.
  */
 @Log4j2
-public class MarketDataBookNode implements MarketDataListener, TradeServiceListener {
+public class MarketDataBookNode implements MarketDataListener, TradeServiceListener, com.fluxtion.server.plugin.trading.service.node.MarketDataBookSubscriber {
 
     @Getter
     private final String name;
+    @Getter
     private String feedName;
+    @Getter
     private String venueName;
+    @Getter
     private String subscribeSymbol;
     @Getter
     private MarketDataBook marketDataBook;
+    @Getter
+    private boolean updated = false;
     private MarketDataFeed marketDataFeed;
 
     public MarketDataBookNode(String name) {
@@ -85,12 +95,14 @@ public class MarketDataBookNode implements MarketDataListener, TradeServiceListe
 
     @Override
     public boolean onMarketData(MarketDataBook marketDataBook) {
+        updated = false;
         if (marketDataBook.getSymbol().equals(subscribeSymbol)
                 && marketDataBook.getFeedName().equals(feedName)
                 && marketDataBook.getVenueName().equals(venueName)
         ) {
             this.marketDataBook = marketDataBook;
             log.debug("onMarketData: {}", marketDataBook);
+            updated = true;
             return true;
         } else {
             log.debug("ignoreFeed: {}", marketDataBook);
@@ -124,5 +136,10 @@ public class MarketDataBookNode implements MarketDataListener, TradeServiceListe
 
     private void currentBook(List<String> args, Consumer<MarketDataBook> out, Consumer<String> err) {
         out.accept(marketDataBook);
+    }
+
+    @Override
+    public void postCalculate() {
+        updated = false;
     }
 }

@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 package com.fluxtion.server.plugin.trading.service.node;
 
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
@@ -15,7 +20,7 @@ import java.util.List;
 /**
  * TradeStrategy is a composite trading node that receives market data and order events,
  * dispatches them to managed listeners, and coordinates lifecycle of TradeServiceListener components.
- *
+ * <p>
  * Key features:
  * - Maintains collections for MarketDataListener, OrderListener, and TradeServiceListener.
  * - Provides addManagedNode(Object) to register components by interface type.
@@ -42,6 +47,14 @@ public class TradeStrategy extends ObjectEventHandlerNode
                 l.calculate();
             } catch (Exception e) {
                 log.error("error dispatching calculate to {}", l, e);
+            }
+        }
+        for (int i = 0, n = tradeServiceListenerSet.size(); i < n; i++) {
+            TradeServiceListener l = tradeServiceListenerSet.get(i);
+            try {
+                l.postCalculate();
+            } catch (Exception e) {
+                log.error("error dispatching postCalculate to {}", l, e);
             }
         }
     }
