@@ -1,11 +1,17 @@
+/*
+ * SPDX-FileCopyrightText: © 2025 Gregory Higgins <greg.higgins@v12technology.com>
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
 package com.fluxtion.server.plugin.trading.service.node.making;
 
 import com.fluxtion.runtime.annotations.Initialise;
 import com.fluxtion.runtime.annotations.Start;
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
 import com.fluxtion.server.plugin.trading.service.common.Direction;
-import com.fluxtion.server.plugin.trading.service.order.*;
+import com.fluxtion.server.plugin.trading.service.node.MakingOrder;
 import com.fluxtion.server.plugin.trading.service.node.TradeServiceListener;
+import com.fluxtion.server.plugin.trading.service.order.*;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
@@ -14,7 +20,7 @@ import lombok.extern.log4j.Log4j2;
  * MakingOrderNode encapsulates order management logic for a single venue and direction
  * (bid/ask) according to a MakingVenueConfig. It reacts to order feed events and
  * issues create/modify/cancel requests through an OrderExecutor.
- *
+ * <p>
  * Responsibilities include:
  * - Validating and transforming target price/quantity per venue rules.
  * - Submitting new orders and tracking lifecycle callbacks.
@@ -22,7 +28,7 @@ import lombok.extern.log4j.Log4j2;
  */
 @ToString
 @Log4j2
-public class MakingOrderNode implements OrderListener, TradeServiceListener {
+public class MakingOrderNode implements OrderListener, TradeServiceListener, MakingOrder {
 
     private final Direction direction;
     @Getter
@@ -85,6 +91,7 @@ public class MakingOrderNode implements OrderListener, TradeServiceListener {
         }
     }
 
+    @Override
     public void modify(double quantity, double price) {
 
         targetQuantity = VenueOrderTransformer.transformQuantity(quantity, makingVenueConfig);
@@ -117,6 +124,7 @@ public class MakingOrderNode implements OrderListener, TradeServiceListener {
         log.info("name:{}, pendingAckAfter:{}", getName(), pendingAck);
     }
 
+    @Override
     public void cancelOrder() {
         targetQuantity = Double.NaN;
         targetPrice = Double.NaN;
@@ -136,6 +144,7 @@ public class MakingOrderNode implements OrderListener, TradeServiceListener {
         }
     }
 
+    @Override
     public boolean isOrderClosed() {
 
         return liverOrder == null
