@@ -68,6 +68,7 @@
         <module>serverconnector-chronicle</module>
         <module>serverconnector-multicast</module>
         <module>serverconnector-aeron</module>
+<!--        <module>serverconnector-tcpsocket</module>-->
         <module>serverlibrary-trading-api</module>
         <module>serverplugin-trading</module>
     </modules>
