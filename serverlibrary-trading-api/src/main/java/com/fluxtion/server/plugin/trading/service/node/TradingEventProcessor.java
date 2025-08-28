@@ -18,11 +18,11 @@ import java.util.List;
  * ObjectEventHandlerNode to registered listener lists. It acts as a lightweight
  * event multiplexer inside a Fluxtion server, ensuring zero-GC dispatch via
  * index-based loops.
- *
+ * <p>
  * Responsibilities:
  * - Collect MarketDataListener and OrderListener implementations discovered on the provided allEventHandler.
  * - Forward MarketDataListener and OrderListener callbacks to the registered listeners.
- *
+ * <p>
  * This node does not perform any business logic; it only dispatches events.
  */
 @Log4j2
@@ -36,12 +36,12 @@ public class TradingEventProcessor extends ConfigAwareEventProcessor implements 
     private AdminCommandRegistry adminCommandRegistry;
 
     /**
-         * Create a TradingEventProcessor that inspects the provided handler and
-         * registers it as a MarketDataListener and/or OrderListener as applicable.
-         *
-         * @param allEventHandler the event handler node to source events from
-         */
-        public TradingEventProcessor(ObjectEventHandlerNode allEventHandler) {
+     * Create a TradingEventProcessor that inspects the provided handler and
+     * registers it as a MarketDataListener and/or OrderListener as applicable.
+     *
+     * @param allEventHandler the event handler node to source events from
+     */
+    public TradingEventProcessor(ObjectEventHandlerNode allEventHandler) {
         super(allEventHandler);
 
         //add MarketDataListener
