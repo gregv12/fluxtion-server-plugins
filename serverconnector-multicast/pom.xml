@@ -22,7 +22,7 @@
     <parent>
         <groupId>com.fluxtion</groupId>
         <artifactId>fluxtion-server-plugins</artifactId>
-        <version>0.2.6</version>
+        <version>0.2.7-SNAPSHOT</version>
     </parent>
 
     <artifactId>serverconnector-multicast</artifactId>
