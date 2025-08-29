@@ -112,7 +112,7 @@ public class TradeStrategy extends ObjectEventHandlerNode
     }
 
     @ServiceRegistered
-    public void adminClient(AdminCommandRegistry adminCommandRegistry) {
+    public void adminClient(AdminCommandRegistry adminCommandRegistry, String name) {
         log.info("admin: {}", adminCommandRegistry);
         for (TradeServiceListener tradeServiceListener : tradeServiceListenerSet) {
             tradeServiceListener.adminClient(adminCommandRegistry);
