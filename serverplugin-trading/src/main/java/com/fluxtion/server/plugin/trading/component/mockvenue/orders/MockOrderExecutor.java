@@ -3,7 +3,6 @@ package com.fluxtion.server.plugin.trading.component.mockvenue.orders;
 import com.fluxtion.agrona.concurrent.OneToOneConcurrentArrayQueue;
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
 import com.fluxtion.server.plugin.trading.component.tradevenue.AbstractOrderExecutorWorker;
-import com.fluxtion.server.plugin.trading.component.tradevenue.VenueOrderStateManager;
 import com.fluxtion.server.plugin.trading.service.common.Direction;
 import com.fluxtion.server.plugin.trading.service.common.OrderType;
 import com.fluxtion.server.plugin.trading.service.order.Order;
@@ -12,6 +11,9 @@ import com.fluxtion.server.plugin.trading.service.order.OrderUpdateEvent;
 import com.fluxtion.server.plugin.trading.service.order.OrderVenueConnectedEvent;
 import com.fluxtion.server.plugin.trading.service.order.impl.MutableOrder;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 import lombok.extern.log4j.Log4j2;
 import org.agrona.collections.Long2ObjectHashMap;
 import quickfix.field.*;
@@ -29,6 +31,14 @@ public class MockOrderExecutor extends AbstractOrderExecutorWorker {
     private final Long2ObjectHashMap<MutableOrder> modifyMap = new Long2ObjectHashMap<>();
     private final OneToOneConcurrentArrayQueue<Runnable> actionQueue = new OneToOneConcurrentArrayQueue<>(512);
     private volatile boolean connectedSent = false;
+    @Getter
+    @Setter
+    @Accessors(fluent = true, chain = true)
+    private volatile boolean autoAcceptOrders = true;
+    @Getter
+    @Setter
+    @Accessors(fluent = true, chain = true)
+    private volatile boolean autoAcceptModifies = true;
 
     public MockOrderExecutor(String roleName) {
         setRoleName(roleName);
@@ -42,14 +52,16 @@ public class MockOrderExecutor extends AbstractOrderExecutorWorker {
     @ServiceRegistered
     public void adminClient(AdminCommandRegistry adminCommandRegistry) {
         log.info("admin registered:{}", adminCommandRegistry);
-        adminCommandRegistry.registerCommand("mockExecutor.acceptOrder", this::acceptOrder);
-        adminCommandRegistry.registerCommand("mockExecutor.acceptAllOrders", this::acceptAllOrders);
-        adminCommandRegistry.registerCommand("mockExecutor.acceptAllModifies", this::acceptAllModifies);
-        adminCommandRegistry.registerCommand("mockExecutor.executeOrder", this::executeOrder);
-        adminCommandRegistry.registerCommand("mockExecutor.executeAllOrders", this::executeAllOrders);
-        adminCommandRegistry.registerCommand("mockExecutor.rejectOrder", this::rejectOrder);
-        adminCommandRegistry.registerCommand("mockExecutor.currentOrders", this::currentOrders);
-        adminCommandRegistry.registerCommand("mockExecutor.pendingModifies", this::pendingModifies);
+        adminCommandRegistry.registerCommand("mockExecutor.%S.acceptOrder".formatted(getFeedName()), this::acceptOrder);
+        adminCommandRegistry.registerCommand("mockExecutor.%S.autoAcceptOrder".formatted(getFeedName()), this::autoAcceptOrder);
+        adminCommandRegistry.registerCommand("mockExecutor.%S.autoAcceptOrder".formatted(getFeedName()), this::autoAcceptModify);
+        adminCommandRegistry.registerCommand("mockExecutor.%S.acceptAllOrders".formatted(getFeedName()), this::acceptAllOrders);
+        adminCommandRegistry.registerCommand("mockExecutor.%S.acceptAllModifies".formatted(getFeedName()), this::acceptAllModifies);
+        adminCommandRegistry.registerCommand("mockExecutor.%S.executeOrder".formatted(getFeedName()), this::executeOrder);
+        adminCommandRegistry.registerCommand("mockExecutor.%S.executeAllOrders".formatted(getFeedName()), this::executeAllOrders);
+        adminCommandRegistry.registerCommand("mockExecutor.%S.rejectOrder".formatted(getFeedName()), this::rejectOrder);
+        adminCommandRegistry.registerCommand("mockExecutor.%S.currentOrders".formatted(getFeedName()), this::currentOrders);
+        adminCommandRegistry.registerCommand("mockExecutor.%S.pendingModifies".formatted(getFeedName()), this::pendingModifies);
     }
 
     @Override
@@ -81,6 +93,10 @@ public class MockOrderExecutor extends AbstractOrderExecutorWorker {
                 .leavesQuantity(quantity);
 
         orderStateManager.newOrderRequest(mutableOrder, () -> log.info("new order {}", mutableOrder));
+
+        if (autoAcceptOrders) {
+            orderStateManager.orderAccepted(mutableOrder);
+        }
         return mutableOrder;
     }
 
@@ -113,6 +129,15 @@ public class MockOrderExecutor extends AbstractOrderExecutorWorker {
 
         //time in force and expire time to add
         orderStateManager.modifyOrderRequest(order, nextClOrderId, () -> log.info("modify order request {}", orderCancelReplaceRequest));
+        if (autoAcceptModifies) {
+            modifyMap.values().forEach(modifyOrder -> {
+                MutableOrder originalOrder = getOrderByCurrentClOrderId(modifyOrder.clOrdId());
+                originalOrder.currentClOrdId(modifyOrder.currentClOrdId());
+                originalOrder.leavesQuantity(modifyOrder.leavesQuantity());
+                orderStateManager.orderReplaced(originalOrder, modifyOrder.price(), modifyOrder.quantity());
+            });
+            modifyMap.clear();
+        }
     }
 
     @Override
@@ -139,6 +164,22 @@ public class MockOrderExecutor extends AbstractOrderExecutorWorker {
         log.info("acceptOrder");
         MutableOrder mutableOrder = getOrder(args, out);
         orderStateManager.orderAccepted(mutableOrder);
+    }
+
+    private void autoAcceptOrder(List<String> args, Consumer<String> out, Consumer<String> err) {
+        log.info("autoAcceptOrder");
+        if(args.size() > 1) {
+            autoAcceptOrders = Boolean.parseBoolean(args.get(1));
+        }
+        out.accept("autoAcceptOrders:" + autoAcceptOrders);
+    }
+
+    private void autoAcceptModify(List<String> args, Consumer<String> out, Consumer<String> err) {
+        log.info("autoAcceptModify");
+        if(args.size() > 1) {
+            autoAcceptModifies = Boolean.parseBoolean(args.get(1));
+        }
+        out.accept("autoAcceptModifies:" + autoAcceptModifies);
     }
 
     private void executeOrder(List<String> args, Consumer<String> out, Consumer<String> err) {
