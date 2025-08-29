@@ -12,6 +12,7 @@ import com.fluxtion.server.config.ConfigMap;
 import com.fluxtion.server.plugin.trading.service.marketdata.*;
 import com.fluxtion.server.plugin.trading.service.order.*;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
+import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 
 import java.util.ArrayList;
@@ -34,9 +35,11 @@ public class TradeStrategy extends ObjectEventHandlerNode
         MarketDataListener,
         OrderListener {
 
-
+    @Getter
     private final List<MarketDataListener> marketDataListeners = new ArrayList<>();
+    @Getter
     private final List<TradeServiceListener> tradeServiceListenerSet = new ArrayList<>();
+    @Getter
     private final List<OrderListener> orderListenerList = new ArrayList<>();
 
     // Utility: call calculate() on all TradeServiceListener nodes
