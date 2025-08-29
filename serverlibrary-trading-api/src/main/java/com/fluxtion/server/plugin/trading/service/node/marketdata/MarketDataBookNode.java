@@ -7,6 +7,7 @@ package com.fluxtion.server.plugin.trading.service.node.marketdata;
 
 import com.fluxtion.runtime.annotations.Start;
 import com.fluxtion.server.plugin.trading.service.marketdata.*;
+import com.fluxtion.server.plugin.trading.service.node.MarketDataBookSubscriber;
 import com.fluxtion.server.plugin.trading.service.node.TradeServiceListener;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import lombok.Getter;
@@ -21,7 +22,7 @@ import java.util.function.Consumer;
  * query the current book snapshot.
  */
 @Log4j2
-public class MarketDataBookNode implements MarketDataListener, TradeServiceListener, com.fluxtion.server.plugin.trading.service.node.MarketDataBookSubscriber {
+public class MarketDataBookNode implements MarketDataListener, TradeServiceListener, MarketDataBookSubscriber {
 
     @Getter
     private final String name;

@@ -79,8 +79,8 @@ public class MakingOrderNode implements OrderListener, TradeServiceListener, Mak
         }
     }
 
-    @ServiceRegistered
-    public void orderExecutor(OrderExecutor orderExecutor, String name) {
+    @Override
+    public void orderExecutorRegistered(OrderExecutor orderExecutor, String name) {
         if (orderExecutor.getFeedName().equals(feedName) && orderExecutor.isVenueRegistered(makerVenue)) {
             this.orderExecutor = orderExecutor;
             log.info("name:{}, orderExecutorRegistered:{}, feedName:{}, makerVenue:{}",
