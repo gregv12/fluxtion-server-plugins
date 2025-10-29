@@ -6,6 +6,7 @@ import com.fluxtion.server.plugin.trading.component.mockvenue.mktdata.MockMarket
 import com.fluxtion.server.plugin.trading.service.marketdata.MarketConnected;
 import com.fluxtion.server.plugin.trading.service.marketdata.MarketDataBook;
 import com.fluxtion.server.plugin.trading.service.marketdata.MarketFeedEvent;
+import com.fluxtion.server.plugin.trading.service.marketdata.MultilevelMarketDataBook;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -68,6 +69,107 @@ class AbstractMarketDataFeedTest {
         assertTrue(venues.contains("FEED1"));
     }
 
+    @Test
+    void mockWorker_publishesMultilevelMarketDataBook_whenConfigured() {
+        // Capture published market events
+        List<MarketFeedEvent> published = new CopyOnWriteArrayList<>();
+        EventToQueuePublisher<MarketFeedEvent> publisher = new EventToQueuePublisher<>("test-feed-publisher") {
+            @Override
+            public void publish(MarketFeedEvent event) {
+                published.add(event);
+            }
+        };
+
+        // Configure worker with multilevel enabled
+        TestableMockMarketDataFeedWorker worker = new TestableMockMarketDataFeedWorker();
+        worker.setFeedName("FEED1");
+        MarketDataBookConfig cfg = newConfig("FEED1", "VENUE1", "SYM", 1.0);
+        cfg.setMultilevel(true);
+        cfg.setMultilevelDepth(10);
+        worker.setMarketDataBookConfigs(List.of(cfg));
+
+        // Inject our capturing publisher directly into the private field via reflection
+        try {
+            java.lang.reflect.Field f = AbstractMarketDataFeed.class.getDeclaredField("targetQueue");
+            f.setAccessible(true);
+            f.set(worker, publisher);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        // Lifecycle calls
+        worker.init();
+        worker.start();
+
+        // Manually publish once (simulate timer tick)
+        worker.emitOnce(cfg);
+
+        // Verify at least a MarketConnected and one MultilevelMarketDataBook event are published
+        assertFalse(published.isEmpty(), "Expected some events to be published");
+        assertTrue(published.get(0) instanceof MarketConnected, "First event should be MarketConnected");
+        assertEquals("FEED1", ((MarketConnected) published.get(0)).name());
+
+        // Verify a multilevel book was published
+        boolean hasMultilevelBook = published.stream().anyMatch(e -> e instanceof MultilevelMarketDataBook);
+        assertTrue(hasMultilevelBook, "Expected a MultilevelMarketDataBook to be published");
+
+        // Verify the multilevel book has the correct depth
+        MultilevelMarketDataBook multilevelBook = published.stream()
+                .filter(e -> e instanceof MultilevelMarketDataBook)
+                .map(e -> (MultilevelMarketDataBook) e)
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals(10, multilevelBook.getBidDepth(), "Bid depth should match configured depth");
+        assertEquals(10, multilevelBook.getAskDepth(), "Ask depth should match configured depth");
+        assertEquals("FEED1", multilevelBook.getFeedName());
+        assertEquals("VENUE1", multilevelBook.getVenueName());
+        assertEquals("SYM", multilevelBook.getSymbol());
+    }
+
+    @Test
+    void mockWorker_publishesSingleLevelBook_whenMultilevelNotConfigured() {
+        // Capture published market events
+        List<MarketFeedEvent> published = new CopyOnWriteArrayList<>();
+        EventToQueuePublisher<MarketFeedEvent> publisher = new EventToQueuePublisher<>("test-feed-publisher") {
+            @Override
+            public void publish(MarketFeedEvent event) {
+                published.add(event);
+            }
+        };
+
+        // Configure worker WITHOUT multilevel
+        TestableMockMarketDataFeedWorker worker = new TestableMockMarketDataFeedWorker();
+        worker.setFeedName("FEED1");
+        MarketDataBookConfig cfg = newConfig("FEED1", "VENUE1", "SYM", 1.0);
+        cfg.setMultilevel(false);  // Explicitly disable multilevel
+        worker.setMarketDataBookConfigs(List.of(cfg));
+
+        // Inject our capturing publisher
+        try {
+            java.lang.reflect.Field f = AbstractMarketDataFeed.class.getDeclaredField("targetQueue");
+            f.setAccessible(true);
+            f.set(worker, publisher);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        // Lifecycle calls
+        worker.init();
+        worker.start();
+
+        // Manually publish once
+        worker.emitOnce(cfg);
+
+        // Verify standard single-level MarketDataBook was published
+        boolean hasSingleLevelBook = published.stream().anyMatch(e -> e instanceof MarketDataBook);
+        assertTrue(hasSingleLevelBook, "Expected a single-level MarketDataBook to be published");
+
+        // Verify NO multilevel book was published
+        boolean hasMultilevelBook = published.stream().anyMatch(e -> e instanceof MultilevelMarketDataBook);
+        assertFalse(hasMultilevelBook, "Should not publish MultilevelMarketDataBook when multilevel is disabled");
+    }
+
     private static MarketDataBookConfig newConfig(String feed, String venue, String symbol, double probability) {
         MarketDataBookConfig c = new MarketDataBookConfig();
         c.setFeedName(feed);
@@ -90,8 +192,14 @@ class AbstractMarketDataFeedTest {
         public void emitOnce(MarketDataBookConfig config) {
             // Simulate first connection event
             publish(new MarketConnected(getFeedName()));
-            // And one generated book
-            var book = com.fluxtion.server.plugin.trading.component.mockvenue.mktdata.MarketDataBookGenerator.generateRandom(config);
+            // Generate book based on config (single or multilevel)
+            MarketFeedEvent book;
+            if (config.isMultilevel()) {
+                book = com.fluxtion.server.plugin.trading.component.mockvenue.mktdata.MarketDataBookGenerator.generateRandomMultilevel(
+                        config, config.getMultilevelDepth(), config.getMultilevelBookConfig());
+            } else {
+                book = com.fluxtion.server.plugin.trading.component.mockvenue.mktdata.MarketDataBookGenerator.generateRandom(config);
+            }
             if (book != null) {
                 publish(book);
             }
