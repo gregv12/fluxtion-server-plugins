@@ -9,7 +9,7 @@
     <parent>
         <groupId>com.fluxtion</groupId>
         <artifactId>fluxtion-server-plugins</artifactId>
-        <version>0.2.10-SNAPSHOT</version>
+        <version>0.2.11-SNAPSHOT</version>
     </parent>
 
     <artifactId>serverplugin-admintelnet</artifactId>
