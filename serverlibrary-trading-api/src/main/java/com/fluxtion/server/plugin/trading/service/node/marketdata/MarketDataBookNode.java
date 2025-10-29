@@ -35,7 +35,11 @@ public class MarketDataBookNode implements MarketDataListener, TradeServiceListe
     @Getter
     private MarketDataBook marketDataBook;
     @Getter
+    private MultilevelMarketDataBook multilevelMarketDataBook;
+    @Getter
     private boolean updated = false;
+    @Getter
+    private boolean multilevelUpdated = false;
     private MarketDataFeed marketDataFeed;
 
     public MarketDataBookNode(String name) {
@@ -87,6 +91,7 @@ public class MarketDataBookNode implements MarketDataListener, TradeServiceListe
     public void adminClient(AdminCommandRegistry adminCommandRegistry) {
         log.info("admin: {}", adminCommandRegistry);
         adminCommandRegistry.registerCommand("mkDataBook.%s.currentBook".formatted(getName()), this::currentBook);
+        adminCommandRegistry.registerCommand("mkDataBook.%s.currentMultilevelBook".formatted(getName()), this::currentMultilevelBook);
     }
 
     @Start
@@ -107,6 +112,23 @@ public class MarketDataBookNode implements MarketDataListener, TradeServiceListe
             return true;
         } else {
             log.debug("ignoreFeed: {}", marketDataBook);
+        }
+        return false;
+    }
+
+    @Override
+    public boolean onMultilevelMarketData(MultilevelMarketDataBook multilevelBook) {
+        multilevelUpdated = false;
+        if (multilevelBook.getSymbol().equals(subscribeSymbol)
+                && multilevelBook.getFeedName().equals(feedName)
+                && multilevelBook.getVenueName().equals(venueName)
+        ) {
+            this.multilevelMarketDataBook = multilevelBook;
+            log.debug("onMultilevelMarketData: {}", multilevelBook);
+            multilevelUpdated = true;
+            return true;
+        } else {
+            log.debug("ignoreMultilevelFeed: {}", multilevelBook);
         }
         return false;
     }
@@ -139,8 +161,13 @@ public class MarketDataBookNode implements MarketDataListener, TradeServiceListe
         out.accept(marketDataBook);
     }
 
+    private void currentMultilevelBook(List<String> args, Consumer<MultilevelMarketDataBook> out, Consumer<String> err) {
+        out.accept(multilevelMarketDataBook);
+    }
+
     @Override
     public void postCalculate() {
         updated = false;
+        multilevelUpdated = false;
     }
 }

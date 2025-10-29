@@ -4,6 +4,8 @@ import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
 import com.fluxtion.server.plugin.trading.component.marketdatafeed.AbstractMarketDataFeedWorker;
 import com.fluxtion.server.plugin.trading.service.marketdata.MarketConnected;
 import com.fluxtion.server.plugin.trading.service.marketdata.MarketDataBook;
+import com.fluxtion.server.plugin.trading.service.marketdata.MarketFeedEvent;
+import com.fluxtion.server.plugin.trading.service.marketdata.MultilevelMarketDataBook;
 import com.fluxtion.server.service.scheduler.SchedulerService;
 import lombok.Getter;
 import lombok.Setter;
@@ -49,7 +51,7 @@ public class MockMarketDataFeedWorker extends AbstractMarketDataFeedWorker {
     public void timerTriggered() {
         this.schedulerService.scheduleAfterDelay(publishRateMillis, this::timerTriggered);
         log.trace("timer triggered {}", schedulerService);
-        
+
         if(marketConnected != null) {
             log.info("publish marketConnected {}", marketConnected);
             publish(marketConnected);
@@ -57,10 +59,20 @@ public class MockMarketDataFeedWorker extends AbstractMarketDataFeedWorker {
         }
 
         for (MarketDataBookConfig config : marketDataBookConfigs) {
-            MarketDataBook marketDataBook = MarketDataBookGenerator.generateRandom(config);
-            if (marketDataBook != null) {
-                log.debug("publishPrice:{}", marketDataBook);
-                publish(marketDataBook);
+            MarketFeedEvent marketFeedEvent;
+            if (config.isMultilevel()) {
+                marketFeedEvent = MarketDataBookGenerator.generateRandomMultilevel(
+                        config,
+                        config.getMultilevelDepth(),
+                        config.getMultilevelBookConfig()
+                );
+            } else {
+                marketFeedEvent = MarketDataBookGenerator.generateRandom(config);
+            }
+
+            if (marketFeedEvent != null) {
+                log.debug("publishPrice:{}", marketFeedEvent);
+                publish(marketFeedEvent);
             }
         }
     }
