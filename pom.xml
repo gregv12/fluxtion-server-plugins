@@ -9,7 +9,7 @@
 
     <groupId>com.fluxtion</groupId>
     <artifactId>fluxtion-server-plugins</artifactId>
-    <version>0.2.12-SNAPSHOT</version>
+    <version>0.2.13-SNAPSHOT</version>
     <name>fluxtion :: server-plugins</name>
     <packaging>pom</packaging>
 
