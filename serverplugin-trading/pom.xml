@@ -9,7 +9,7 @@
     <parent>
         <groupId>com.fluxtion</groupId>
         <artifactId>fluxtion-server-plugins</artifactId>
-        <version>0.2.11-SNAPSHOT</version>
+        <version>0.2.12-SNAPSHOT</version>
     </parent>
 
     <artifactId>serverplugin-trading</artifactId>
@@ -42,6 +42,11 @@
             <artifactId>agrona</artifactId>
             <version>2.0.1</version>
             <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.17.0</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

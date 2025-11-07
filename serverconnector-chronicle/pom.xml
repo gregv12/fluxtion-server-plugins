@@ -9,7 +9,7 @@
     <parent>
         <groupId>com.fluxtion</groupId>
         <artifactId>fluxtion-server-plugins</artifactId>
-        <version>0.2.11-SNAPSHOT</version>
+        <version>0.2.12-SNAPSHOT</version>
     </parent>
 
     <artifactId>serverconnector-chronicle</artifactId>
@@ -36,12 +36,29 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.fluxtion</groupId>
+            <artifactId>serverplugin-cache</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>net.openhft</groupId>
             <artifactId>chronicle-queue</artifactId>
         </dependency>
         <dependency>
             <groupId>net.openhft</groupId>
             <artifactId>chronicle-map</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
