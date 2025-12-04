@@ -8,9 +8,12 @@ import org.agrona.collections.Long2ObjectHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
+import java.util.stream.Collectors;
 
 public class VenueOrderStateManager {
 
@@ -119,7 +122,7 @@ public class VenueOrderStateManager {
         try {
             venuePublisherTask.run();
             requestIdToOrderMap.put(requestId, order);
-            requestIdToOrderMap.remove(order.clOrdId());
+//            requestIdToOrderMap.remove(order.clOrdId());
         } catch (Exception e) {
             publish(new OrderUpdateEvent(order.orderStatus(OrderStatus.REJECTED).copy()));
         }
@@ -136,6 +139,44 @@ public class VenueOrderStateManager {
 
     public long nextClOrderId() {
         return clOrderIdCounter.getAsLong();
+    }
+
+    private static final Set<OrderStatus> COMPLETED_STATUSES = Set.of(
+            OrderStatus.FILLED,
+            OrderStatus.CANCELLED,
+            OrderStatus.DONE_FOR_DAY,
+            OrderStatus.REJECTED
+    );
+
+    private static final Set<OrderStatus> LIVE_STATUSES = Set.of(
+            OrderStatus.CREATED,
+            OrderStatus.PENDING_NEW,
+            OrderStatus.NEW,
+            OrderStatus.PARTIAL_FILLED
+    );
+
+    public List<MutableOrder> getLiveOrders() {
+        return clOrderIdToOrderMap.values().stream()
+                .filter(order -> LIVE_STATUSES.contains(order.orderStatus()))
+                .collect(Collectors.toList());
+    }
+
+    public List<MutableOrder> getCompletedOrders() {
+        return clOrderIdToOrderMap.values().stream()
+                .filter(order -> COMPLETED_STATUSES.contains(order.orderStatus()))
+                .collect(Collectors.toList());
+    }
+
+    public int clearCompletedOrders() {
+        List<MutableOrder> completedOrders = getCompletedOrders();
+        int clearedCount = completedOrders.size();
+        for (MutableOrder order : completedOrders) {
+            clOrderIdToOrderMap.remove(order.clOrdId());
+            requestIdToOrderMap.remove(order.clOrdId());
+            requestIdToOrderMap.remove(order.currentClOrdId());
+        }
+        log.info("Cleared {} completed orders", clearedCount);
+        return clearedCount;
     }
 
     private void publish(OrderEvent orderEvent) {
