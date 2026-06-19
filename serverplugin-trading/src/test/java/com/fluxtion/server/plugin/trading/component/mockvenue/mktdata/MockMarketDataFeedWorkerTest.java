@@ -420,7 +420,7 @@ class MockMarketDataFeedWorkerTest {
     // ========== Admin Command Registration Tests ==========
 
     @Test
-    @DisplayName("Test adminClient registers all 13 commands")
+    @DisplayName("Test adminClient registers all 15 commands")
     void testAdminClientRegistersAllCommands() {
         List<String> registeredCommands = new ArrayList<>();
 
@@ -442,8 +442,8 @@ class MockMarketDataFeedWorkerTest {
 
         feedWorker.adminClient(registry);
 
-        // Verify all 13 commands are registered
-        assertEquals(13, registeredCommands.size());
+        // Verify all 15 commands are registered
+        assertEquals(15, registeredCommands.size());
         assertTrue(registeredCommands.contains("mockMarketDataFeed.start"));
         assertTrue(registeredCommands.contains("mockMarketDataFeed.stop"));
         assertTrue(registeredCommands.contains("mockMarketDataFeed.pause"));
@@ -457,6 +457,97 @@ class MockMarketDataFeedWorkerTest {
         assertTrue(registeredCommands.contains("mockMarketDataFeed.setFixedMultiLevel"));
         assertTrue(registeredCommands.contains("mockMarketDataFeed.configureFromJson"));
         assertTrue(registeredCommands.contains("mockMarketDataFeed.clearAll"));
+        assertTrue(registeredCommands.contains("mockMarketDataFeed.invertTopOfBook"));
+        assertTrue(registeredCommands.contains("mockMarketDataFeed.takeAwaySide"));
+    }
+
+    // ========== invertTopOfBook / takeAwaySide Tests ==========
+
+    @Test
+    @DisplayName("invertTopOfBook on/off flips the config flag")
+    void testInvertTopOfBookOnOff() {
+        feedWorker.addConfig(Arrays.asList("addConfig", "EURUSD", "1.08", "1.09", "0.0001", "0.0005", "100000", "1000000"),
+                outConsumer, errConsumer);
+        outputMessages.clear();
+
+        feedWorker.invertTopOfBook(Arrays.asList("invertTopOfBook", "EURUSD", "on"), outConsumer, errConsumer);
+        assertTrue(feedWorker.getMarketDataBookConfigs().get(0).isInvertTopOfBook());
+        assertTrue(outputMessages.get(0).contains("ON"));
+
+        feedWorker.invertTopOfBook(Arrays.asList("invertTopOfBook", "EURUSD", "OFF"), outConsumer, errConsumer);
+        assertFalse(feedWorker.getMarketDataBookConfigs().get(0).isInvertTopOfBook());
+        assertTrue(outputMessages.get(1).contains("OFF"));
+        assertTrue(errorMessages.isEmpty());
+    }
+
+    @Test
+    @DisplayName("invertTopOfBook rejects unknown symbol")
+    void testInvertTopOfBookUnknownSymbol() {
+        feedWorker.invertTopOfBook(Arrays.asList("invertTopOfBook", "NOPE", "on"), outConsumer, errConsumer);
+        assertTrue(errorMessages.get(0).contains("No config found"));
+    }
+
+    @Test
+    @DisplayName("invertTopOfBook rejects bad on/off arg")
+    void testInvertTopOfBookBadArg() {
+        feedWorker.addConfig(Arrays.asList("addConfig", "EURUSD", "1.08", "1.09", "0.0001", "0.0005", "100000", "1000000"),
+                outConsumer, errConsumer);
+        feedWorker.invertTopOfBook(Arrays.asList("invertTopOfBook", "EURUSD", "maybe"), outConsumer, errConsumer);
+        assertTrue(errorMessages.get(0).contains("'on' or 'off'"));
+        assertFalse(feedWorker.getMarketDataBookConfigs().get(0).isInvertTopOfBook());
+    }
+
+    @Test
+    @DisplayName("invertTopOfBook with wrong number of args errors")
+    void testInvertTopOfBookWrongArgCount() {
+        feedWorker.invertTopOfBook(Arrays.asList("invertTopOfBook", "EURUSD"), outConsumer, errConsumer);
+        assertTrue(errorMessages.get(0).contains("requires 2 arguments"));
+    }
+
+    @Test
+    @DisplayName("takeAwaySide bid/ask/none sets the config field")
+    void testTakeAwaySideTransitions() {
+        feedWorker.addConfig(Arrays.asList("addConfig", "EURUSD", "1.08", "1.09", "0.0001", "0.0005", "100000", "1000000"),
+                outConsumer, errConsumer);
+
+        feedWorker.takeAwaySide(Arrays.asList("takeAwaySide", "EURUSD", "bid"), outConsumer, errConsumer);
+        assertEquals(MarketDataBookConfig.SuppressedSide.BID,
+                feedWorker.getMarketDataBookConfigs().get(0).getSuppressedSide());
+
+        feedWorker.takeAwaySide(Arrays.asList("takeAwaySide", "EURUSD", "ASK"), outConsumer, errConsumer);
+        assertEquals(MarketDataBookConfig.SuppressedSide.ASK,
+                feedWorker.getMarketDataBookConfigs().get(0).getSuppressedSide());
+
+        feedWorker.takeAwaySide(Arrays.asList("takeAwaySide", "EURUSD", "none"), outConsumer, errConsumer);
+        assertEquals(MarketDataBookConfig.SuppressedSide.NONE,
+                feedWorker.getMarketDataBookConfigs().get(0).getSuppressedSide());
+
+        assertTrue(errorMessages.isEmpty());
+    }
+
+    @Test
+    @DisplayName("takeAwaySide rejects unknown symbol")
+    void testTakeAwaySideUnknownSymbol() {
+        feedWorker.takeAwaySide(Arrays.asList("takeAwaySide", "NOPE", "bid"), outConsumer, errConsumer);
+        assertTrue(errorMessages.get(0).contains("No config found"));
+    }
+
+    @Test
+    @DisplayName("takeAwaySide rejects bad side arg")
+    void testTakeAwaySideBadArg() {
+        feedWorker.addConfig(Arrays.asList("addConfig", "EURUSD", "1.08", "1.09", "0.0001", "0.0005", "100000", "1000000"),
+                outConsumer, errConsumer);
+        feedWorker.takeAwaySide(Arrays.asList("takeAwaySide", "EURUSD", "both"), outConsumer, errConsumer);
+        assertTrue(errorMessages.get(0).contains("'bid', 'ask', or 'none'"));
+        assertEquals(MarketDataBookConfig.SuppressedSide.NONE,
+                feedWorker.getMarketDataBookConfigs().get(0).getSuppressedSide());
+    }
+
+    @Test
+    @DisplayName("takeAwaySide with wrong number of args errors")
+    void testTakeAwaySideWrongArgCount() {
+        feedWorker.takeAwaySide(Arrays.asList("takeAwaySide", "EURUSD"), outConsumer, errConsumer);
+        assertTrue(errorMessages.get(0).contains("requires 2 arguments"));
     }
 
     // ========== Integration Tests ==========
