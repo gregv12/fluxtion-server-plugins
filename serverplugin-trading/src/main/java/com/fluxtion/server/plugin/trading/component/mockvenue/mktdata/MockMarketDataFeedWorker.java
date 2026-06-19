@@ -4,9 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
 import com.fluxtion.server.plugin.trading.component.marketdatafeed.AbstractMarketDataFeedWorker;
 import com.fluxtion.server.plugin.trading.service.marketdata.MarketConnected;
-import com.fluxtion.server.plugin.trading.service.marketdata.MarketDataBook;
 import com.fluxtion.server.plugin.trading.service.marketdata.MarketFeedEvent;
-import com.fluxtion.server.plugin.trading.service.marketdata.MultilevelMarketDataBook;
 import com.fluxtion.server.plugin.trading.service.marketdata.MultilevelBookConfig;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import com.fluxtion.server.service.scheduler.SchedulerService;
@@ -19,7 +17,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 @Log4j2
 public class MockMarketDataFeedWorker extends AbstractMarketDataFeedWorker {
@@ -71,6 +68,8 @@ public class MockMarketDataFeedWorker extends AbstractMarketDataFeedWorker {
         adminCommandRegistry.registerCommand(getFeedName() + ".setFixedMultiLevel", this::setFixedMultiLevel);
         adminCommandRegistry.registerCommand(getFeedName() + ".configureFromJson", this::configureFromJson);
         adminCommandRegistry.registerCommand(getFeedName() + ".clearAll", this::clearAll);
+        adminCommandRegistry.registerCommand(getFeedName() + ".invertTopOfBook", this::invertTopOfBook);
+        adminCommandRegistry.registerCommand(getFeedName() + ".takeAwaySide", this::takeAwaySide);
     }
 
     @ServiceRegistered
@@ -97,7 +96,7 @@ public class MockMarketDataFeedWorker extends AbstractMarketDataFeedWorker {
             return;
         }
 
-        if(marketConnected != null) {
+        if (marketConnected != null) {
             log.info("publish marketConnected {}", marketConnected);
             publish(marketConnected);
             marketConnected = null;
@@ -208,7 +207,7 @@ public class MockMarketDataFeedWorker extends AbstractMarketDataFeedWorker {
             status.append(System.lineSeparator()).append("Symbols:").append(System.lineSeparator());
             for (MarketDataBookConfig config : marketDataBookConfigs) {
                 status.append(String.format("  - %s (%s)", config.getSymbol(),
-                        config.isMultilevel() ? "multilevel-" + config.getMultilevelDepth() : "single-level"))
+                                config.isMultilevel() ? "multilevel-" + config.getMultilevelDepth() : "single-level"))
                         .append(System.lineSeparator());
             }
         }
@@ -431,5 +430,70 @@ public class MockMarketDataFeedWorker extends AbstractMarketDataFeedWorker {
         configMap.clear();
         out.accept(String.format("Cleared all %d market data book configurations", count));
         log.info("Cleared all market data book configurations");
+    }
+
+    protected void invertTopOfBook(List<String> args, Consumer<String> out, Consumer<String> err) {
+        if (args.size() != 3) {
+            err.accept("invertTopOfBook requires 2 arguments: [symbol] [on|off]");
+            return;
+        }
+
+        String symbol = args.get(1);
+        String state = args.get(2).toLowerCase();
+        MarketDataBookConfig config = configMap.get(symbol);
+
+        if (config == null) {
+            err.accept(String.format("No config found for symbol: %s", symbol));
+            return;
+        }
+
+        switch (state) {
+            case "on" -> {
+                config.setInvertTopOfBook(true);
+                out.accept(String.format("Inverted top of book ON for symbol: %s", symbol));
+                log.info("Inverted top of book ON for symbol: {}", symbol);
+            }
+            case "off" -> {
+                config.setInvertTopOfBook(false);
+                out.accept(String.format("Inverted top of book OFF for symbol: %s", symbol));
+                log.info("Inverted top of book OFF for symbol: {}", symbol);
+            }
+            default -> err.accept("Second argument must be 'on' or 'off', got: " + args.get(2));
+        }
+    }
+
+    protected void takeAwaySide(List<String> args, Consumer<String> out, Consumer<String> err) {
+        if (args.size() != 3) {
+            err.accept("takeAwaySide requires 2 arguments: [symbol] [bid|ask|none]");
+            return;
+        }
+
+        String symbol = args.get(1);
+        String state = args.get(2).toLowerCase();
+        MarketDataBookConfig config = configMap.get(symbol);
+
+        if (config == null) {
+            err.accept(String.format("No config found for symbol: %s", symbol));
+            return;
+        }
+
+        switch (state) {
+            case "bid" -> {
+                config.setSuppressedSide(MarketDataBookConfig.SuppressedSide.BID);
+                out.accept(String.format("Taking away BID side for symbol: %s", symbol));
+                log.info("Taking away BID side for symbol: {}", symbol);
+            }
+            case "ask" -> {
+                config.setSuppressedSide(MarketDataBookConfig.SuppressedSide.ASK);
+                out.accept(String.format("Taking away ASK side for symbol: %s", symbol));
+                log.info("Taking away ASK side for symbol: {}", symbol);
+            }
+            case "none" -> {
+                config.setSuppressedSide(MarketDataBookConfig.SuppressedSide.NONE);
+                out.accept(String.format("Restored both sides for symbol: %s", symbol));
+                log.info("Restored both sides for symbol: {}", symbol);
+            }
+            default -> err.accept("Second argument must be 'bid', 'ask', or 'none', got: " + args.get(2));
+        }
     }
 }

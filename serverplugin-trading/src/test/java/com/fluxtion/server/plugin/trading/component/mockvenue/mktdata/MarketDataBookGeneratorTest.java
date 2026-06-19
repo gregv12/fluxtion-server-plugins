@@ -135,6 +135,144 @@ class MarketDataBookGeneratorTest {
         assertEquals(20, book.getAskDepth(), "Default depth should be 20");
     }
 
+    @Test
+    void generateRandom_invertTopOfBook_producesCrossedBook() {
+        MarketDataBookConfig cfg = baseSingleLevelConfig();
+        cfg.setInvertTopOfBook(true);
+
+        for (int i = 0; i < 50; i++) {
+            MarketDataBook book = MarketDataBookGenerator.generateRandom(cfg);
+            assertNotNull(book);
+            assertTrue(book.getBidPrice() >= book.getAskPrice(),
+                    "Inverted book should have bid >= ask (got bid=" + book.getBidPrice() + ", ask=" + book.getAskPrice() + ")");
+        }
+    }
+
+    @Test
+    void generateRandom_suppressBid_zerosBidSide() {
+        MarketDataBookConfig cfg = baseSingleLevelConfig();
+        cfg.setSuppressedSide(MarketDataBookConfig.SuppressedSide.BID);
+
+        MarketDataBook book = MarketDataBookGenerator.generateRandom(cfg);
+        assertNotNull(book);
+        assertEquals(0.0, book.getBidPrice());
+        assertEquals(0.0, book.getBidQuantity());
+        assertEquals(0, book.getBidOrderCount());
+        assertTrue(book.getAskPrice() > 0.0);
+        assertTrue(book.getAskQuantity() > 0.0);
+    }
+
+    @Test
+    void generateRandom_suppressAsk_zerosAskSide() {
+        MarketDataBookConfig cfg = baseSingleLevelConfig();
+        cfg.setSuppressedSide(MarketDataBookConfig.SuppressedSide.ASK);
+
+        MarketDataBook book = MarketDataBookGenerator.generateRandom(cfg);
+        assertNotNull(book);
+        assertEquals(0.0, book.getAskPrice());
+        assertEquals(0.0, book.getAskQuantity());
+        assertEquals(0, book.getAskOrderCount());
+        assertTrue(book.getBidPrice() > 0.0);
+        assertTrue(book.getBidQuantity() > 0.0);
+    }
+
+    @Test
+    void generateRandom_invertAndSuppressAsk_emitsOnlyOriginalBidSide() {
+        // With invert=on the original bid becomes the ask side; suppressing ASK should then
+        // zero what was originally bid, leaving only the original-ask data on the bid side.
+        MarketDataBookConfig cfg = baseSingleLevelConfig();
+        cfg.setInvertTopOfBook(true);
+        cfg.setSuppressedSide(MarketDataBookConfig.SuppressedSide.ASK);
+
+        MarketDataBook book = MarketDataBookGenerator.generateRandom(cfg);
+        assertNotNull(book);
+        assertEquals(0.0, book.getAskPrice());
+        assertTrue(book.getBidPrice() > 0.0);
+    }
+
+    @Test
+    void generateRandomMultilevel_invertTopOfBook_producesCrossedBestBidAndAsk() {
+        MarketDataBookConfig cfg = baseSingleLevelConfig();
+        cfg.setInvertTopOfBook(true);
+
+        int depth = 5;
+        MultilevelBookConfig bookConfig = MultilevelBookConfig.builder().maxDepth(depth).build();
+
+        for (int i = 0; i < 50; i++) {
+            MultilevelMarketDataBook book = MarketDataBookGenerator.generateRandomMultilevel(cfg, depth, bookConfig);
+            assertNotNull(book);
+            assertNotNull(book.getBestBid());
+            assertNotNull(book.getBestAsk());
+            assertTrue(book.getBestBid().getPrice() > book.getBestAsk().getPrice(),
+                    "Inverted multilevel book should be crossed (best bid > best ask)");
+            assertEquals(depth, book.getBidDepth());
+            assertEquals(depth, book.getAskDepth());
+        }
+    }
+
+    @Test
+    void generateRandomMultilevel_suppressBid_emitsOnlyAskLevels() {
+        MarketDataBookConfig cfg = baseSingleLevelConfig();
+        cfg.setSuppressedSide(MarketDataBookConfig.SuppressedSide.BID);
+
+        int depth = 5;
+        MultilevelBookConfig bookConfig = MultilevelBookConfig.builder().maxDepth(depth).build();
+
+        MultilevelMarketDataBook book = MarketDataBookGenerator.generateRandomMultilevel(cfg, depth, bookConfig);
+        assertNotNull(book);
+        assertEquals(0, book.getBidDepth(), "Bid side should be empty when suppressed");
+        assertEquals(depth, book.getAskDepth());
+        assertNull(book.getBestBid());
+        assertNotNull(book.getBestAsk());
+    }
+
+    @Test
+    void generateRandomMultilevel_suppressAsk_emitsOnlyBidLevels() {
+        MarketDataBookConfig cfg = baseSingleLevelConfig();
+        cfg.setSuppressedSide(MarketDataBookConfig.SuppressedSide.ASK);
+
+        int depth = 5;
+        MultilevelBookConfig bookConfig = MultilevelBookConfig.builder().maxDepth(depth).build();
+
+        MultilevelMarketDataBook book = MarketDataBookGenerator.generateRandomMultilevel(cfg, depth, bookConfig);
+        assertNotNull(book);
+        assertEquals(depth, book.getBidDepth());
+        assertEquals(0, book.getAskDepth(), "Ask side should be empty when suppressed");
+        assertNotNull(book.getBestBid());
+        assertNull(book.getBestAsk());
+    }
+
+    @Test
+    void generateRandom_defaultConfig_isUnchangedBehaviour() {
+        // Sanity: with default flags off the book is non-crossed and both sides populated.
+        MarketDataBookConfig cfg = baseSingleLevelConfig();
+        assertFalse(cfg.isInvertTopOfBook());
+        assertEquals(MarketDataBookConfig.SuppressedSide.NONE, cfg.getSuppressedSide());
+
+        MarketDataBook book = MarketDataBookGenerator.generateRandom(cfg);
+        assertNotNull(book);
+        assertTrue(book.getBidPrice() < book.getAskPrice());
+        assertTrue(book.getBidQuantity() > 0.0);
+        assertTrue(book.getAskQuantity() > 0.0);
+    }
+
+    private static MarketDataBookConfig baseSingleLevelConfig() {
+        MarketDataBookConfig cfg = new MarketDataBookConfig();
+        cfg.setFeedName("FEED");
+        cfg.setVenueName("VENUE");
+        cfg.setSymbol("SYM");
+        cfg.setPublishProbability(1.0);
+        cfg.setMinPrice(100.0);
+        cfg.setMaxPrice(101.0);
+        cfg.setMinSpread(0.1);
+        cfg.setMaxSpread(0.3);
+        cfg.setMinVolume(10);
+        cfg.setMaxVolume(20);
+        cfg.setPrecisionDpsPrice(3);
+        cfg.setPrecisionDpsVolume(2);
+        return cfg;
+    }
+
     private static double rounded(double v, int places) {
         double s = Math.pow(10, places);
         return Math.round(v * s) / s;
