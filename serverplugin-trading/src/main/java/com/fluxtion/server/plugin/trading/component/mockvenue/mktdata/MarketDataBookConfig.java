@@ -72,4 +72,20 @@ public class MarketDataBookConfig {
      */
     private MultilevelBookConfig multilevelBookConfig = MultilevelBookConfig.defaultConfig();
 
+    /**
+     * When true the generator swaps bid and ask before publishing, producing a crossed book.
+     * For multi-level books the entire ladders are swapped, not just the top.
+     */
+    private boolean invertTopOfBook = false;
+
+    /**
+     * Which side (if any) the generator should suppress when publishing.
+     * Single-level books emit zero price and zero quantity on the suppressed side;
+     * multi-level books emit no levels on the suppressed side.
+     */
+    private SuppressedSide suppressedSide = SuppressedSide.NONE;
+
+    public enum SuppressedSide {
+        NONE, BID, ASK
+    }
 }

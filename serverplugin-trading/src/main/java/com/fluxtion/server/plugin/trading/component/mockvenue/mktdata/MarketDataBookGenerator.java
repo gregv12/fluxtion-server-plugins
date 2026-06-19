@@ -15,24 +15,24 @@ public class MarketDataBookGenerator {
         if (RANDOM.nextDouble() >= config.getPublishProbability()) {
             return null;
         }
-        
+
         // Generate random mid price within the configured range
         double midPrice = roundToDecimalPlaces(
             config.getMinPrice() + RANDOM.nextDouble() * (config.getMaxPrice() - config.getMinPrice()),
             config.getPrecisionDpsPrice()
         );
-        
+
         // Generate random spread within the configured range
         double spread = roundToDecimalPlaces(
             config.getMinSpread() + RANDOM.nextDouble() * (config.getMaxSpread() - config.getMinSpread()),
             config.getPrecisionDpsVolume()
         );
-        
+
         // Calculate bid and ask prices
         double halfSpread = spread / 2.0;
         double bidPrice = roundToDecimalPlaces(midPrice - halfSpread, config.getPrecisionDpsPrice());
         double askPrice = roundToDecimalPlaces(midPrice + halfSpread, config.getPrecisionDpsPrice());
-        
+
         // Generate random volumes and round them
         double bidVolume = roundToDecimalPlaces(
             config.getMinVolume() + RANDOM.nextDouble() * (config.getMaxVolume() - config.getMinVolume()),
@@ -43,7 +43,16 @@ public class MarketDataBookGenerator {
             config.getPrecisionDpsVolume()
         );
 
-        return new MarketDataBook(
+        if (config.isInvertTopOfBook()) {
+            double tmpPrice = bidPrice;
+            double tmpVolume = bidVolume;
+            bidPrice = askPrice;
+            bidVolume = askVolume;
+            askPrice = tmpPrice;
+            askVolume = tmpVolume;
+        }
+
+        MarketDataBook book = new MarketDataBook(
             config.getFeedName(),
             config.getVenueName(),
             config.getSymbol(),
@@ -53,6 +62,23 @@ public class MarketDataBookGenerator {
             askPrice,
             askVolume
         );
+
+        switch (config.getSuppressedSide()) {
+            case BID -> {
+                book.setBidPrice(0.0);
+                book.setBidQuantity(0.0);
+                book.setBidOrderCount(0);
+            }
+            case ASK -> {
+                book.setAskPrice(0.0);
+                book.setAskQuantity(0.0);
+                book.setAskOrderCount(0);
+            }
+            case NONE -> {
+            }
+        }
+
+        return book;
     }
 
     /**
@@ -103,6 +129,9 @@ public class MarketDataBookGenerator {
                 bookConfig
         );
 
+        boolean invert = config.isInvertTopOfBook();
+        MarketDataBookConfig.SuppressedSide suppressed = config.getSuppressedSide();
+
         // Generate levels with decreasing liquidity
         double tickSize = baseSpread;  // Use spread as tick size
         for (int i = 0; i < depth; i++) {
@@ -135,9 +164,17 @@ public class MarketDataBookGenerator {
             // Generate order counts (decreasing with levels)
             int orderCount = Math.max(1, (int) (10.0 * liquidityFactor));
 
-            // Add levels to book
-            book.updateBid(bidPrice, bidVolume, orderCount);
-            book.updateAsk(askPrice, askVolume, orderCount);
+            double levelBidPrice = invert ? askPrice : bidPrice;
+            double levelBidVolume = invert ? askVolume : bidVolume;
+            double levelAskPrice = invert ? bidPrice : askPrice;
+            double levelAskVolume = invert ? bidVolume : askVolume;
+
+            if (suppressed != MarketDataBookConfig.SuppressedSide.BID) {
+                book.updateBid(levelBidPrice, levelBidVolume, orderCount);
+            }
+            if (suppressed != MarketDataBookConfig.SuppressedSide.ASK) {
+                book.updateAsk(levelAskPrice, levelAskVolume, orderCount);
+            }
         }
 
         return book;
