@@ -1,8 +1,7 @@
 package com.fluxtion.server.plugin.trading.component.quickfixj;
 
-import com.fluxtion.runtime.lifecycle.Lifecycle;
 import com.fluxtion.server.dispatch.EventFlowManager;
-import com.fluxtion.server.service.EventFlowService;
+import com.fluxtion.server.service.LifeCycleEventSource;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -16,8 +15,7 @@ import java.io.InputStream;
 public class QuickFixAcceptor
         extends ApplicationAdapter
         implements
-        EventFlowService,
-        Lifecycle {
+        LifeCycleEventSource<Object> {
 
     private final String config;
     private final boolean localFile;
@@ -98,7 +96,7 @@ public class QuickFixAcceptor
     @Override
     public void stop() {
         log.info("stop");
-        Lifecycle.super.stop();
+        LifeCycleEventSource.super.stop();
     }
 
     @Override

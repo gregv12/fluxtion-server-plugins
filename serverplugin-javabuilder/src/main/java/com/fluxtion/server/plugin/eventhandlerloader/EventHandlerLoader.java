@@ -19,7 +19,7 @@ import com.fluxtion.runtime.audit.EventLogControlEvent;
 import com.fluxtion.runtime.lifecycle.Lifecycle;
 import com.fluxtion.runtime.partition.LambdaReflection.SerializableConsumer;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
-import com.fluxtion.server.service.servercontrol.FluxtionServerController;
+import com.fluxtion.server.service.servercontrol.MongooseServerController;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -41,7 +41,7 @@ import java.util.function.Consumer;
 @Log4j2
 public class EventHandlerLoader implements Lifecycle {
 
-    private FluxtionServerController serverController;
+    private MongooseServerController serverController;
     private static final String DEFAULT_GROUP_JAVA_SRC = "javaSourceLoader";
     private static final String DEFAULT_GROUP_YAML = "yamlLoader";
     @Getter
@@ -61,8 +61,8 @@ public class EventHandlerLoader implements Lifecycle {
     }
 
     @ServiceRegistered
-    public void fluxtionServer(FluxtionServerController serverController, String name) {
-        log.info("FluxtionServerController name: '{}'", name);
+    public void fluxtionServer(MongooseServerController serverController, String name) {
+        log.info("MongooseServerController name: '{}'", name);
         this.serverController = serverController;
     }
 

@@ -7,9 +7,8 @@ package com.fluxtion.server.plugin.rest.component;
 
 import com.fluxtion.runtime.annotations.Start;
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
-import com.fluxtion.runtime.lifecycle.Lifecycle;
 import com.fluxtion.server.dispatch.EventFlowManager;
-import com.fluxtion.server.service.EventFlowService;
+import com.fluxtion.server.service.LifeCycleEventSource;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import com.fluxtion.server.service.admin.AdminCommandRequest;
 import io.javalin.Javalin;
@@ -18,7 +17,7 @@ import lombok.extern.log4j.Log4j2;
 import java.util.Objects;
 
 @Log4j2
-public class JavalinAdminCommandService implements EventFlowService, Lifecycle {
+public class JavalinAdminCommandService implements LifeCycleEventSource<Object> {
 
     private Javalin javalin;
     private EventFlowManager eventFlowManager;

@@ -10,9 +10,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fluxtion.agrona.concurrent.Agent;
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
-import com.fluxtion.runtime.lifecycle.Lifecycle;
 import com.fluxtion.server.dispatch.EventFlowManager;
-import com.fluxtion.server.service.EventFlowService;
+import com.fluxtion.server.service.LifeCycleEventSource;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -31,7 +30,7 @@ import java.util.function.Consumer;
 
 @Data
 @Log4j2
-public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService {
+public class JsonFileCache implements Cache, Agent, LifeCycleEventSource<Object> {
 
     private String fileName;
     private final AtomicBoolean updated = new AtomicBoolean(false);
