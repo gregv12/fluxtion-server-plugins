@@ -6,7 +6,6 @@ import com.fluxtion.server.plugin.trading.service.marketdata.MarketDataBook;
 import com.fluxtion.server.plugin.trading.service.marketdata.MarketDataFeed;
 import com.fluxtion.server.plugin.trading.service.marketdata.MarketDataListener;
 import com.fluxtion.server.plugin.trading.service.marketdata.MarketFeedEvent;
-import com.fluxtion.server.service.EventFlowService;
 import com.fluxtion.server.service.EventSourceKey;
 import com.fluxtion.server.service.EventSubscriptionKey;
 import com.fluxtion.server.service.LifeCycleEventSource;
@@ -22,7 +21,6 @@ import java.util.Set;
 public abstract class AbstractMarketDataFeed
         implements
         MarketDataFeed,
-        EventFlowService,
         LifeCycleEventSource<MarketFeedEvent> {
 
     @Getter(AccessLevel.PROTECTED)

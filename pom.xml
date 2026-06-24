@@ -9,7 +9,7 @@
 
     <groupId>com.fluxtion</groupId>
     <artifactId>fluxtion-server-plugins</artifactId>
-    <version>0.2.15-SNAPSHOT</version>
+    <version>0.2.16-SNAPSHOT</version>
     <name>fluxtion :: server-plugins</name>
     <packaging>pom</packaging>
 
@@ -24,7 +24,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <fluxtion.version>9.7.14</fluxtion.version>
-        <fluxtion.server.version>0.2.10</fluxtion.server.version>
+        <fluxtion.server.version>0.2.16</fluxtion.server.version>
         <fluxtion.mavenplugin.version>3.0.14</fluxtion.mavenplugin.version>
         <log4j2.version>2.24.3</log4j2.version>
         <jackson.version>2.18.2</jackson.version>
@@ -133,6 +133,20 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.42</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>

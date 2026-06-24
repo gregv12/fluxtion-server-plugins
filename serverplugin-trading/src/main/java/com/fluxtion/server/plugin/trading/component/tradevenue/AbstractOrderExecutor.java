@@ -9,7 +9,6 @@ import com.fluxtion.server.plugin.trading.service.order.OrderEvent;
 import com.fluxtion.server.plugin.trading.service.order.OrderExecutor;
 import com.fluxtion.server.plugin.trading.service.order.OrderListener;
 import com.fluxtion.server.plugin.trading.service.order.impl.MutableOrder;
-import com.fluxtion.server.service.EventFlowService;
 import com.fluxtion.server.service.EventSourceKey;
 import com.fluxtion.server.service.EventSubscriptionKey;
 import com.fluxtion.server.service.LifeCycleEventSource;
@@ -25,7 +24,6 @@ import java.util.Set;
 public abstract class AbstractOrderExecutor
         implements
         OrderExecutor,
-        EventFlowService,
         LifeCycleEventSource<OrderEvent> {
 
     @Getter(AccessLevel.PROTECTED)

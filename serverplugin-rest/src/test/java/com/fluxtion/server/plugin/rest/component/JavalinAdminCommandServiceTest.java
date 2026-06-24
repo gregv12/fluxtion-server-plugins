@@ -1,6 +1,7 @@
 package com.fluxtion.server.plugin.rest.component;
 
-import com.fluxtion.server.dispatch.EventFlowManager;
+import com.fluxtion.runtime.lifecycle.Lifecycle;
+import com.fluxtion.server.service.LifeCycleEventSource;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import com.fluxtion.server.service.admin.AdminCommandRequest;
 import com.fluxtion.server.service.admin.AdminFunction;
@@ -37,7 +38,6 @@ class JavalinAdminCommandServiceTest {
     void initAndPost_callsRegistry_andReturns200_withJsonBody() throws Exception {
         int port = findFreePort();
         service = new JavalinAdminCommandService();
-        service.setEventFlowManager(new DummyEventFlowManager(), "rest-service");
         service.setListenPort(port);
 
         AtomicInteger calls = new AtomicInteger(0);
@@ -146,15 +146,26 @@ class JavalinAdminCommandServiceTest {
         }
     }
 
+    /**
+     * Regression guard: the server's LifecycleManager only invokes init()/start()
+     * for plain (non-LifeCycleEventSource) services. JavalinAdminCommandService binds
+     * its HTTP listener in init(), so it MUST be a plain Lifecycle service and must NOT
+     * be a LifeCycleEventSource — otherwise the webadmin silently never starts.
+     */
+    @Test
+    void isPlainLifecycleService_notAnEventSource() {
+        JavalinAdminCommandService svc = new JavalinAdminCommandService();
+        assertTrue(svc instanceof Lifecycle,
+                "must be a Lifecycle service so init()/start() are invoked by the server");
+        assertFalse(svc instanceof LifeCycleEventSource,
+                "must NOT be a LifeCycleEventSource — those are skipped by the plain-service "
+                        + "lifecycle loop, so init() (the Javalin bind) would never run");
+    }
+
     private static int findFreePort() throws IOException {
         try (ServerSocket serverSocket = new ServerSocket(0)) {
             serverSocket.setReuseAddress(true);
             return serverSocket.getLocalPort();
         }
-    }
-
-    // Simple no-op EventFlowManager for wiring
-    private static class DummyEventFlowManager extends EventFlowManager {
-        // Intentionally empty - only to satisfy the type in setEventFlowManager
     }
 }

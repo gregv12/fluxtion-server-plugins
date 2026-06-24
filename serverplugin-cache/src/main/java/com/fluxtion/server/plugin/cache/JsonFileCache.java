@@ -12,7 +12,9 @@ import com.fluxtion.agrona.concurrent.Agent;
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
 import com.fluxtion.runtime.lifecycle.Lifecycle;
 import com.fluxtion.server.dispatch.EventFlowManager;
+import com.fluxtion.server.dispatch.EventToQueuePublisher;
 import com.fluxtion.server.service.EventFlowService;
+import com.fluxtion.server.service.EventSubscriptionKey;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -31,7 +33,7 @@ import java.util.function.Consumer;
 
 @Data
 @Log4j2
-public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService {
+public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService<Object> {
 
     private String fileName;
     private final AtomicBoolean updated = new AtomicBoolean(false);
@@ -73,6 +75,23 @@ public class JsonFileCache implements Cache, Agent, Lifecycle, EventFlowService 
     public void setEventFlowManager(EventFlowManager eventFlowManager, String serviceName) {
         log.info("setEventFlowManager serviceName:{}", serviceName);
         this.serviceName = serviceName;
+    }
+
+    // EventSource no-op methods: this cache receives the flow manager (for its
+    // service name) but does not publish events to subscribers.
+    @Override
+    public void subscribe(EventSubscriptionKey<Object> eventSourceKey) {
+        // no-op: not an event publisher
+    }
+
+    @Override
+    public void unSubscribe(EventSubscriptionKey<Object> eventSourceKey) {
+        // no-op: not an event publisher
+    }
+
+    @Override
+    public void setEventToQueuePublisher(EventToQueuePublisher<Object> targetQueue) {
+        // no-op: not an event publisher
     }
 
     @Override

@@ -13,7 +13,7 @@ import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
 import com.fluxtion.runtime.audit.EventLogControlEvent;
 import com.fluxtion.runtime.lifecycle.Lifecycle;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
-import com.fluxtion.server.service.servercontrol.FluxtionServerController;
+import com.fluxtion.server.service.servercontrol.MongooseServerController;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -29,7 +29,7 @@ import java.util.function.Consumer;
 @Log4j2
 public class SpringEventHandlerLoader implements Lifecycle {
 
-    private FluxtionServerController serverController;
+    private MongooseServerController serverController;
     private AdminCommandRegistry adminCommandRegistry;
     private boolean addEventAuditor = true;
     private EventLogControlEvent.LogLevel traceLogLevel;
@@ -54,8 +54,8 @@ public class SpringEventHandlerLoader implements Lifecycle {
     }
 
     @ServiceRegistered
-    public void fluxtionServer(FluxtionServerController serverController, String name) {
-        log.info("FluxtionServerController name: '{}'", name);
+    public void fluxtionServer(MongooseServerController serverController, String name) {
+        log.info("MongooseServerController name: '{}'", name);
         this.serverController = serverController;
     }
 

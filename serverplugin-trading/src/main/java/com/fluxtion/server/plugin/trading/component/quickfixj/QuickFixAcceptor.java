@@ -1,8 +1,6 @@
 package com.fluxtion.server.plugin.trading.component.quickfixj;
 
 import com.fluxtion.runtime.lifecycle.Lifecycle;
-import com.fluxtion.server.dispatch.EventFlowManager;
-import com.fluxtion.server.service.EventFlowService;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -16,17 +14,12 @@ import java.io.InputStream;
 public class QuickFixAcceptor
         extends ApplicationAdapter
         implements
-        EventFlowService,
         Lifecycle {
 
     private final String config;
     private final boolean localFile;
     @Getter(AccessLevel.PACKAGE)
     private Connector connector;
-    @Getter(AccessLevel.PACKAGE)
-    private EventFlowManager eventFlowManager;
-    @Getter(AccessLevel.PACKAGE)
-    private String serviceName;
 
     public QuickFixAcceptor(String config) {
         this(config, false);
@@ -35,12 +28,6 @@ public class QuickFixAcceptor
     public QuickFixAcceptor(String config, boolean localFile) {
         this.config = config;
         this.localFile = localFile;
-    }
-
-    @Override
-    public void setEventFlowManager(EventFlowManager eventFlowManager, String serviceName) {
-        this.eventFlowManager = eventFlowManager;
-        this.serviceName = serviceName;
     }
 
     @SneakyThrows
