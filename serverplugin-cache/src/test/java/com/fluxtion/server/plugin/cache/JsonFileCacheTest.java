@@ -5,6 +5,9 @@
 
 package com.fluxtion.server.plugin.cache;
 
+import com.fluxtion.runtime.lifecycle.Lifecycle;
+import com.fluxtion.server.service.EventFlowService;
+import com.fluxtion.server.service.LifeCycleEventSource;
 import lombok.Data;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Assertions;
@@ -17,6 +20,23 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class JsonFileCacheTest {
+
+    /**
+     * Regression guard: JsonFileCache receives its service name via the EventFlowService
+     * {@code setEventFlowManager} hook, so it must remain an EventFlowService. It must NOT
+     * be a LifeCycleEventSource, otherwise the server's LifecycleManager skips its
+     * init()/start() (those run only for plain, non-LifeCycleEventSource services).
+     */
+    @Test
+    public void isPlainLifecycleEventFlowService_notLifeCycleEventSource() {
+        JsonFileCache cache = new JsonFileCache();
+        Assertions.assertTrue(cache instanceof Lifecycle,
+                "must be a Lifecycle service so init()/start() are invoked");
+        Assertions.assertTrue(cache instanceof EventFlowService,
+                "must be an EventFlowService so setEventFlowManager injects the service name");
+        Assertions.assertFalse(cache instanceof LifeCycleEventSource,
+                "must NOT be a LifeCycleEventSource — those are skipped by the plain-service lifecycle loop");
+    }
 
     @Test
     public void load() throws Exception {

@@ -7,8 +7,7 @@ package com.fluxtion.server.plugin.rest.component;
 
 import com.fluxtion.runtime.annotations.Start;
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
-import com.fluxtion.server.dispatch.EventFlowManager;
-import com.fluxtion.server.service.LifeCycleEventSource;
+import com.fluxtion.runtime.lifecycle.Lifecycle;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
 import com.fluxtion.server.service.admin.AdminCommandRequest;
 import io.javalin.Javalin;
@@ -17,20 +16,13 @@ import lombok.extern.log4j.Log4j2;
 import java.util.Objects;
 
 @Log4j2
-public class JavalinAdminCommandService implements LifeCycleEventSource<Object> {
+public class JavalinAdminCommandService implements Lifecycle {
 
     private Javalin javalin;
-    private EventFlowManager eventFlowManager;
     private AdminCommandRegistry adminCommandRegistry;
     @Getter
     @Setter
     private int listenPort = 8080;
-
-    @Override
-    public void setEventFlowManager(EventFlowManager eventFlowManager, String serviceName) {
-        log.info("set eventFlowManager name:'{}' for Javalin REST", serviceName);
-        this.eventFlowManager = eventFlowManager;
-    }
 
     @ServiceRegistered
     public void adminRegistry(AdminCommandRegistry adminCommandRegistry, String name) {
