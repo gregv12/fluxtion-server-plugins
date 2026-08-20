@@ -77,8 +77,19 @@ public abstract class AbstractQuoteRequestFeed
 
     @Override
     public void start() {
-        log.info("start serviceName:{} pollIntervalMillis:{} schedulerRegistered:{}",
-                serviceName, pollIntervalMillis, scheduler != null);
+        if (scheduler == null) {
+            // A quote-request feed whose only job is to poll cannot function without a SchedulerService.
+            // The scheduler is provided per agent group, so this almost always means the feed was
+            // registered as a bare service — not hosted in an agent group. Fail LOUD rather than
+            // silently never polling (the failure mode this guard exists to end).
+            log.error("start serviceName:{} — NO SchedulerService was injected; the self-rearming poll "
+                            + "cannot start and requestLiveQuotes() will never run. Host this feed in an "
+                            + "agent group so a scheduler is provided: add 'agentGroup: <name>' to the "
+                            + "service config plus a matching agentThreads entry.",
+                    serviceName);
+            return;
+        }
+        log.info("start serviceName:{} pollIntervalMillis:{}", serviceName, pollIntervalMillis);
         scheduleNextPoll();
     }
 
