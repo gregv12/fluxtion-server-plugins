@@ -9,7 +9,7 @@
     <parent>
         <groupId>com.fluxtion</groupId>
         <artifactId>fluxtion-server-plugins</artifactId>
-        <version>0.2.17-SNAPSHOT</version>
+        <version>0.2.18-SNAPSHOT</version>
     </parent>
 
     <artifactId>serverplugin-rest</artifactId>
@@ -28,6 +28,14 @@
             <groupId>io.javalin</groupId>
             <artifactId>javalin</artifactId>
             <version>6.3.0</version>
+        </dependency>
+        <!-- Javalin 6 unbundled its JSON mapper: ctx.json(...) and ctx.bodyAsClass(...) throw (HTTP 500)
+             unless jackson-databind is on the classpath. The admin endpoint reads and writes JSON, so it
+             needs it directly rather than relying on a consumer to supply jackson transitively. Version
+             from the reactor jackson-bom. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
