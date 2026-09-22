@@ -8,6 +8,15 @@ public interface MarketDataFeed {
         throw new UnsupportedOperationException("multi venue not supported venue:" + venueName + " symbol:" + symbol);
     }
 
+    /**
+     * Stop a live subscription for a symbol. Default is a no-op: feeds whose transport supports
+     * removing a subscription (e.g. a WebSocket venue) override this to send the unsubscribe and
+     * drop the symbol; feeds without an unsubscribe protocol simply ignore it.
+     */
+    default void unsubscribe(String feedName, String venueName, String symbol) {
+        // no-op by default
+    }
+
     String feedName();
 
     default Set<String> aggregatedFeeds() {
