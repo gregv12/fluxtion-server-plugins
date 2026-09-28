@@ -76,6 +76,32 @@ class WsMarketDataFeedIntegrationTest {
     }
 
     @Test
+    void cachedSubscriptionIsReplayedImmediatelyOnOpen() throws Exception {
+        int port = freePort();
+        MockWsMarketDataPublisher venue = new MockWsMarketDataPublisher();
+        venue.setName("replayVenue");
+        venue.setPort(port);
+        venue.setRequireSubscription(true);
+        venue.setMarketDataBookConfigs(List.of(config("USD-JPY")));
+        venue.ensureStarted();
+
+        CapturingFeed feed = new CapturingFeed();
+        feed.setFeedName("wsReplayFeed");
+        feed.setUrl("ws://localhost:" + port + "/");
+        feed.subscribeToSymbol("wsReplayFeed", "replayVenue", "USD-JPY");
+        feed.connect();
+
+        waitUntil(feed::isConnected, 3000);
+        assertTrue(feed.isConnected());
+        // the replay in onOpen must reach the venue on its own, well before the 500ms delayed re-send
+        waitUntil(() -> venue.subscribedSymbols().contains("USD-JPY"), 250);
+        assertTrue(venue.subscribedSymbols().contains("USD-JPY"),
+                "subscribe frame sent from onOpen should reach the venue without waiting for the delayed re-send");
+
+        feed.tearDown();
+    }
+
+    @Test
     void unsubscribePublishesEmptyBookAndDropsSubscription() {
         CapturingFeed feed = new CapturingFeed();
         feed.setFeedName("wsUnsubFeed");
