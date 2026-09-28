@@ -57,10 +57,24 @@ Repo `serverplugin-trading`:
    JDK `HttpClient`+`WebSocket` on a single-thread executor; `WebSocket.Listener` (onOpen→
    `MarketConnected`+replay cached subs; onText w/ fragment reassembly→`onMessage(text)`;
    onClose/onError→`MarketDisconnected`+schedule reconnect). Implements `subscribeToSymbol` (cache;
-   send subscribe frame if open). `@ServiceRegistered scheduler(...)` (connect+reconnect watchdog),
-   `@ServiceRegistered adminClient(...)`. Abstract hooks for the exchange:
-   `String subscribeFrame(feed,venue,symbol)` and `void onMessage(String rawJson)` (parses→`publish`).
-   Config setters: `url`, `feedName`, `venueNameSet`, `reconnectMillis`.
+   send subscribe frame if open). reconnects on its own scheduled executor (no SchedulerService),
+   `@ServiceRegistered adminClient(...)`. Abstract hook for the exchange: `void onMessage(String rawJson)`
+   (parses→`publish`). Protected hooks with defaults: `subscribeFrame`/`unsubscribeFrame` (return `null`
+   = push-only venue, nothing sent, subscription is a client-side filter), `isSubscribed(symbol)` (exact
+   match; override for prefix rules), `configureWebSocket(WebSocket.Builder)` (applies `headers`),
+   `onConnected()`/`onDisconnected()` (lifecycle on the WS thread), `statusExtra()` (extra status lines).
+   Stale-connection watchdog: `staleConnectionMillis > 0` aborts a socket that has carried no frame of
+   any kind (text, binary, ping, pong) for that long and reconnects; venue pings keep a quiet link alive.
+   The socket reference is captured in `onOpen` (before the connect future completes) so cached
+   subscriptions are replayed on open, not only by the 500ms delayed re-send. `subscriptions` in
+   `AbstractMarketDataFeed` is a concurrent set: mutated from processor/admin threads, read per frame
+   on the WS thread. Admin semantics: `<feed>.disconnect` closes the socket, publishes
+   `MarketDisconnected` and suspends automatic reconnect until `<feed>.connect`; `<feed>.reconnect` closes
+   and reopens immediately; `stop()` also publishes `MarketDisconnected`. Callbacks from a replaced or
+   deliberately closed socket are ignored (identity check), and a second connect is refused while one
+   is in flight, so a reconnect never opens a duplicate socket or tears down the live one.
+   Config setters: `url`, `feedName`, `venueNameSet`, `reconnectMillis`, `connectTimeoutSeconds`,
+   `headers`, `staleConnectionMillis`.
 3. `component/websocket/GenericJsonWsMarketDataFeed.java` — concrete exchange impl for our JSON
    schema (parses `WsMarketDataMessage`, builds subscribe frames). The "extend per exchange" example.
 4. `component/mockvenue/wsmktdata/WsFrames.java` — RFC 6455 static helpers: `acceptKey(String)`

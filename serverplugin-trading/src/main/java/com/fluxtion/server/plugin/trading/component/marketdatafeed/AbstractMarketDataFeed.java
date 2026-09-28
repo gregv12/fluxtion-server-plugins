@@ -16,6 +16,7 @@ import lombok.extern.log4j.Log4j2;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Log4j2
 public abstract class AbstractMarketDataFeed
@@ -29,7 +30,12 @@ public abstract class AbstractMarketDataFeed
     private String serviceName;
     @Getter(AccessLevel.PROTECTED)
     private EventToQueuePublisher<MarketFeedEvent> targetQueue;
-    protected final Set<String> subscriptions = new HashSet<>();
+    /**
+     * Live symbol subscriptions. Concurrent: written from the processor/admin threads (subscribe,
+     * unsubscribe) and read/iterated from a feed's own transport thread (e.g. replay on reconnect,
+     * per-message filtering), so a plain HashSet would throw ConcurrentModificationException.
+     */
+    protected final Set<String> subscriptions = ConcurrentHashMap.newKeySet();
     @Getter
     @Setter
     protected String feedName;
