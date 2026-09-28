@@ -22,7 +22,9 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicLong;
@@ -59,6 +61,8 @@ public class MockWsMarketDataPublisher implements Agent {
     /** When true, only publish books whose symbol a client has subscribed to (a real venue). */
     @Getter @Setter private boolean requireSubscription = false;
     private final Set<String> subscribedSymbols = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** Request headers from the most recent client handshake (lower-cased names). Exposed for tests. */
+    private volatile Map<String, String> lastHandshakeHeaders = Map.of();
 
     @ServiceRegistered
     public void scheduler(SchedulerService schedulerService) {
@@ -144,6 +148,7 @@ public class MockWsMarketDataPublisher implements Agent {
             socket.close();
             return false;
         }
+        lastHandshakeHeaders = parseHeaders(req.toString());
         String accept = WsFrames.acceptKey(m.group(1).trim());
         String response = "HTTP/1.1 101 Switching Protocols\r\n"
                 + "Upgrade: websocket\r\n"
@@ -152,6 +157,17 @@ public class MockWsMarketDataPublisher implements Agent {
         socket.getOutputStream().write(response.getBytes(StandardCharsets.UTF_8));
         socket.getOutputStream().flush();
         return true;
+    }
+
+    private static Map<String, String> parseHeaders(String request) {
+        Map<String, String> headers = new LinkedHashMap<>();
+        for (String line : request.split("\r\n")) {
+            int colon = line.indexOf(':');
+            if (colon > 0) {
+                headers.put(line.substring(0, colon).trim().toLowerCase(), line.substring(colon + 1).trim());
+            }
+        }
+        return Map.copyOf(headers);
     }
 
     private void readLoop(ClientConnection client) {
@@ -172,6 +188,25 @@ public class MockWsMarketDataPublisher implements Agent {
         } catch (IOException e) {
             log.debug("client read ended: {}", e.getMessage());
         } finally {
+            disconnect(client);
+        }
+    }
+
+    /** Send a protocol-level ping to every client (test hook: a quiet venue keeping the link alive). */
+    public void pingClients() {
+        byte[] ping = WsFrames.encode(WsFrames.OP_PING, new byte[0]);
+        for (ClientConnection client : clients) {
+            try {
+                client.send(ping);
+            } catch (IOException e) {
+                disconnect(client);
+            }
+        }
+    }
+
+    /** Close every client socket from the server side (test hook: the venue drops its clients). */
+    public void closeClients() {
+        for (ClientConnection client : List.copyOf(clients)) {
             disconnect(client);
         }
     }
@@ -239,8 +274,13 @@ public class MockWsMarketDataPublisher implements Agent {
     }
 
     /** Symbols a client has subscribed to (live view). Exposed for tests. */
-    java.util.Set<String> subscribedSymbols() {
+    public java.util.Set<String> subscribedSymbols() {
         return subscribedSymbols;
+    }
+
+    /** Request headers of the most recent client handshake, names lower-cased. Exposed for tests. */
+    public Map<String, String> lastHandshakeHeaders() {
+        return lastHandshakeHeaders;
     }
 
     void broadcast(WsMarketDataMessage message) {
