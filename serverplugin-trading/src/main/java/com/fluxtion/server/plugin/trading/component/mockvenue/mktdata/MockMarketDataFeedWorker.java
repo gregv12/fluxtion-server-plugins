@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fluxtion.runtime.annotations.runtime.ServiceRegistered;
 import com.fluxtion.server.plugin.trading.component.marketdatafeed.AbstractMarketDataFeedWorker;
 import com.fluxtion.server.plugin.trading.service.marketdata.MarketConnected;
+import com.fluxtion.server.plugin.trading.service.marketdata.MarketDisconnected;
 import com.fluxtion.server.plugin.trading.service.marketdata.MarketFeedEvent;
 import com.fluxtion.server.plugin.trading.service.marketdata.MultilevelBookConfig;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
@@ -24,6 +25,8 @@ public class MockMarketDataFeedWorker extends AbstractMarketDataFeedWorker {
     public static final String MOCK_MARKET_DATA_FEED = "mockMarketDataFeed";
     private SchedulerService schedulerService;
     private volatile MarketConnected marketConnected;
+    /** Set by {@code stop}, published on the scheduler thread like {@link #marketConnected}. */
+    private volatile MarketDisconnected marketDisconnected;
     private volatile boolean running = true;
     private volatile boolean paused = false;
     private final Map<String, MarketDataBookConfig> configMap = new HashMap<>();
@@ -90,6 +93,13 @@ public class MockMarketDataFeedWorker extends AbstractMarketDataFeedWorker {
         this.schedulerService.scheduleAfterDelay(publishRateMillis, this::timerTriggered);
         log.trace("timer triggered {}", schedulerService);
 
+        // before the running check: a stopped feed must still say it went down
+        if (marketDisconnected != null) {
+            log.info("publish marketDisconnected {}", marketDisconnected);
+            publish(marketDisconnected);
+            marketDisconnected = null;
+        }
+
         // Check if running and not paused
         if (!running || paused) {
             log.trace("Feed not running or paused - skipping publish");
@@ -134,6 +144,7 @@ public class MockMarketDataFeedWorker extends AbstractMarketDataFeedWorker {
 
     // ========== Admin Command Implementations ==========
 
+    /** Start (or restart) publishing; listeners get a {@link MarketConnected} on the next tick. */
     protected void startFeed(List<String> args, Consumer<String> out, Consumer<String> err) {
         running = true;
         paused = false;
@@ -142,7 +153,16 @@ public class MockMarketDataFeedWorker extends AbstractMarketDataFeedWorker {
         log.info("Mock market data feed started");
     }
 
+    /**
+     * Stop publishing and clear every configured book. Listeners get a {@link MarketDisconnected}: the simulated
+     * transport is gone, so nothing may keep pricing from its last book. ({@code pause} deliberately says nothing:
+     * it simulates a venue that is connected but silent, which consumers must detect from book age.)
+     */
     protected void stopFeed(List<String> args, Consumer<String> out, Consumer<String> err) {
+        if (running) {
+            marketConnected = null;
+            marketDisconnected = new MarketDisconnected(getFeedName());
+        }
         running = false;
         paused = false;
         // Clear all books
@@ -152,6 +172,10 @@ public class MockMarketDataFeedWorker extends AbstractMarketDataFeedWorker {
         log.info("Mock market data feed stopped");
     }
 
+    /**
+     * Stop publishing books without saying so: simulates a venue that is still connected but silent (a stalled
+     * stream, a market between sessions). No {@link MarketDisconnected}; {@code resume} carries on.
+     */
     protected void pauseFeed(List<String> args, Consumer<String> out, Consumer<String> err) {
         if (!running) {
             err.accept("Feed is not running - cannot pause");
