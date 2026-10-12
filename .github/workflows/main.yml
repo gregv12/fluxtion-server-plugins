@@ -41,4 +41,4 @@ jobs:
       #        run: echo "::set-env name=TMPDIR::/tmp"
 
       - name: Build project with Maven
-        run: mvn -B package --file pom.xml
+        run: ./mvnw -B package --file pom.xml
