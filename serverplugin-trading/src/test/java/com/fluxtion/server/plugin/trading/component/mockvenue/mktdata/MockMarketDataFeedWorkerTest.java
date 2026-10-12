@@ -1,6 +1,11 @@
 package com.fluxtion.server.plugin.trading.component.mockvenue.mktdata;
 
+import com.fluxtion.server.plugin.trading.service.marketdata.MarketConnected;
+import com.fluxtion.server.plugin.trading.service.marketdata.MarketDisconnected;
+import com.fluxtion.server.plugin.trading.service.marketdata.MarketFeedEvent;
 import com.fluxtion.server.service.admin.AdminCommandRegistry;
+import com.fluxtion.server.service.scheduler.SchedulerService;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -639,5 +644,106 @@ class MockMarketDataFeedWorkerTest {
         assertTrue(status.contains("EURUSD"));
         assertTrue(status.contains("BTCUSD"));
         assertTrue(status.contains("GBPUSD"));
+    }
+
+    // ========== Connection events ==========
+
+    @Nested
+    class ConnectionEvents {
+
+        private final List<MarketFeedEvent> published = new ArrayList<>();
+        private MockMarketDataFeedWorker worker;
+
+        /** Never fires on its own; the test calls timerTriggered to stand in for a tick. */
+        private final SchedulerService scheduler = new SchedulerService() {
+            @Override public long scheduleAtTime(long time, Runnable r) { return 0; }
+            @Override public long scheduleAfterDelay(long delay, Runnable r) { return 0; }
+            @Override public long milliTime() { return 0; }
+            @Override public long microTime() { return 0; }
+            @Override public long nanoTime() { return 0; }
+        };
+
+        @BeforeEach
+        void connectedAndPublishing() {
+            worker = new MockMarketDataFeedWorker() {
+                @Override
+                protected void publish(MarketFeedEvent marketFeedEvent) {
+                    published.add(marketFeedEvent);
+                }
+            };
+            worker.setFeedName("simFeed");
+            worker.addConfig(Arrays.asList("addConfig", "EURUSD", "1.08", "1.09", "0.0001", "0.0005", "100000", "1000000"),
+                    outConsumer, errConsumer);
+            worker.scheduler(scheduler);
+            worker.timerTriggered();
+            assertInstanceOf(MarketConnected.class, published.get(0), "connected on the first tick");
+            assertTrue(published.size() > 1, "and publishing books: " + published);
+            published.clear();
+        }
+
+        @Test
+        @DisplayName("stop publishes MarketDisconnected on the next tick, and no books")
+        void stopPublishesDisconnected() {
+            worker.stopFeed(List.of("stop"), outConsumer, errConsumer);
+            worker.timerTriggered();
+
+            assertEquals(1, published.size(), published.toString());
+            MarketDisconnected disconnected = assertInstanceOf(MarketDisconnected.class, published.get(0));
+            assertEquals("simFeed", disconnected.name());
+
+            worker.timerTriggered();
+            assertEquals(1, published.size(), "said once");
+        }
+
+        @Test
+        @DisplayName("pause publishes nothing at all: a connected but silent venue")
+        void pauseIsSilent() {
+            worker.pauseFeed(List.of("pause"), outConsumer, errConsumer);
+            worker.timerTriggered();
+            worker.timerTriggered();
+
+            assertTrue(published.isEmpty(), published.toString());
+
+            worker.resumeFeed(List.of("resume"), outConsumer, errConsumer);
+            worker.timerTriggered();
+            assertFalse(published.isEmpty(), "books again after resume");
+            assertTrue(published.stream().noneMatch(e -> e instanceof MarketConnected || e instanceof MarketDisconnected),
+                    "resume is not a reconnect: " + published);
+        }
+
+        @Test
+        @DisplayName("start after stop publishes MarketConnected again")
+        void startAfterStopReconnects() {
+            worker.stopFeed(List.of("stop"), outConsumer, errConsumer);
+            worker.timerTriggered();
+            published.clear();
+
+            worker.startFeed(List.of("start"), outConsumer, errConsumer);
+            worker.timerTriggered();
+
+            assertInstanceOf(MarketConnected.class, published.get(0), published.toString());
+        }
+
+        @Test
+        @DisplayName("stopping a feed that is already stopped says nothing more")
+        void stopTwiceDisconnectsOnce() {
+            worker.stopFeed(List.of("stop"), outConsumer, errConsumer);
+            worker.timerTriggered();
+            worker.stopFeed(List.of("stop"), outConsumer, errConsumer);
+            worker.timerTriggered();
+
+            assertEquals(1, published.stream().filter(e -> e instanceof MarketDisconnected).count(), published.toString());
+        }
+
+        @Test
+        @DisplayName("stop then start before a tick: the disconnect still precedes the reconnect")
+        void stopThenStartBeforeATick() {
+            worker.stopFeed(List.of("stop"), outConsumer, errConsumer);
+            worker.startFeed(List.of("start"), outConsumer, errConsumer);
+            worker.timerTriggered();
+
+            assertInstanceOf(MarketDisconnected.class, published.get(0), published.toString());
+            assertInstanceOf(MarketConnected.class, published.get(1), published.toString());
+        }
     }
 }
