@@ -118,6 +118,55 @@ class CatalogueAndLogTest {
     }
 
     @Test
+    void aPathologicalRegexFailsInsteadOfHanging() throws Exception {
+        Catalogue c = Catalogue.parse("commands:\n  - command: \"{s}.x\"\n    arguments:\n      - name: v\n        type: CHOICE\n        choicesFrom: {command: \"{s}.list\", regex: '(a+)+$'}\n");
+        Catalogue.Match m = c.find("p.x");
+        long start = System.nanoTime();
+        assertThrows(IllegalStateException.class, () -> Catalogue.choices(m, m.entry().getArguments().get(0), cmd -> "a".repeat(100_000) + "!"));
+        assertTrue(System.nanoTime() - start < 5_000_000_000L, "gave up within the budget");
+    }
+
+    @Test
+    void unicodeIsAlwaysWritableAndParsable() throws Exception {
+        Path file = dir.resolve("u.yaml");
+        OutcomeLog log = new OutcomeLog(file, 1_000_000, 2);
+        for (String detail : List.of("a".repeat(499) + "\uD83D\uDE00tail", "c1 \u0080 \u009f nel \u0085 bom \uFEFF", "lone \uD83D end", "\u2028 \uFFFE")) {
+            Outcome o = new Outcome();
+            o.setItemId("i");
+            o.setState(OutcomeState.FAILED);
+            o.setDetail(detail);
+            log.append(o);
+        }
+        List<Map<String, Object>> records = new com.fasterxml.jackson.dataformat.yaml.YAMLMapper()
+                .readerFor(Map.class).<Map<String, Object>>readValues(Files.readString(file)).readAll();
+        assertEquals(4, records.size());
+    }
+
+    @Test
+    void aHistoryTailCutInsideACharacterIsRepaired() throws Exception {
+        SchedulerStore store = new SchedulerStore(dir, 10);
+        store.load();
+        Outcome o = new Outcome();
+        o.setItemId("i1");
+        o.setState(OutcomeState.DECLINED);
+        o.setDetail("caf\u00e9");
+        store.appendHistory(o);
+        byte[] partial = "{\"itemId\":\"i2\",\"detail\":\"caf\u00e9".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        Files.write(dir.resolve("history.jsonl"), java.util.Arrays.copyOf(partial, partial.length - 1), java.nio.file.StandardOpenOption.APPEND);
+        SchedulerStore reloaded = new SchedulerStore(dir, 10);
+        reloaded.load();
+        assertEquals(1, reloaded.history().size());
+        Outcome next = new Outcome();
+        next.setItemId("i3");
+        next.setState(OutcomeState.DECLINED);
+        reloaded.appendHistory(next);
+        SchedulerStore again = new SchedulerStore(dir, 10);
+        again.load();
+        assertEquals(List.of("i1", "i3"), again.history().stream().map(Outcome::getItemId).toList(), "the next append is not lost");
+        assertEquals(0, again.skippedHistoryLines());
+    }
+
+    @Test
     void historyIsCapped() {
         SchedulerStore store = new SchedulerStore(dir, 3);
         store.load();

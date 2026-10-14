@@ -11,6 +11,7 @@ import java.time.ZonedDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -251,7 +252,7 @@ class SchedulerEngineTest {
         // 2026-03-29 01:00 -> 02:00 in London: 01:30 does not exist that day
         long beforeGap = ZonedDateTime.of(2026, 3, 28, 12, 0, 0, 0, london).toInstant().toEpochMilli();
         long t = engine.nextDaily(gap, beforeGap);
-        assertEquals(Instant.parse("2026-03-29T01:30:00Z").toEpochMilli(), t, "02:30 BST, the next valid instant");
+        assertEquals(Instant.parse("2026-03-29T01:00:00Z").toEpochMilli(), t, "02:00 BST, the first valid time after the gap");
 
         // 2026-10-25 01:00-02:00 happens twice in London
         long beforeOverlap = ZonedDateTime.of(2026, 10, 24, 12, 0, 0, 0, london).toInstant().toEpochMilli();
@@ -364,7 +365,7 @@ class SchedulerEngineTest {
         assertRefused("already passed", () -> engine.enableSchedule(s.getId(), true, "t"));
         SchedulerSchedule again = once(a, "2026-10-14T09:00");
         again.setId(s.getId());
-        assertRefused("already passed", () -> engine.saveSchedule(again, "t"));
+        assertRefused("already been handled", () -> engine.saveSchedule(again, "t"));
         assertTrue(engine.tick().isEmpty());
         assertEquals(1, server.runs.size());
     }
@@ -465,6 +466,14 @@ class SchedulerEngineTest {
     }
 
     @Test
+    void aWholeNumberArgumentRefusesDecimals() throws Exception {
+        Catalogue c = Catalogue.parse("commands:\n  - command: \"strat.{s}.setMaxBookAge\"\n    arguments:\n      - {name: ms, type: NUMBER, integer: true}\n");
+        Catalogue.Match m = c.find("strat.A.setMaxBookAge");
+        assertTrue(Catalogue.validate(m, List.of("2.5"), null).contains("whole number"));
+        assertNull(Catalogue.validate(m, List.of("2500"), null));
+    }
+
+    @Test
     void aNonFiniteNumberIsRefused() {
         assertRefused("finite", () -> engine.saveAction(action("strat.A.setMaxBookAge", "NaN"), null, "support"));
         assertRefused("finite", () -> engine.saveAction(action("strat.A.setMaxBookAge", "Infinity"), null, "support"));
@@ -482,6 +491,151 @@ class SchedulerEngineTest {
                         throw new RuntimeException(e);
                     }
                 }).orElseThrow());
+    }
+
+    // ==================== crash windows, clock and timing ====================
+
+    @Test
+    void aStopAfterOpeningButBeforeMovingTheScheduleOnDoesNotOfferItTwice() throws Exception {
+        SchedulerAction a = engine.saveAction(action("strat.A.setMaxBookAge", "500"), null, "support");
+        engine.saveSchedule(once(a, "2026-10-14T09:00"), "t");
+        Path schedules = dir.resolve("state/schedules.json");
+        byte[] beforeTick = Files.readAllBytes(schedules);
+        now.set(T0 + 60 * MIN);
+        assertEquals(1, engine.tick().size());
+        Files.write(schedules, beforeTick); // the stop came before schedules.json was written
+        SchedulerEngine restarted = newEngine("uat");
+        restarted.recoverAfterStart();
+        assertTrue(restarted.tick().isEmpty(), "the occurrence is already open");
+        assertEquals(1, restarted.open().size());
+        assertTrue(restarted.history(0, Long.MAX_VALUE).isEmpty());
+        assertFalse(restarted.schedules().get(0).isEnabled(), "and the schedule moves on");
+    }
+
+    @Test
+    void aMissedOccurrenceIsRecordedOnceEvenIfTheStopCameBeforeTheScheduleWasSaved() throws Exception {
+        SchedulerAction a = engine.saveAction(action("strat.A.setMaxBookAge", "500"), null, "support");
+        engine.saveSchedule(once(a, "2026-10-14T09:00"), "t");
+        Path schedules = dir.resolve("state/schedules.json");
+        byte[] beforeTick = Files.readAllBytes(schedules);
+        now.set(T0 + 120 * MIN);
+        engine.tick();
+        Files.write(schedules, beforeTick);
+        SchedulerEngine restarted = newEngine("uat");
+        restarted.tick();
+        assertEquals(1, restarted.history(0, Long.MAX_VALUE).size());
+    }
+
+    @Test
+    void aDecisionWhoseRecordingFailedIsFinishedLaterExactlyOnce() throws Exception {
+        SchedulerAction a = engine.saveAction(action("strat.A.setMaxBookAge", "500"), null, "support");
+        engine.saveSchedule(once(a, "2026-10-14T09:00"), "t");
+        now.set(T0 + 60 * MIN);
+        OpenItem item = engine.tick().get(0);
+        Path badLog = Files.createDirectories(dir.resolve("a-directory.yaml")); // appending to it fails
+        SchedulerStore store = new SchedulerStore(dir.resolve("state"), 1000);
+        store.load();
+        SchedulerEngine failing = new SchedulerEngine(store, new OutcomeLog(badLog, 1_000_000, 3),
+                Catalogue.parse(CATALOGUE), server, now::get, new SchedulerEngine.Settings("uat", "UTC", 15, 30));
+        assertThrows(RuntimeException.class, () -> failing.decline(item.getId(), "alice"));
+        assertRefused("already approved", () -> failing.approve(item.getId(), "bob"));
+        SchedulerEngine restarted = newEngine("uat");
+        restarted.recoverAfterStart();
+        assertTrue(restarted.open().isEmpty());
+        List<Outcome> h = restarted.history(0, Long.MAX_VALUE);
+        assertEquals(1, h.size());
+        assertEquals(OutcomeState.DECLINED, h.get(0).getState());
+        assertEquals("alice", h.get(0).getDecidedBy());
+        assertTrue(server.runs.isEmpty());
+    }
+
+    @Test
+    void aHandledOneOffIsNotReArmedWhenTheClockGoesBack() {
+        SchedulerAction a = engine.saveAction(action("strat.A.setMaxBookAge", "500"), null, "support");
+        SchedulerSchedule s = engine.saveSchedule(once(a, "2026-10-14T09:00"), "t");
+        now.set(T0 + 60 * MIN);
+        engine.approve(engine.tick().get(0).getId(), "t");
+        now.set(T0); // 08:00 again
+        assertRefused("already passed or been handled", () -> engine.enableSchedule(s.getId(), true, "t"));
+        SchedulerSchedule again = once(a, "2026-10-14T09:00");
+        again.setId(s.getId());
+        assertRefused("already been handled", () -> engine.saveSchedule(again, "t"));
+        SchedulerSchedule later = once(a, "2026-10-14T10:00");
+        later.setId(s.getId());
+        assertTrue(engine.saveSchedule(later, "t").isEnabled(), "a new time is fine");
+    }
+
+    @Test
+    void oneBrokenScheduleDoesNotStopTheOthers() throws Exception {
+        SchedulerAction a = engine.saveAction(action("strat.A.setMaxBookAge", "500"), null, "support");
+        SchedulerSchedule bad = engine.saveSchedule(daily(a, "09:00", "Europe/London"), "t");
+        engine.saveSchedule(once(a, "2026-10-14T09:00"), "t");
+        Path schedules = dir.resolve("state/schedules.json");
+        Files.writeString(schedules, Files.readString(schedules).replace("Europe/London", "Mars/Olympus"));
+        SchedulerEngine restarted = newEngine("uat");
+        now.set(Instant.parse("2026-10-14T09:00:00Z").toEpochMilli());
+        List<OpenItem> opened = restarted.tick();
+        assertEquals(1, opened.size(), "the good one still opens");
+        assertFalse(opened.get(0).getScheduleId().equals(bad.getId()));
+    }
+
+    @Test
+    void environmentsMustBeNames() {
+        SchedulerAction a = action("strat.A.setMaxBookAge", "500");
+        List<String> envs = new ArrayList<>();
+        envs.add(null);
+        a.setEnvironments(envs);
+        assertRefused("environments must be names", () -> engine.saveAction(a, null, "support"));
+    }
+
+    @Test
+    void resumingBeforeTheNextTickStillSkipsWhatFellDueWhilePaused() {
+        SchedulerAction a = engine.saveAction(action("strat.A.setMaxBookAge", "500"), null, "support");
+        engine.saveSchedule(once(a, "2026-10-14T09:00"), "t");
+        engine.setPaused(true);
+        now.set(T0 + 60 * MIN + 500);
+        engine.setPaused(false); // no tick in between
+        assertTrue(engine.tick().isEmpty());
+        assertEquals("skipped: the scheduler was paused", engine.history(0, Long.MAX_VALUE).get(0).getDetail());
+    }
+
+    @Test
+    void aLateDailyTickStillOffersTodaysOccurrence() throws Exception {
+        SchedulerAction a = engine.saveAction(action("strat.A.setMaxBookAge", "500"), null, "support");
+        engine.saveSchedule(daily(a, "09:00", "UTC"), "t"); // first due today 09:00
+        // the process was suspended from before today's tick until tomorrow 09:05
+        now.set(Instant.parse("2026-10-15T09:05:00Z").toEpochMilli());
+        List<OpenItem> opened = engine.tick();
+        assertEquals(1, opened.size());
+        assertEquals(Instant.parse("2026-10-15T09:00:00Z").toEpochMilli(), opened.get(0).getDueAt());
+        assertEquals(List.of(Instant.parse("2026-10-14T09:00:00Z").toEpochMilli()),
+                engine.history(0, Long.MAX_VALUE).stream().map(Outcome::getDueAt).toList(), "yesterday's is recorded missed");
+    }
+
+    @Test
+    void restartActionsWithTheSameOrderStillRunOneAfterTheOther() {
+        SchedulerAction first = engine.saveAction(action("feedA.connect"), null, "support");
+        SchedulerAction second = engine.saveAction(action("strat.A.setMaxBookAge", "500"), null, "support");
+        engine.saveSchedule(restart(first, 0), "t");
+        engine.saveSchedule(restart(second, 0), "t");
+        engine.offerRestartSet("server restart");
+        List<OpenItem> items = engine.open().stream().sorted(Comparator.comparingInt(OpenItem::getRestartOrder)).toList();
+        assertEquals(List.of(1, 2), items.stream().map(OpenItem::getRestartOrder).toList());
+        assertRefused("first", () -> engine.approve(items.get(1).getId(), "t"));
+    }
+
+    @Test
+    void aBusyCommandThreadRefusesApprovalAndLeavesTheItemOpen() {
+        SchedulerAction a = engine.saveAction(action("strat.A.setMaxBookAge", "500"), null, "support");
+        engine.saveSchedule(once(a, "2026-10-14T09:00"), "t");
+        now.set(T0 + 60 * MIN);
+        OpenItem item = engine.tick().get(0);
+        server.busy = "the command thread is still busy with x";
+        assertRefused("not run, try again", () -> engine.approve(item.getId(), "t"));
+        assertRefused("not run, try again", () -> engine.testAction(a.getId(), "s"));
+        assertEquals(1, engine.open().size());
+        server.busy = null;
+        assertEquals(OutcomeState.RAN_OK, engine.approve(item.getId(), "t").getState());
     }
 
     // ==================== environments ====================
@@ -652,6 +806,12 @@ class SchedulerEngineTest {
         volatile SchedulerEngine.CommandResult lookupAnswer;
         /** Runs inside a choices lookup (to hold it open). */
         volatile Runnable lookupHook;
+        volatile String busy;
+
+        @Override
+        public String busyReason() {
+            return busy;
+        }
 
         @Override
         public SchedulerEngine.CommandResult lookup(String command) {

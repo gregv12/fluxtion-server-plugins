@@ -72,7 +72,16 @@ public class SchedulerStore {
             if (Files.exists(st)) state = JSON.readValue(st.toFile(), State.class);
             Path h = dir.resolve("history.jsonl");
             if (Files.exists(h)) {
-                for (String line : Files.readAllLines(h, StandardCharsets.UTF_8)) {
+                // read leniently: a stop mid-append can cut a line, or a multi-byte character, short
+                byte[] bytes = Files.readAllBytes(h);
+                String text = new String(bytes, StandardCharsets.UTF_8);
+                boolean tornTail = bytes.length > 0 && bytes[bytes.length - 1] != '\n';
+                String[] lines = text.split("\n", -1);
+                if (tornTail) {
+                    skippedHistoryLines++;
+                    lines[lines.length - 1] = "";
+                }
+                for (String line : lines) {
                     if (line.isBlank()) continue;
                     try {
                         history.add(JSON.readValue(line, Outcome.class));
@@ -81,6 +90,9 @@ public class SchedulerStore {
                     }
                 }
                 trimHistory();
+                if (skippedHistoryLines > 0) {
+                    rewriteHistory(); // so the next append starts on a clean line
+                }
             }
         } catch (IOException e) {
             throw new UncheckedIOException("scheduler store " + dir + " unreadable", e);
@@ -112,9 +124,7 @@ public class SchedulerStore {
         try {
             if (history.size() > historyCap) {
                 trimHistory();
-                StringBuilder sb = new StringBuilder();
-                for (Outcome o : history) sb.append(JSON.writeValueAsString(o)).append('\n');
-                atomicWrite("history.jsonl", sb.toString());
+                rewriteHistory();
             } else {
                 Files.writeString(dir.resolve("history.jsonl"), JSON.writeValueAsString(outcome) + "\n",
                         StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
@@ -122,6 +132,12 @@ public class SchedulerStore {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    private void rewriteHistory() throws IOException {
+        StringBuilder sb = new StringBuilder();
+        for (Outcome o : history) sb.append(JSON.writeValueAsString(o)).append('\n');
+        atomicWrite("history.jsonl", sb.toString());
     }
 
     /** Trim to 80% of the cap, so a full history is rewritten once per many appends, not on every one. */

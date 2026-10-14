@@ -84,11 +84,14 @@ public class ActionScheduler implements Lifecycle {
     private AdminCommandRegistry registry;
     private SchedulerEngine engine;
     private ScheduledExecutorService ticker;
-    /** Approved and tested commands, one at a time. Replaced after a timeout so a stuck command blocks nothing else. */
-    private volatile ExecutorService commandRunner;
+    /** Approved and tested commands, strictly one at a time. */
+    private ExecutorService commandRunner;
     /** Choices lookups, so editing and approving never queue behind a slow approved command. */
-    private volatile ExecutorService lookupRunner;
+    private ExecutorService lookupRunner;
+    /** Most output kept from one command; the rest is dropped and marked. */
+    private int maxOutputChars = 64 * 1024;
     private volatile String restartStatus = "not started";
+    private String catalogueError;
 
     @ServiceRegistered
     public void adminRegistry(AdminCommandRegistry registry, String name) {
@@ -158,9 +161,12 @@ public class ActionScheduler implements Lifecycle {
     public void init() {
         Catalogue catalogue;
         try {
-            catalogue = catalogueFile == null ? Catalogue.parse("entries: []") : Catalogue.load(Path.of(catalogueFile));
+            catalogue = catalogueFile == null ? new Catalogue() : Catalogue.load(Path.of(catalogueFile));
         } catch (Exception e) {
-            throw new IllegalStateException("scheduler catalogue " + catalogueFile + " is invalid: " + e.getMessage(), e);
+            // a bad catalogue must not stop the server: run with nothing schedulable and say why
+            catalogueError = "catalogue " + catalogueFile + " not loaded, nothing can be scheduled: " + e.getMessage();
+            log.error("scheduler {}", catalogueError, e);
+            catalogue = new Catalogue();
         }
         SchedulerStore store = new SchedulerStore(Path.of(stateDirectory), historyCap);
         store.load();
@@ -231,6 +237,14 @@ public class ActionScheduler implements Lifecycle {
             String setId = engine.offerRestartSet(reason);
             restartStatus = setId == null ? "no after-restart schedules" : "offered " + setId + (missing.isEmpty() ? "" : " with missing commands " + missing);
             log.info("scheduler restart set: {}", restartStatus);
+        } catch (SchedulerEngine.Refused r) {
+            if (engine.isPaused()) { // paused between the check and the offer: wait for resume
+                restartStatus = "waiting: the scheduler is paused";
+                ticker.schedule(() -> offerRestartSetWhenReady(startedAt), 5, TimeUnit.SECONDS);
+            } else {
+                restartStatus = "restart set not offered: " + r.getMessage();
+                log.warn("scheduler restart set not offered: {}", r.getMessage());
+            }
         } catch (Throwable t) {
             restartStatus = "restart set not offered: " + t.getMessage();
             log.error("scheduler could not offer the restart set", t);
@@ -247,6 +261,7 @@ public class ActionScheduler implements Lifecycle {
         m.put("restartExpiryMinutes", restartExpiryMinutes);
         m.put("commandTimeoutSeconds", commandTimeoutSeconds);
         m.put("restart", restartStatus);
+        if (catalogueError != null) m.put("catalogueError", catalogueError);
         return m;
     }
 
@@ -324,22 +339,64 @@ public class ActionScheduler implements Lifecycle {
             return execute(command, List.of(), true);
         }
 
+        /**
+         * A command that timed out may still be running (it ignored the interrupt, or it is queued in a
+         * processor). Until it finishes no other command is started on that path, so two never run at once.
+         */
+        private java.util.concurrent.atomic.AtomicBoolean stuckCommand;
+        private String stuckCommandName;
+        private java.util.concurrent.atomic.AtomicBoolean stuckLookup;
+        private String stuckLookupName;
+
+        @Override
+        public synchronized String busyReason() {
+            // a cancelled Future reports done at once, so the task itself says when it has really finished
+            if (stuckCommand != null && !stuckCommand.get()) {
+                return "the command thread is still busy with " + stuckCommandName + ", which timed out (result unknown)";
+            }
+            return null;
+        }
+
         private SchedulerEngine.CommandResult execute(String command, List<String> arguments, boolean lookup) {
-            StringBuffer output = new StringBuffer();
-            StringBuffer errors = new StringBuffer();
+            Output output = new Output(maxOutputChars);
+            Output errors = new Output(maxOutputChars);
             AdminCommandRequest request = new AdminCommandRequest();
             request.setCommand(command);
             // the server puts the command name in front of these before calling the command
             request.setArguments(new ArrayList<>(arguments == null ? List.of() : arguments));
-            request.setOutput(o -> append(output, o));
-            request.setErrOutput(o -> append(errors, o));
-            ExecutorService runner = lookup ? lookupRunner : commandRunner;
-            Future<?> f = runner.submit(() -> registry.processAdminCommandRequest(request));
+            request.setOutput(output::add);
+            request.setErrOutput(errors::add);
+            Future<?> f;
+            java.util.concurrent.atomic.AtomicBoolean finished = new java.util.concurrent.atomic.AtomicBoolean();
+            synchronized (this) {
+                java.util.concurrent.atomic.AtomicBoolean stuck = lookup ? stuckLookup : stuckCommand;
+                if (stuck != null && !stuck.get()) {
+                    return new SchedulerEngine.CommandResult(false, "not run: the " + (lookup ? "lookup" : "command")
+                            + " thread is still busy with " + (lookup ? stuckLookupName : stuckCommandName) + ", which timed out");
+                }
+                f = (lookup ? lookupRunner : commandRunner).submit(() -> {
+                    try {
+                        registry.processAdminCommandRequest(request);
+                    } finally {
+                        finished.set(true);
+                    }
+                });
+            }
             try {
                 f.get(commandTimeoutSeconds, TimeUnit.SECONDS);
             } catch (TimeoutException e) {
                 f.cancel(true);
-                replace(runner, lookup);
+                synchronized (this) {
+                    if (lookup) {
+                        stuckLookup = finished;
+                        stuckLookupName = command;
+                    } else {
+                        stuckCommand = finished;
+                        stuckCommandName = command;
+                    }
+                }
+                log.warn("scheduler {} {} timed out after {}s; no other {} starts until it finishes",
+                        lookup ? "lookup" : "command", command, commandTimeoutSeconds, lookup ? "lookup" : "command");
                 return new SchedulerEngine.CommandResult(false, "timed out after " + commandTimeoutSeconds + "s, result unknown. " + output + errors);
             } catch (Exception e) {
                 return new SchedulerEngine.CommandResult(false, "error: " + e + " " + output + errors);
@@ -349,23 +406,37 @@ public class ActionScheduler implements Lifecycle {
             return new SchedulerEngine.CommandResult(ok, ok ? out : (out + (errors.isEmpty() ? "" : " error: " + errors)).trim());
         }
 
-        /** A command that ignored the interrupt may still be running: give later commands a fresh thread. */
-        private synchronized void replace(ExecutorService stuck, boolean lookup) {
-            String name = lookup ? "scheduler-lookup" : "scheduler-command";
-            if (lookup && lookupRunner == stuck) {
-                lookupRunner = newRunner(name);
-            } else if (!lookup && commandRunner == stuck) {
-                commandRunner = newRunner(name);
-            } else {
-                return;
-            }
-            stuck.shutdownNow();
-            log.warn("scheduler {} thread replaced after a timeout; the timed-out command may still complete", name);
+    }
+
+    /** Command output, kept up to a limit (a command that floods its output cannot exhaust the heap). */
+    private static final class Output {
+        private final StringBuilder sb = new StringBuilder();
+        private final int max;
+        private boolean truncated;
+
+        Output(int max) {
+            this.max = max;
         }
 
-        private void append(StringBuffer sb, Object o) {
+        synchronized void add(Object o) {
+            if (truncated) return;
+            String text = String.valueOf(o);
             if (!sb.isEmpty()) sb.append('\n');
-            sb.append(o);
+            if (sb.length() + text.length() > max) {
+                sb.append(text, 0, Math.max(0, max - sb.length())).append(" ...[output truncated]");
+                truncated = true;
+            } else {
+                sb.append(text);
+            }
+        }
+
+        synchronized boolean isEmpty() {
+            return sb.isEmpty();
+        }
+
+        @Override
+        public synchronized String toString() {
+            return sb.toString();
         }
     }
 }

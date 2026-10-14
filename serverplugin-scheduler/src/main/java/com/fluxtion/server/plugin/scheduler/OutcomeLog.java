@@ -72,20 +72,28 @@ public class OutcomeLog {
     static String quote(String s) {
         if (s == null) return "null";
         String one = s.replaceAll("[\\r\\n]+", " | ").trim();
-        if (one.length() > 500) one = one.substring(0, 500) + "...";
-        StringBuilder sb = new StringBuilder(one.length() + 2).append('"');
-        for (char c : one.toCharArray()) {
-            switch (c) {
-                case '"' -> sb.append("\\\"");
-                case '\\' -> sb.append("\\\\");
-                case '\t' -> sb.append("\\t");
-                default -> {
-                    if (c < 0x20 || c == 0x7f) sb.append(String.format("\\u%04x", (int) c));
-                    else sb.append(c);
-                }
+        StringBuilder sb = new StringBuilder(Math.min(one.length(), 600) + 2).append('"');
+        int count = 0;
+        for (int i = 0; i < one.length(); ) {
+            int cp = one.codePointAt(i);
+            i += Character.charCount(cp);
+            if (++count > 500) {
+                sb.append("...");
+                break;
             }
+            if (Character.isSurrogate((char) cp) && cp <= 0xFFFF) cp = 0xFFFD; // a lone surrogate cannot be written
+            if (cp == '"') sb.append("\\\"");
+            else if (cp == '\\') sb.append("\\\\");
+            else if (yamlPrintable(cp)) sb.appendCodePoint(cp);
+            else sb.append(String.format("\\u%04x", cp)); // only BMP code points reach here
         }
         return sb.append('"').toString();
+    }
+
+    /** YAML's printable set, less tab, NEL and BOM, which are escaped to be safe. */
+    private static boolean yamlPrintable(int cp) {
+        return (cp >= 0x20 && cp <= 0x7E) || (cp >= 0xA0 && cp <= 0xD7FF) || (cp >= 0xE000 && cp <= 0xFFFD && cp != 0xFEFF)
+                || (cp >= 0x10000 && cp <= 0x10FFFF);
     }
 
     private void roll() throws IOException {

@@ -24,6 +24,8 @@ public class SchedulerSchedule {
     private boolean enabled = true;
     /** Next time this schedule falls due (epoch ms); maintained by the scheduler, 0 = none. */
     private long nextDueAt;
+    /** The latest occurrence already handled (opened, missed or skipped); never handled twice, whatever the clock. */
+    private long lastFiredDue;
     private String changedBy;
     private long changedAt;
 }

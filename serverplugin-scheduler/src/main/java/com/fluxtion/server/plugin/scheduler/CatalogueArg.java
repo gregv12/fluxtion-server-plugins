@@ -27,6 +27,8 @@ public class CatalogueArg {
     /** NUMBER: inclusive bounds, either may be absent. */
     private Double min;
     private Double max;
+    /** NUMBER: a whole number only (for commands that parse a long or int). */
+    private boolean integer;
     /** CHOICE: where the choices come from. */
     private ChoicesFrom choicesFrom;
 

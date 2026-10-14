@@ -162,8 +162,9 @@ public class Catalogue {
     private static List<List<String>> textChoices(String answer, CatalogueArg.ChoicesFrom from) {
         java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(from.getRegex());
         java.util.LinkedHashSet<List<String>> out = new java.util.LinkedHashSet<>();
+        long deadline = System.nanoTime() + REGEX_BUDGET_NANOS;
         for (String line : answer == null ? new String[0] : answer.split("\\R")) {
-            java.util.regex.Matcher m = pattern.matcher(line);
+            java.util.regex.Matcher m = pattern.matcher(new Deadline(line, deadline));
             if (!m.find()) continue;
             List<String> tuple = new ArrayList<>();
             if (from.getValues().isEmpty()) {
@@ -178,6 +179,35 @@ public class Catalogue {
             out.add(tuple);
         }
         return new ArrayList<>(out);
+    }
+
+    /** All lines of one answer must be matched within this time: a pathological regex fails, it does not hang. */
+    static final long REGEX_BUDGET_NANOS = 2_000_000_000L;
+
+    /** Text that stops a regex match once the deadline has passed (the JDK matcher reads it char by char). */
+    private record Deadline(CharSequence text, long deadline) implements CharSequence {
+        @Override
+        public char charAt(int index) {
+            if ((index & 0xFF) == 0 && System.nanoTime() > deadline) {
+                throw new IllegalStateException("choices regex took longer than " + REGEX_BUDGET_NANOS / 1_000_000 + "ms");
+            }
+            return text.charAt(index);
+        }
+
+        @Override
+        public int length() {
+            return text.length();
+        }
+
+        @Override
+        public CharSequence subSequence(int start, int end) {
+            return new Deadline(text.subSequence(start, end), deadline);
+        }
+
+        @Override
+        public String toString() {
+            return text.toString();
+        }
     }
 
     /**
@@ -203,6 +233,7 @@ public class Catalogue {
                         return a.getName() + " must be a number, got '" + value + "'";
                     }
                     if (Double.isNaN(d) || Double.isInfinite(d)) return a.getName() + " must be a finite number, got '" + value + "'";
+                    if (a.isInteger() && !value.trim().matches("-?\\d+")) return a.getName() + " must be a whole number, got '" + value + "'";
                     if (a.getMin() != null && d < a.getMin()) return a.getName() + " must be >= " + a.getMin();
                     if (a.getMax() != null && d > a.getMax()) return a.getName() + " must be <= " + a.getMax();
                 }

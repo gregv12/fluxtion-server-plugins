@@ -34,6 +34,7 @@ import java.util.function.LongSupplier;
  * restart", never re-run); an open item from an earlier restart set closes Expired ("superseded"); a timed item
  * past its expiry closes Expired ("server down"). Daily schedules are never backfilled.</p>
  */
+@lombok.extern.log4j.Log4j2
 public class SchedulerEngine {
 
     /** How the engine reaches the server's commands. */
@@ -47,6 +48,11 @@ public class SchedulerEngine {
         /** Run a read-only lookup (a choices command); kept off the path of approved commands where possible. */
         default CommandResult lookup(String command) {
             return run(command, List.of());
+        }
+
+        /** Why no command can be run now (an earlier one timed out and is still running), or null. */
+        default String busyReason() {
+            return null;
         }
     }
 
@@ -104,6 +110,12 @@ public class SchedulerEngine {
         if (in.getTitle() == null || in.getTitle().isBlank()) throw new Refused("an action needs a title");
         if (in.getArguments() == null) in.setArguments(new ArrayList<>());
         if (in.getEnvironments() == null) in.setEnvironments(new ArrayList<>());
+        List<String> envs = new ArrayList<>();
+        for (Object e : in.getEnvironments()) {
+            if (!(e instanceof String name) || name.isBlank()) throw new Refused("environments must be names, e.g. [\"dev\", \"uat\"]");
+            envs.add(name.trim());
+        }
+        in.setEnvironments(envs);
         Catalogue.Match match = liveMatch(in.getCommand());
         String invalid = Catalogue.validate(match, in.getArguments(), arg -> choices(match, arg));
         if (invalid != null) throw new Refused(invalid);
@@ -158,6 +170,8 @@ public class SchedulerEngine {
         synchronized (this) {
             if (settings.isProduction()) throw new Refused("test is not allowed in production; schedule it and approve it instead");
             if (store.state().isPaused()) throw new Refused("the scheduler is paused");
+            String busy = gateway.busyReason();
+            if (busy != null) throw new Refused("not run, try again: " + busy);
             a = action(id);
             if (a.isRetired()) throw new Refused("action " + id + " is retired");
             checkEnvironment(a);
@@ -194,12 +208,14 @@ public class SchedulerEngine {
         s.setExpiryMinutes(in.getExpiryMinutes());
         s.setRestartOrder(in.getRestartOrder());
         s.setEnabled(in.isEnabled());
+        s.setLastFiredDue(existing == null ? 0 : existing.getLastFiredDue());
         s.setChangedBy(by);
         s.setChangedAt(nextChangeStamp(existing == null ? 0 : existing.getChangedAt()));
         zone(s); // validates the zone
         s.setNextDueAt(s.isEnabled() ? firstDue(s, clock.getAsLong()) : 0);
-        if (s.getTrigger() == TriggerType.ONCE && s.isEnabled() && s.getNextDueAt() <= clock.getAsLong()) {
-            throw new Refused("that time has already passed"); // also stops a spent one-off being re-armed
+        if (s.getTrigger() == TriggerType.ONCE && s.isEnabled()) {
+            if (s.getNextDueAt() <= s.getLastFiredDue()) throw new Refused("that one-off has already been handled; give it a new time");
+            if (s.getNextDueAt() <= clock.getAsLong()) throw new Refused("that time has already passed");
         }
         store.schedules().put(s.getId(), s);
         store.saveSchedules();
@@ -211,8 +227,8 @@ public class SchedulerEngine {
         if (s == null) throw new Refused("no schedule " + id);
         if (enabled && action(s.getActionId()).isRetired()) throw new Refused("its action is retired");
         long nextDue = enabled ? firstDue(s, clock.getAsLong()) : 0;
-        if (enabled && s.getTrigger() == TriggerType.ONCE && nextDue <= clock.getAsLong()) {
-            throw new Refused("that time has already passed; edit the schedule with a new time");
+        if (enabled && s.getTrigger() == TriggerType.ONCE && (nextDue <= clock.getAsLong() || nextDue <= s.getLastFiredDue())) {
+            throw new Refused("that time has already passed or been handled; edit the schedule with a new time");
         }
         s.setEnabled(enabled);
         s.setChangedBy(by);
@@ -239,47 +255,101 @@ public class SchedulerEngine {
     public synchronized List<OpenItem> tick() {
         long now = clock.getAsLong();
         List<OpenItem> opened = new ArrayList<>();
-        boolean schedulesChanged = false;
-        boolean openChanged = false;
         boolean paused = store.state().isPaused();
-        {
-            for (SchedulerSchedule s : store.schedules().values()) {
-                if (!s.isEnabled() || s.getTrigger() == TriggerType.AFTER_RESTART || s.getNextDueAt() <= 0 || s.getNextDueAt() > now) {
-                    continue;
-                }
-                long due = s.getNextDueAt();
-                long expires = due + expiryMillis(s);
-                SchedulerAction a = store.actions().get(s.getActionId());
-                if (a == null || a.isRetired()) {
-                    s.setEnabled(false);
-                } else if (paused) {
-                    close(itemFor(a, s, due, expires, null, 0), OutcomeState.EXPIRED, "scheduler", "skipped: the scheduler was paused", 0);
-                } else if (now >= expires) {
-                    close(itemFor(a, s, due, expires, null, 0), OutcomeState.EXPIRED, "scheduler", "missed: the server was not running at the due time", 0);
-                } else if (hasOpenFor(s.getId())) {
-                    close(itemFor(a, s, due, expires, null, 0), OutcomeState.EXPIRED, "scheduler", "missed: the previous occurrence was still open", 0);
-                } else if (!allowedHere(a)) {
-                    close(itemFor(a, s, due, expires, null, 0), OutcomeState.FAILED, "scheduler", "not allowed in environment " + settings.environment(), 0);
-                } else {
-                    OpenItem item = itemFor(a, s, due, expires, null, 0);
-                    store.open().put(item.getId(), item);
-                    opened.add(item);
-                    openChanged = true;
-                }
-                advance(s, now);
-                schedulesChanged = true;
+        retryPending();
+        for (SchedulerSchedule s : store.schedules().values()) {
+            if (!s.isEnabled() || s.getTrigger() == TriggerType.AFTER_RESTART || s.getNextDueAt() <= 0 || s.getNextDueAt() > now) {
+                continue;
+            }
+            try {
+                OpenItem item = occur(s, now, paused);
+                if (item != null) opened.add(item);
+            } catch (RuntimeException e) {
+                // one bad schedule must not stop the others or the expiry pass; it is retried next tick
+                log.error("scheduler: schedule {} could not be processed", s.getId(), e);
             }
         }
+        boolean openChanged = false;
         for (OpenItem item : new ArrayList<>(store.open().values())) {
-            if (!item.isRunning() && now >= item.getExpiresAt()) {
-                store.open().remove(item.getId());
-                close(item, OutcomeState.EXPIRED, "scheduler", "expired: nobody approved or declined it", 0);
-                openChanged = true;
+            if (!item.isRunning() && item.getPendingOutcome() == null && now >= item.getExpiresAt()) {
+                try {
+                    close(item, OutcomeState.EXPIRED, "scheduler", "expired: nobody approved or declined it", 0);
+                } catch (RuntimeException e) {
+                    log.error("scheduler: item {} could not be expired", item.getId(), e);
+                }
             }
         }
-        if (schedulesChanged) store.saveSchedules();
-        if (openChanged) store.saveOpen();
         return opened;
+    }
+
+    /**
+     * Handle a schedule's due occurrence. Each occurrence has a fixed id (schedule@due) and is recorded or opened
+     * before the schedule is moved on, so a stop in between never loses it and never handles it twice.
+     */
+    private OpenItem occur(SchedulerSchedule s, long now, boolean paused) {
+        long due = s.getNextDueAt();
+        SchedulerAction a = store.actions().get(s.getActionId());
+        if (a == null || a.isRetired()) {
+            s.setEnabled(false);
+            store.saveSchedules();
+            return null;
+        }
+        if (s.getTrigger() == TriggerType.DAILY) {
+            // a late tick (suspended process) still offers the latest occurrence; the ones before it are missed
+            long latest = due;
+            for (long next = nextDaily(s, latest); next <= now; next = nextDaily(s, latest)) latest = next;
+            if (latest != due) {
+                if (due > s.getLastFiredDue() && !handled(occurrenceId(s, due))) {
+                    close(itemFor(a, s, due, due + expiryMillis(s), null, 0), OutcomeState.EXPIRED, "scheduler",
+                            "missed: the scheduler did not run at the due time", 0);
+                }
+                due = latest;
+            }
+        }
+        long expires = due + expiryMillis(s);
+        OpenItem opened = null;
+        if (due > s.getLastFiredDue() && !handled(occurrenceId(s, due))) {
+            OpenItem item = itemFor(a, s, due, expires, null, 0);
+            item.setId(occurrenceId(s, due));
+            if (paused) {
+                close(item, OutcomeState.EXPIRED, "scheduler", "skipped: the scheduler was paused", 0);
+            } else if (now >= expires) {
+                close(item, OutcomeState.EXPIRED, "scheduler", "missed: the server was not running at the due time", 0);
+            } else if (hasOpenFor(s.getId())) {
+                close(item, OutcomeState.EXPIRED, "scheduler", "missed: the previous occurrence was still open", 0);
+            } else if (!allowedHere(a)) {
+                close(item, OutcomeState.FAILED, "scheduler", "not allowed in environment " + settings.environment(), 0);
+            } else {
+                store.open().put(item.getId(), item);
+                store.saveOpen();
+                opened = item;
+            }
+        }
+        s.setLastFiredDue(Math.max(s.getLastFiredDue(), due));
+        advance(s, now);
+        store.saveSchedules();
+        return opened;
+    }
+
+    private static String occurrenceId(SchedulerSchedule s, long due) {
+        return s.getId() + "@" + due;
+    }
+
+    private boolean handled(String itemId) {
+        return store.open().containsKey(itemId) || recorded(itemId);
+    }
+
+    /** Finish closes whose recording failed earlier (disk full, for example). */
+    private void retryPending() {
+        for (OpenItem item : new ArrayList<>(store.open().values())) {
+            if (item.getPendingOutcome() != null) {
+                try {
+                    finish(item, item.getPendingOutcome());
+                } catch (RuntimeException e) {
+                    log.error("scheduler: outcome of {} still not recorded", item.getId(), e);
+                }
+            }
+        }
     }
 
     /** Close what a stop left behind, per the restart table in the class comment. */
@@ -287,22 +357,18 @@ public class SchedulerEngine {
         long now = clock.getAsLong();
         boolean changed = false;
         for (OpenItem item : new ArrayList<>(store.open().values())) {
-            if (recorded(item.getId())) {
-                // stopped between recording the outcome and removing the item
+            if (item.getPendingOutcome() != null) {
+                // decided before the stop: finish recording it (history is written once)
+                finish(item, item.getPendingOutcome());
+            } else if (recorded(item.getId())) {
                 store.open().remove(item.getId());
                 changed = true;
             } else if (item.isRunning()) {
-                store.open().remove(item.getId());
                 close(item, OutcomeState.FAILED, "scheduler", "interrupted by restart: the result is unknown and it was not re-run", 0);
-                changed = true;
             } else if (item.getRestartSetId() != null) {
-                store.open().remove(item.getId());
                 close(item, OutcomeState.EXPIRED, "scheduler", "superseded: the server restarted before a decision", 0);
-                changed = true;
             } else if (now >= item.getExpiresAt()) {
-                store.open().remove(item.getId());
                 close(item, OutcomeState.EXPIRED, "scheduler", "expired: the server was down", 0);
-                changed = true;
             }
         }
         if (changed) store.saveOpen();
@@ -356,11 +422,12 @@ public class SchedulerEngine {
         if (schedules.isEmpty()) return null;
         long now = clock.getAsLong();
         String setId = "restart-" + newId();
+        int sequence = 0; // a strict order even when schedules share a restart order
         for (SchedulerSchedule s : schedules) {
             SchedulerAction a = store.actions().get(s.getActionId());
             if (a == null || a.isRetired()) continue;
             long expires = now + (s.getExpiryMinutes() > 0 ? s.getExpiryMinutes() : settings.restartExpiryMinutes()) * 60_000L;
-            OpenItem item = itemFor(a, s, now, expires, setId, s.getRestartOrder());
+            OpenItem item = itemFor(a, s, now, expires, setId, ++sequence);
             item.setDescription((a.getDescription() == null ? "" : a.getDescription() + " ") + "(" + reason + ")");
             if (!allowedHere(a)) {
                 close(item, OutcomeState.FAILED, "scheduler", "not allowed in environment " + settings.environment(), 0);
@@ -393,8 +460,6 @@ public class SchedulerEngine {
         synchronized (this) {
             item = approvable(itemId); // decided, expired or approved while the arguments were checked
             if (invalid != null) {
-                store.open().remove(itemId);
-                store.saveOpen();
                 close(item, OutcomeState.FAILED, by, "not run: " + invalid, 0);
                 throw new Refused("not run: " + invalid);
             }
@@ -409,10 +474,8 @@ public class SchedulerEngine {
         if (store.state().isPaused()) throw new Refused("the scheduler is paused");
         OpenItem item = store.open().get(itemId);
         if (item == null) throw new Refused(alreadyDecided(itemId));
-        if (item.isRunning()) throw new Refused("already approved: it is running");
+        if (item.isRunning() || item.getPendingOutcome() != null) throw new Refused("already approved: it is running");
         if (clock.getAsLong() >= item.getExpiresAt()) {
-            store.open().remove(itemId);
-            store.saveOpen();
             close(item, OutcomeState.EXPIRED, "scheduler", "expired before the approval arrived", 0);
             throw new Refused("expired: it can no longer be approved");
         }
@@ -420,6 +483,8 @@ public class SchedulerEngine {
         if (a != null && !allowedHere(a)) {
             throw new Refused("not allowed in environment " + settings.environment());
         }
+        String busy = gateway.busyReason();
+        if (busy != null) throw new Refused("not run, try again: " + busy);
         if (item.getRestartSetId() != null) {
             for (OpenItem other : store.open().values()) {
                 if (item.getRestartSetId().equals(other.getRestartSetId()) && other.getRestartOrder() < item.getRestartOrder()) {
@@ -433,9 +498,7 @@ public class SchedulerEngine {
     public synchronized Outcome decline(String itemId, String by) {
         OpenItem item = store.open().get(itemId);
         if (item == null) throw new Refused(alreadyDecided(itemId));
-        if (item.isRunning()) throw new Refused("already approved: it is running");
-        store.open().remove(itemId);
-        store.saveOpen();
+        if (item.isRunning() || item.getPendingOutcome() != null) throw new Refused("already approved: it is running");
         return close(item, OutcomeState.DECLINED, by, "declined", 0);
     }
 
@@ -485,6 +548,9 @@ public class SchedulerEngine {
     // ==================== state ====================
 
     public synchronized void setPaused(boolean paused) {
+        if (!paused && store.state().isPaused()) {
+            tick(); // still paused: anything already due is recorded as skipped, not opened late
+        }
         store.state().setPaused(paused);
         store.saveState();
     }
@@ -578,6 +644,8 @@ public class SchedulerEngine {
         CommandResult r;
         if (!gateway.liveCommands().contains(item.getCommand())) {
             r = new CommandResult(false, "command not registered on this server: " + item.getCommand());
+        } else if (gateway.busyReason() != null) {
+            r = new CommandResult(false, "not run: " + gateway.busyReason());
         } else {
             try {
                 r = gateway.run(item.getCommand(), item.getArguments());
@@ -586,13 +654,8 @@ public class SchedulerEngine {
             }
         }
         synchronized (this) {
-            try {
-                return close(item, r.ok() ? OutcomeState.RAN_OK : OutcomeState.FAILED, by, r.output(),
-                        Math.max(0, clock.getAsLong() - start));
-            } finally {
-                // even if recording fails the item must not stay "running"; recovery skips one already recorded
-                if (store.open().remove(item.getId()) != null) store.saveOpen();
-            }
+            return close(item, r.ok() ? OutcomeState.RAN_OK : OutcomeState.FAILED, by, r.output(),
+                    Math.max(0, clock.getAsLong() - start));
         }
     }
 
@@ -611,9 +674,30 @@ public class SchedulerEngine {
         o.setDecidedAt(clock.getAsLong());
         o.setDetail(detail);
         o.setDurationMillis(durationMillis);
-        store.appendHistory(o);
-        outcomeLog.append(o);
+        finish(item, o);
         return o;
+    }
+
+    /**
+     * Close durably: an open item first saves its outcome on itself, then the outcome is recorded (outcome log,
+     * then history), then the item is removed. A stop at any point is finished by {@link #recoverAfterStart()};
+     * a failure to record leaves the outcome pending and the next tick retries. History holds each item once;
+     * after a stop between the two writes the outcome log can repeat a record.
+     */
+    private void finish(OpenItem item, Outcome o) {
+        boolean open = store.open().containsKey(item.getId());
+        if (open && item.getPendingOutcome() == null) {
+            item.setPendingOutcome(o);
+            store.saveOpen();
+        }
+        if (!recorded(o.getItemId())) {
+            outcomeLog.append(o);
+            store.appendHistory(o);
+        }
+        if (open) {
+            store.open().remove(item.getId());
+            store.saveOpen();
+        }
     }
 
     private OpenItem itemFor(SchedulerAction a, SchedulerSchedule s, long due, long expires, String setId, int order) {
@@ -670,6 +754,10 @@ public class SchedulerEngine {
             });
         } catch (java.io.IOException e) {
             throw new Refused("choices for " + arg.getName() + " are not valid JSON: " + e.getMessage());
+        } catch (Refused r) {
+            throw r;
+        } catch (RuntimeException e) {
+            throw new Refused("choices for " + arg.getName() + " could not be read: " + e.getMessage());
         }
     }
 
@@ -683,7 +771,7 @@ public class SchedulerEngine {
     /** Listed environments win; an empty list means every environment except production. */
     boolean allowedHere(SchedulerAction a) {
         if (a.getEnvironments() == null || a.getEnvironments().isEmpty()) return !settings.isProduction();
-        return a.getEnvironments().stream().anyMatch(e -> e.equalsIgnoreCase(settings.environment()));
+        return a.getEnvironments().stream().anyMatch(e -> e != null && e.equalsIgnoreCase(settings.environment()));
     }
 
     private SchedulerAction action(String id) {
@@ -735,7 +823,7 @@ public class SchedulerEngine {
     long firstDue(SchedulerSchedule s, long now) {
         try {
             return switch (s.getTrigger()) {
-                case ONCE -> LocalDateTime.parse(s.getAt()).atZone(zone(s)).toInstant().toEpochMilli();
+                case ONCE -> instantOf(LocalDateTime.parse(s.getAt()), zone(s));
                 case DAILY -> nextDaily(s, now - 1);
                 case AFTER_RESTART -> 0;
             };
@@ -756,15 +844,24 @@ public class SchedulerEngine {
         LocalTime time = LocalTime.parse(s.getAt());
         LocalDate day = Instant.ofEpochMilli(after).atZone(zone).toLocalDate();
         for (int i = 0; i < 3; i++) {
-            long t = ZonedDateTime.of(day.plusDays(i), time, zone).toInstant().toEpochMilli();
+            long t = instantOf(LocalDateTime.of(day.plusDays(i), time), zone);
             if (t > after) return t;
         }
         throw new IllegalStateException("no daily occurrence found");
     }
 
+    /** A local time in a zone: in a DST gap, the first valid instant after it; in an overlap, the earlier one. */
+    static long instantOf(LocalDateTime local, ZoneId zone) {
+        java.time.zone.ZoneRules rules = zone.getRules();
+        if (rules.getValidOffsets(local).isEmpty()) {
+            return rules.getTransition(local).getInstant().toEpochMilli();
+        }
+        return ZonedDateTime.ofLocal(local, zone, null).toInstant().toEpochMilli();
+    }
+
     private void advance(SchedulerSchedule s, long now) {
         if (s.getTrigger() == TriggerType.DAILY) {
-            s.setNextDueAt(nextDaily(s, Math.max(now, s.getNextDueAt())));
+            s.setNextDueAt(nextDaily(s, Math.max(now, Math.max(s.getNextDueAt(), s.getLastFiredDue()))));
         } else {
             s.setNextDueAt(0);
             s.setEnabled(false);

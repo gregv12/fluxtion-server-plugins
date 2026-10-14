@@ -46,10 +46,13 @@ class ActionSchedulerTest {
             out.accept("price source set");
         });
         registry.registerCommand("feedA.connect", (args, out, err) -> {
-            try {
-                Thread.sleep(3_000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+            long end = System.currentTimeMillis() + 3_000; // ignores interrupts, like a stuck command
+            while (System.currentTimeMillis() < end) {
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException ignored) {
+                    // keep going
+                }
             }
             out.accept("connected");
         });
@@ -122,14 +125,63 @@ class ActionSchedulerTest {
     }
 
     @Test
-    void afterATimeoutTheNextCommandDoesNotQueueBehindTheStuckOne() throws Exception {
+    void afterATimeoutNoOtherCommandStartsUntilTheStuckOneFinishes() throws Exception {
         JsonNode slow = ok("scheduler.saveAction", "{\"title\":\"connect\",\"command\":\"feedA.connect\"}");
         JsonNode quick = ok("scheduler.saveAction",
                 "{\"title\":\"age\",\"command\":\"strat.A.setMaxBookAge\",\"arguments\":[\"5\"]}");
         assertEquals("FAILED", ok("scheduler.testAction", slow.get("id").asText()).get("state").asText());
-        long start = System.currentTimeMillis();
+        Reply busy = run("scheduler.testAction", quick.get("id").asText());
+        assertTrue(busy.err.contains("still busy with feedA.connect"), busy.toString());
+        assertTrue(calls.isEmpty(), "never two commands at once");
+        Thread.sleep(2_500); // the stuck command finishes (3 s in all)
         assertEquals("RAN_OK", ok("scheduler.testAction", quick.get("id").asText()).get("state").asText());
-        assertTrue(System.currentTimeMillis() - start < 1_000, "ran on a fresh thread, not after the stuck command");
+    }
+
+    @Test
+    void floodedOutputIsCapped() throws Exception {
+        registry.registerCommand("strat.A.setMaxBookAge", (args, out, err) -> {
+            for (int i = 0; i < 200; i++) out.accept("x".repeat(1_000));
+        });
+        scheduler.setMaxOutputChars(10_000);
+        JsonNode quick = ok("scheduler.saveAction",
+                "{\"title\":\"age\",\"command\":\"strat.A.setMaxBookAge\",\"arguments\":[\"5\"]}");
+        String detail = ok("scheduler.testAction", quick.get("id").asText()).get("detail").asText();
+        assertTrue(detail.length() < 10_100 && detail.endsWith("[output truncated]"), detail.length() + "");
+    }
+
+    @Test
+    void noCatalogueFileMeansNothingSchedulableNotAFailedStart() {
+        ActionScheduler s = new ActionScheduler();
+        s.setStateDirectory(dir.resolve("state3").toString());
+        s.setOutcomeLogFile(dir.resolve("log3/out.yaml").toString());
+        s.adminRegistry(new FakeRegistry(), "admin");
+        s.init();
+        s.tearDown();
+    }
+
+    @Test
+    void aBrokenCatalogueDoesNotStopTheServer() throws Exception {
+        Path bad = dir.resolve("bad.yaml");
+        Files.writeString(bad, "commands:\n  - command: a.b\n    argumnets: []\n");
+        ActionScheduler s = new ActionScheduler();
+        s.setStateDirectory(dir.resolve("state2").toString());
+        s.setOutcomeLogFile(dir.resolve("log2/out.yaml").toString());
+        s.setCatalogueFile(bad.toString());
+        FakeRegistry r = new FakeRegistry();
+        s.adminRegistry(r, "admin");
+        s.init();
+        try {
+            Reply status = new Reply();
+            AdminCommandRequest req = new AdminCommandRequest();
+            req.setCommand("scheduler.status");
+            req.setArguments(new ArrayList<>());
+            req.setOutput(o -> status.out += o);
+            req.setErrOutput(o -> status.err += o);
+            r.processAdminCommandRequest(req);
+            assertTrue(json.readTree(status.out).get("catalogueError").asText().contains("nothing can be scheduled"), status.out);
+        } finally {
+            s.tearDown();
+        }
     }
 
     @Test

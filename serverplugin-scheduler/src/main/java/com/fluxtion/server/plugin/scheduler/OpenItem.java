@@ -30,4 +30,6 @@ public class OpenItem {
     private int restartOrder;
     /** True while an approved command is executing; an item found running after a restart closes as FAILED. */
     private boolean running;
+    /** Set once decided and saved before it is recorded, so a stop mid-close is finished at the next start. */
+    private Outcome pendingOutcome;
 }
