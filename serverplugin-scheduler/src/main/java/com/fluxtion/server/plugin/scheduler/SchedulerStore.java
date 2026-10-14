@@ -41,6 +41,7 @@ public class SchedulerStore {
     private final Map<String, OpenItem> open = new LinkedHashMap<>();
     private final List<Outcome> history = new ArrayList<>();
     private State state = new State();
+    private int skippedHistoryLines;
 
     /** Small flags that must survive a restart. */
     @Data
@@ -72,7 +73,12 @@ public class SchedulerStore {
             Path h = dir.resolve("history.jsonl");
             if (Files.exists(h)) {
                 for (String line : Files.readAllLines(h, StandardCharsets.UTF_8)) {
-                    if (!line.isBlank()) history.add(JSON.readValue(line, Outcome.class));
+                    if (line.isBlank()) continue;
+                    try {
+                        history.add(JSON.readValue(line, Outcome.class));
+                    } catch (IOException torn) {
+                        skippedHistoryLines++; // a line cut short by a crash mid-append: the outcome log still has it
+                    }
                 }
                 trimHistory();
             }
@@ -92,6 +98,8 @@ public class SchedulerStore {
     public Map<String, OpenItem> open() { return open; }
     public List<Outcome> history() { return history; }
     public State state() { return state; }
+    /** History lines that could not be read at load (cut short by a crash). */
+    public int skippedHistoryLines() { return skippedHistoryLines; }
 
     public void saveActions() { write("actions.json", envelope(actions.values())); }
     public void saveSchedules() { write("schedules.json", envelope(schedules.values())); }
@@ -116,8 +124,11 @@ public class SchedulerStore {
         }
     }
 
+    /** Trim to 80% of the cap, so a full history is rewritten once per many appends, not on every one. */
     private void trimHistory() {
-        while (history.size() > historyCap) history.remove(0);
+        if (history.size() <= historyCap) return;
+        int keep = Math.max(1, historyCap * 4 / 5);
+        history.subList(0, history.size() - keep).clear();
     }
 
     private static <T> Envelope<T> envelope(java.util.Collection<T> items) {

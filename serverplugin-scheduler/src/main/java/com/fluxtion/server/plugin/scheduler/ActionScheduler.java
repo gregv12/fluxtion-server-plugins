@@ -84,7 +84,10 @@ public class ActionScheduler implements Lifecycle {
     private AdminCommandRegistry registry;
     private SchedulerEngine engine;
     private ScheduledExecutorService ticker;
-    private ExecutorService commandRunner;
+    /** Approved and tested commands, one at a time. Replaced after a timeout so a stuck command blocks nothing else. */
+    private volatile ExecutorService commandRunner;
+    /** Choices lookups, so editing and approving never queue behind a slow approved command. */
+    private volatile ExecutorService lookupRunner;
     private volatile String restartStatus = "not started";
 
     @ServiceRegistered
@@ -103,8 +106,11 @@ public class ActionScheduler implements Lifecycle {
         register("scheduler.retireAction", (a, out, err) -> answer(out, err, () -> engine.retireAction(arg(a, 0, "action id"), by(a, 1))));
         register("scheduler.testAction", (a, out, err) -> answer(out, err, () -> engine.testAction(arg(a, 0, "action id"), by(a, 1))));
         register("scheduler.schedules", (a, out, err) -> answer(out, err, () -> engine.schedules()));
-        register("scheduler.saveSchedule", (a, out, err) -> answer(out, err,
-                () -> engine.saveSchedule(parse(arg(a, 0, "schedule JSON"), SchedulerSchedule.class), by(a, 1))));
+        register("scheduler.saveSchedule", (a, out, err) -> answer(out, err, () -> {
+            SchedulerSchedule in = parse(arg(a, 0, "schedule JSON"), SchedulerSchedule.class);
+            Long basedOn = in.getId() == null ? null : in.getChangedAt();
+            return engine.saveSchedule(in, basedOn, by(a, 1));
+        }));
         register("scheduler.enableSchedule", (a, out, err) -> answer(out, err,
                 () -> engine.enableSchedule(arg(a, 0, "schedule id"), Boolean.parseBoolean(arg(a, 1, "true|false")), by(a, 2))));
         register("scheduler.deleteSchedule", (a, out, err) -> answer(out, err, () -> engine.deleteSchedule(arg(a, 0, "schedule id"))));
@@ -159,7 +165,11 @@ public class ActionScheduler implements Lifecycle {
         SchedulerStore store = new SchedulerStore(Path.of(stateDirectory), historyCap);
         store.load();
         OutcomeLog outcomeLog = new OutcomeLog(Path.of(outcomeLogFile), outcomeLogMaxBytes, outcomeLogFiles);
-        commandRunner = Executors.newSingleThreadExecutor(r -> daemon(r, "scheduler-command"));
+        if (store.skippedHistoryLines() > 0) {
+            log.warn("scheduler history: skipped {} unreadable line(s), cut short by a crash; the outcome log has them", store.skippedHistoryLines());
+        }
+        commandRunner = newRunner("scheduler-command");
+        lookupRunner = newRunner("scheduler-lookup");
         ticker = Executors.newSingleThreadScheduledExecutor(r -> daemon(r, "scheduler-tick"));
         engine = new SchedulerEngine(store, outcomeLog, catalogue, new RegistryGateway(), System::currentTimeMillis,
                 new SchedulerEngine.Settings(environment, zone, timedExpiryMinutes, restartExpiryMinutes));
@@ -185,6 +195,7 @@ public class ActionScheduler implements Lifecycle {
     public void tearDown() {
         if (ticker != null) ticker.shutdownNow();
         if (commandRunner != null) commandRunner.shutdownNow();
+        if (lookupRunner != null) lookupRunner.shutdownNow();
     }
 
     private void tick() {
@@ -202,6 +213,11 @@ public class ActionScheduler implements Lifecycle {
             Collection<String> live = liveCommands();
             List<String> missing = new ArrayList<>(engine.restartCommands());
             missing.removeAll(live);
+            if (engine.isPaused()) {
+                restartStatus = "waiting: the scheduler is paused";
+                ticker.schedule(() -> offerRestartSetWhenReady(startedAt), 5, TimeUnit.SECONDS);
+                return;
+            }
             boolean timedOut = System.currentTimeMillis() - startedAt >= restartReadyTimeoutSeconds * 1000L;
             if (!missing.isEmpty() && !timedOut) {
                 ticker.schedule(() -> offerRestartSetWhenReady(startedAt), 2, TimeUnit.SECONDS);
@@ -281,6 +297,10 @@ public class ActionScheduler implements Lifecycle {
         return registry == null ? List.of() : registry.commandList();
     }
 
+    private static ExecutorService newRunner(String name) {
+        return Executors.newSingleThreadExecutor(r -> daemon(r, name));
+    }
+
     private static Thread daemon(Runnable r, String name) {
         Thread t = new Thread(r, name);
         t.setDaemon(true);
@@ -296,6 +316,15 @@ public class ActionScheduler implements Lifecycle {
 
         @Override
         public SchedulerEngine.CommandResult run(String command, List<String> arguments) {
+            return execute(command, arguments, false);
+        }
+
+        @Override
+        public SchedulerEngine.CommandResult lookup(String command) {
+            return execute(command, List.of(), true);
+        }
+
+        private SchedulerEngine.CommandResult execute(String command, List<String> arguments, boolean lookup) {
             StringBuffer output = new StringBuffer();
             StringBuffer errors = new StringBuffer();
             AdminCommandRequest request = new AdminCommandRequest();
@@ -304,11 +333,13 @@ public class ActionScheduler implements Lifecycle {
             request.setArguments(new ArrayList<>(arguments == null ? List.of() : arguments));
             request.setOutput(o -> append(output, o));
             request.setErrOutput(o -> append(errors, o));
-            Future<?> f = commandRunner.submit(() -> registry.processAdminCommandRequest(request));
+            ExecutorService runner = lookup ? lookupRunner : commandRunner;
+            Future<?> f = runner.submit(() -> registry.processAdminCommandRequest(request));
             try {
                 f.get(commandTimeoutSeconds, TimeUnit.SECONDS);
             } catch (TimeoutException e) {
                 f.cancel(true);
+                replace(runner, lookup);
                 return new SchedulerEngine.CommandResult(false, "timed out after " + commandTimeoutSeconds + "s, result unknown. " + output + errors);
             } catch (Exception e) {
                 return new SchedulerEngine.CommandResult(false, "error: " + e + " " + output + errors);
@@ -316,6 +347,20 @@ public class ActionScheduler implements Lifecycle {
             String out = output.toString();
             boolean ok = errors.isEmpty() && !out.contains(BUSY) && !out.contains(PROBLEM);
             return new SchedulerEngine.CommandResult(ok, ok ? out : (out + (errors.isEmpty() ? "" : " error: " + errors)).trim());
+        }
+
+        /** A command that ignored the interrupt may still be running: give later commands a fresh thread. */
+        private synchronized void replace(ExecutorService stuck, boolean lookup) {
+            String name = lookup ? "scheduler-lookup" : "scheduler-command";
+            if (lookup && lookupRunner == stuck) {
+                lookupRunner = newRunner(name);
+            } else if (!lookup && commandRunner == stuck) {
+                commandRunner = newRunner(name);
+            } else {
+                return;
+            }
+            stuck.shutdownNow();
+            log.warn("scheduler {} thread replaced after a timeout; the timed-out command may still complete", name);
         }
 
         private void append(StringBuffer sb, Object o) {

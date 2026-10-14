@@ -34,6 +34,9 @@ public class Catalogue {
             .build();
     private static final ObjectMapper JSON = new ObjectMapper();
 
+    /** The scheduler's own command prefix: never schedulable and never a choices source (it would call back in). */
+    static final String SELF = "scheduler.";
+
     private List<CatalogueEntry> commands = new ArrayList<>();
 
     public static Catalogue load(Path file) throws IOException {
@@ -53,6 +56,9 @@ public class Catalogue {
         for (CatalogueEntry e : commands) {
             if (e.getCommand() == null || e.getCommand().isBlank()) {
                 throw new IllegalArgumentException("catalogue entry without a command");
+            }
+            if (e.getCommand().startsWith(SELF)) {
+                throw new IllegalArgumentException(e.getCommand() + ": the scheduler's own commands cannot be scheduled");
             }
             for (CatalogueArg a : e.getArguments()) {
                 if (a.getType() == CatalogueArg.Type.ENUM && a.getValues().isEmpty()) {
@@ -79,6 +85,9 @@ public class Catalogue {
 
     /** The entry a command name matches, or {@code null}. First matching entry wins. */
     public Match find(String commandName) {
+        if (commandName == null || commandName.startsWith(SELF)) {
+            return null;
+        }
         for (CatalogueEntry e : commands) {
             Map<String, String> params = e.match(commandName);
             if (params != null) {
@@ -117,7 +126,11 @@ public class Catalogue {
      */
     public static List<List<String>> choices(Match match, CatalogueArg arg, Function<String, String> runCommand) throws IOException {
         CatalogueArg.ChoicesFrom from = arg.getChoicesFrom();
-        String answer = runCommand.apply(CatalogueEntry.fill(from.getCommand(), match.params()));
+        String source = CatalogueEntry.fill(from.getCommand(), match.params());
+        if (source.startsWith(SELF)) {
+            throw new IllegalArgumentException("choices cannot come from the scheduler's own command " + source);
+        }
+        String answer = runCommand.apply(source);
         if (from.getRegex() != null && !from.getRegex().isBlank()) {
             return textChoices(answer, from);
         }
@@ -154,9 +167,13 @@ public class Catalogue {
             if (!m.find()) continue;
             List<String> tuple = new ArrayList<>();
             if (from.getValues().isEmpty()) {
-                tuple.add((m.groupCount() > 0 ? m.group(1) : m.group()).trim());
+                String v = m.groupCount() > 0 ? m.group(1) : m.group();
+                tuple.add(v == null ? "" : v.trim());
             } else {
-                for (String group : from.getValues()) tuple.add(m.group(group).trim());
+                for (String group : from.getValues()) {
+                    String v = m.group(group); // null when an optional group did not take part
+                    tuple.add(v == null ? "" : v.trim());
+                }
             }
             out.add(tuple);
         }
@@ -185,6 +202,7 @@ public class Catalogue {
                     } catch (NumberFormatException ex) {
                         return a.getName() + " must be a number, got '" + value + "'";
                     }
+                    if (Double.isNaN(d) || Double.isInfinite(d)) return a.getName() + " must be a finite number, got '" + value + "'";
                     if (a.getMin() != null && d < a.getMin()) return a.getName() + " must be >= " + a.getMin();
                     if (a.getMax() != null && d > a.getMax()) return a.getName() + " must be <= " + a.getMax();
                 }

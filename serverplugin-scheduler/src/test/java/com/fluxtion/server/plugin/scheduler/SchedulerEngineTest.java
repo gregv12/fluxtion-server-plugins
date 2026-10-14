@@ -347,8 +347,141 @@ class SchedulerEngineTest {
         engine.saveSchedule(once(a, "2026-10-14T09:05"), "t");
         now.set(T0 + 65 * MIN);
         assertTrue(engine.tick().isEmpty());
+        Outcome skipped = engine.history(0, Long.MAX_VALUE).get(0);
+        assertEquals("skipped: the scheduler was paused", skipped.getDetail(), "recorded, not held back");
         engine.setPaused(false);
-        assertEquals(1, engine.tick().size());
+        assertTrue(engine.tick().isEmpty(), "nothing opens late after resume");
+        assertRefused("paused", () -> { engine.setPaused(true); engine.testAction(a.getId(), "s"); });
+    }
+
+    @Test
+    void aSpentOneOffCannotBeReArmed() {
+        SchedulerAction a = engine.saveAction(action("strat.A.setMaxBookAge", "500"), null, "support");
+        SchedulerSchedule s = engine.saveSchedule(once(a, "2026-10-14T09:00"), "t");
+        now.set(T0 + 60 * MIN);
+        engine.approve(engine.tick().get(0).getId(), "t");
+        now.set(T0 + 65 * MIN);
+        assertRefused("already passed", () -> engine.enableSchedule(s.getId(), true, "t"));
+        SchedulerSchedule again = once(a, "2026-10-14T09:00");
+        again.setId(s.getId());
+        assertRefused("already passed", () -> engine.saveSchedule(again, "t"));
+        assertTrue(engine.tick().isEmpty());
+        assertEquals(1, server.runs.size());
+    }
+
+    @Test
+    void aStaleScheduleEditIsRefused() {
+        SchedulerAction a = engine.saveAction(action("strat.A.setMaxBookAge", "500"), null, "support");
+        SchedulerSchedule s = engine.saveSchedule(daily(a, "09:00", "UTC"), "t");
+        SchedulerSchedule edit = daily(a, "10:00", "UTC");
+        edit.setId(s.getId());
+        SchedulerSchedule saved = engine.saveSchedule(edit, s.getChangedAt(), "alice");
+        assertTrue(saved.getChangedAt() > s.getChangedAt());
+        SchedulerSchedule stale = daily(a, "11:00", "UTC");
+        stale.setId(s.getId());
+        assertRefused("was changed by alice", () -> engine.saveSchedule(stale, s.getChangedAt(), "bob"));
+    }
+
+    @Test
+    void aFailedChoicesLookupRefusesTheApprovalAndLeavesTheItemOpen() {
+        SchedulerAction a = engine.saveAction(action("strat.A.setPriceSource", "feed1", "VENUE1", "EURUSD"), null, "support");
+        engine.saveSchedule(once(a, "2026-10-14T09:00"), "t");
+        now.set(T0 + 60 * MIN);
+        OpenItem item = engine.tick().get(0);
+        server.lookupAnswer = new SchedulerEngine.CommandResult(false, "command is busy try again");
+        assertRefused("not run, try again", () -> engine.approve(item.getId(), "t"));
+        assertEquals(1, engine.open().size(), "still open");
+        assertTrue(engine.history(0, Long.MAX_VALUE).isEmpty(), "nothing recorded");
+        server.lookupAnswer = null;
+        assertEquals(OutcomeState.RAN_OK, engine.approve(item.getId(), "t").getState());
+    }
+
+    @Test
+    void theArgumentRecheckDoesNotHoldTheEngine() throws Exception {
+        SchedulerAction a = engine.saveAction(action("strat.A.setPriceSource", "feed1", "VENUE1", "EURUSD"), null, "support");
+        engine.saveSchedule(once(a, "2026-10-14T09:00"), "t");
+        now.set(T0 + 60 * MIN);
+        OpenItem item = engine.tick().get(0);
+        CountDownLatch inLookup = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        server.lookupHook = () -> {
+            inLookup.countDown();
+            try {
+                release.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        };
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Future<Outcome> f = pool.submit(() -> engine.approve(item.getId(), "one"));
+            assertTrue(inLookup.await(5, TimeUnit.SECONDS));
+            server.lookupHook = null;
+            assertEquals(1, engine.open().size(), "the engine answers while the lookup runs");
+            engine.decline(item.getId(), "two");
+            release.countDown();
+            SchedulerEngine.Refused e = assertThrows(SchedulerEngine.Refused.class, () -> {
+                try {
+                    f.get(5, TimeUnit.SECONDS);
+                } catch (java.util.concurrent.ExecutionException ex) {
+                    throw ex.getCause();
+                }
+            });
+            assertTrue(e.getMessage().contains("already declined by two"), e.getMessage());
+        } finally {
+            pool.shutdownNow();
+        }
+        assertFalse(server.runs.stream().anyMatch(r -> r.startsWith("strat.A.setPriceSource")), "declined meanwhile: not run");
+    }
+
+    @Test
+    void restartActionsAreApprovedInOrder() {
+        SchedulerAction first = engine.saveAction(action("feedA.connect"), null, "support");
+        SchedulerAction second = engine.saveAction(action("strat.A.setMaxBookAge", "500"), null, "support");
+        engine.saveSchedule(restart(first, 1), "t");
+        engine.saveSchedule(restart(second, 2), "t");
+        engine.offerRestartSet("server restart");
+        OpenItem later = engine.open().stream().filter(i -> i.getRestartOrder() == 2).findFirst().orElseThrow();
+        OpenItem earlier = engine.open().stream().filter(i -> i.getRestartOrder() == 1).findFirst().orElseThrow();
+        assertRefused("decide 'do feedA.connect' first", () -> engine.approve(later.getId(), "t"));
+        engine.decline(earlier.getId(), "t");
+        assertEquals(OutcomeState.RAN_OK, engine.approve(later.getId(), "t").getState());
+    }
+
+    @Test
+    void anItemRecordedJustBeforeACrashIsNotRecordedTwice() throws Exception {
+        SchedulerAction a = engine.saveAction(action("strat.A.setMaxBookAge", "500"), null, "support");
+        engine.saveSchedule(once(a, "2026-10-14T09:00"), "t");
+        now.set(T0 + 60 * MIN);
+        OpenItem item = engine.tick().get(0);
+        Path open = dir.resolve("state/open.json");
+        String openWhileRunning = Files.readString(open).replace("\"running\" : false", "\"running\" : true");
+        engine.approve(item.getId(), "t");
+        Files.writeString(open, openWhileRunning); // as if the stop came after the outcome was written
+        SchedulerEngine restarted = newEngine("uat");
+        restarted.recoverAfterStart();
+        assertTrue(restarted.open().isEmpty());
+        assertEquals(List.of(OutcomeState.RAN_OK), restarted.history(0, Long.MAX_VALUE).stream().map(Outcome::getState).toList());
+    }
+
+    @Test
+    void aNonFiniteNumberIsRefused() {
+        assertRefused("finite", () -> engine.saveAction(action("strat.A.setMaxBookAge", "NaN"), null, "support"));
+        assertRefused("finite", () -> engine.saveAction(action("strat.A.setMaxBookAge", "Infinity"), null, "support"));
+    }
+
+    @Test
+    void theSchedulersOwnCommandsAreNeverSchedulable() {
+        assertRefused("not in the catalogue", () -> engine.saveAction(action("scheduler.open"), null, "support"));
+        assertThrows(IllegalArgumentException.class, () -> Catalogue.parse("commands:\n  - command: scheduler.approveAll\n"));
+        assertThrows(IllegalArgumentException.class, () -> Catalogue.parse("commands:\n  - command: \"{x}.y\"\n    arguments:\n      - name: a\n        type: CHOICE\n        choicesFrom: {command: scheduler.open}\n").find("p.y")
+                .entry().getArguments().stream().findFirst().map(arg -> {
+                    try {
+                        return Catalogue.choices(new Catalogue.Match(null, "p.y", Map.of()), arg, c -> "[]");
+                    } catch (java.io.IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }).orElseThrow());
     }
 
     // ==================== environments ====================
@@ -515,6 +648,18 @@ class SchedulerEngineTest {
                 + "{\"feed\":\"feed2\",\"venue\":\"VENUE2\",\"symbol\":\"EURUSD\"}]}";
         /** Overrides the answer for a run; returning null means the default OK. */
         volatile Function<String, SchedulerEngine.CommandResult> answer;
+        /** Overrides the answer for a choices lookup; null = the price sources. */
+        volatile SchedulerEngine.CommandResult lookupAnswer;
+        /** Runs inside a choices lookup (to hold it open). */
+        volatile Runnable lookupHook;
+
+        @Override
+        public SchedulerEngine.CommandResult lookup(String command) {
+            Runnable hook = lookupHook;
+            if (hook != null) hook.run();
+            SchedulerEngine.CommandResult r = lookupAnswer;
+            return r != null ? r : run(command, List.of());
+        }
 
         @Override
         public Collection<String> liveCommands() {

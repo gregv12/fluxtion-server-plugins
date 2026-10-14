@@ -43,6 +43,11 @@ public class SchedulerEngine {
 
         /** Run a command (known to exist) and report how it went. */
         CommandResult run(String command, List<String> arguments);
+
+        /** Run a read-only lookup (a choices command); kept off the path of approved commands where possible. */
+        default CommandResult lookup(String command) {
+            return run(command, List.of());
+        }
     }
 
     /** What a command run reported. */
@@ -95,13 +100,20 @@ public class SchedulerEngine {
      * arguments must fit the entry (choices checked against the server's live answer). An edit must quote the
      * {@code changedAt} it was based on, so a concurrent edit is refused instead of overwritten.
      */
-    public synchronized SchedulerAction saveAction(SchedulerAction in, Long basedOnChangedAt, String by) {
+    public SchedulerAction saveAction(SchedulerAction in, Long basedOnChangedAt, String by) {
         if (in.getTitle() == null || in.getTitle().isBlank()) throw new Refused("an action needs a title");
         if (in.getArguments() == null) in.setArguments(new ArrayList<>());
         if (in.getEnvironments() == null) in.setEnvironments(new ArrayList<>());
         Catalogue.Match match = liveMatch(in.getCommand());
         String invalid = Catalogue.validate(match, in.getArguments(), arg -> choices(match, arg));
         if (invalid != null) throw new Refused(invalid);
+        // the checks above can run commands (choices), so they stay outside the lock
+        synchronized (this) {
+            return storeAction(in, basedOnChangedAt, by);
+        }
+    }
+
+    private SchedulerAction storeAction(SchedulerAction in, Long basedOnChangedAt, String by) {
         SchedulerAction existing = in.getId() == null ? null : store.actions().get(in.getId());
         if (in.getId() != null && existing == null) throw new Refused("no action " + in.getId());
         if (existing != null && basedOnChangedAt != null && existing.getChangedAt() != basedOnChangedAt) {
@@ -145,6 +157,7 @@ public class SchedulerEngine {
         SchedulerAction a;
         synchronized (this) {
             if (settings.isProduction()) throw new Refused("test is not allowed in production; schedule it and approve it instead");
+            if (store.state().isPaused()) throw new Refused("the scheduler is paused");
             a = action(id);
             if (a.isRetired()) throw new Refused("action " + id + " is retired");
             checkEnvironment(a);
@@ -157,13 +170,21 @@ public class SchedulerEngine {
     // ==================== schedules (trader) ====================
 
     /** Create or edit a schedule; computes its next due time. */
-    public synchronized SchedulerSchedule saveSchedule(SchedulerSchedule in, String by) {
+    public SchedulerSchedule saveSchedule(SchedulerSchedule in, String by) {
+        return saveSchedule(in, null, by);
+    }
+
+    /** As {@link #saveSchedule(SchedulerSchedule, String)}; an edit quoting a stale {@code changedAt} is refused. */
+    public synchronized SchedulerSchedule saveSchedule(SchedulerSchedule in, Long basedOnChangedAt, String by) {
         SchedulerAction a = action(in.getActionId());
         if (a.isRetired()) throw new Refused("action " + a.getId() + " is retired");
         checkEnvironment(a);
         if (in.getTrigger() == null) throw new Refused("a schedule needs a trigger: ONCE, DAILY or AFTER_RESTART");
         SchedulerSchedule existing = in.getId() == null ? null : store.schedules().get(in.getId());
         if (in.getId() != null && existing == null) throw new Refused("no schedule " + in.getId());
+        if (existing != null && basedOnChangedAt != null && existing.getChangedAt() != basedOnChangedAt) {
+            throw new Refused("schedule " + existing.getId() + " was changed by " + existing.getChangedBy() + " since you opened it; reload and edit again");
+        }
         SchedulerSchedule s = new SchedulerSchedule();
         s.setId(existing == null ? newId() : existing.getId());
         s.setActionId(a.getId());
@@ -174,11 +195,11 @@ public class SchedulerEngine {
         s.setRestartOrder(in.getRestartOrder());
         s.setEnabled(in.isEnabled());
         s.setChangedBy(by);
-        s.setChangedAt(clock.getAsLong());
+        s.setChangedAt(nextChangeStamp(existing == null ? 0 : existing.getChangedAt()));
         zone(s); // validates the zone
         s.setNextDueAt(s.isEnabled() ? firstDue(s, clock.getAsLong()) : 0);
-        if (s.getTrigger() == TriggerType.ONCE && s.isEnabled() && s.getNextDueAt() + expiryMillis(s) <= clock.getAsLong()) {
-            throw new Refused("that time has already passed");
+        if (s.getTrigger() == TriggerType.ONCE && s.isEnabled() && s.getNextDueAt() <= clock.getAsLong()) {
+            throw new Refused("that time has already passed"); // also stops a spent one-off being re-armed
         }
         store.schedules().put(s.getId(), s);
         store.saveSchedules();
@@ -189,10 +210,14 @@ public class SchedulerEngine {
         SchedulerSchedule s = store.schedules().get(id);
         if (s == null) throw new Refused("no schedule " + id);
         if (enabled && action(s.getActionId()).isRetired()) throw new Refused("its action is retired");
+        long nextDue = enabled ? firstDue(s, clock.getAsLong()) : 0;
+        if (enabled && s.getTrigger() == TriggerType.ONCE && nextDue <= clock.getAsLong()) {
+            throw new Refused("that time has already passed; edit the schedule with a new time");
+        }
         s.setEnabled(enabled);
         s.setChangedBy(by);
-        s.setChangedAt(clock.getAsLong());
-        s.setNextDueAt(enabled ? firstDue(s, clock.getAsLong()) : 0);
+        s.setChangedAt(nextChangeStamp(s.getChangedAt()));
+        s.setNextDueAt(nextDue);
         store.saveSchedules();
         return s;
     }
@@ -216,7 +241,8 @@ public class SchedulerEngine {
         List<OpenItem> opened = new ArrayList<>();
         boolean schedulesChanged = false;
         boolean openChanged = false;
-        if (!store.state().isPaused()) {
+        boolean paused = store.state().isPaused();
+        {
             for (SchedulerSchedule s : store.schedules().values()) {
                 if (!s.isEnabled() || s.getTrigger() == TriggerType.AFTER_RESTART || s.getNextDueAt() <= 0 || s.getNextDueAt() > now) {
                     continue;
@@ -226,6 +252,8 @@ public class SchedulerEngine {
                 SchedulerAction a = store.actions().get(s.getActionId());
                 if (a == null || a.isRetired()) {
                     s.setEnabled(false);
+                } else if (paused) {
+                    close(itemFor(a, s, due, expires, null, 0), OutcomeState.EXPIRED, "scheduler", "skipped: the scheduler was paused", 0);
                 } else if (now >= expires) {
                     close(itemFor(a, s, due, expires, null, 0), OutcomeState.EXPIRED, "scheduler", "missed: the server was not running at the due time", 0);
                 } else if (hasOpenFor(s.getId())) {
@@ -259,7 +287,11 @@ public class SchedulerEngine {
         long now = clock.getAsLong();
         boolean changed = false;
         for (OpenItem item : new ArrayList<>(store.open().values())) {
-            if (item.isRunning()) {
+            if (recorded(item.getId())) {
+                // stopped between recording the outcome and removing the item
+                store.open().remove(item.getId());
+                changed = true;
+            } else if (item.isRunning()) {
                 store.open().remove(item.getId());
                 close(item, OutcomeState.FAILED, "scheduler", "interrupted by restart: the result is unknown and it was not re-run", 0);
                 changed = true;
@@ -342,25 +374,24 @@ public class SchedulerEngine {
 
     // ==================== decisions ====================
 
-    /** Approve and run one open item. Refused (nothing changes) if it is no longer open, expired or running. */
+    /**
+     * Approve and run one open item. Refused (nothing changes) if it is no longer open, expired, running, or an
+     * earlier item of its restart set is still open. The argument re-check runs outside the lock (it may run
+     * choices commands); a lookup that fails refuses the approval and leaves the item open to try again.
+     */
     public Outcome approve(String itemId, String by) {
         OpenItem item;
         synchronized (this) {
-            if (store.state().isPaused()) throw new Refused("the scheduler is paused");
-            item = store.open().get(itemId);
-            if (item == null) throw new Refused(alreadyDecided(itemId));
-            if (item.isRunning()) throw new Refused("already approved: it is running");
-            if (clock.getAsLong() >= item.getExpiresAt()) {
-                store.open().remove(itemId);
-                store.saveOpen();
-                close(item, OutcomeState.EXPIRED, "scheduler", "expired before the approval arrived", 0);
-                throw new Refused("expired: it can no longer be approved");
-            }
-            SchedulerAction a = store.actions().get(item.getActionId());
-            if (a != null && !allowedHere(a)) {
-                throw new Refused("not allowed in environment " + settings.environment());
-            }
-            String invalid = revalidate(item);
+            item = approvable(itemId);
+        }
+        String invalid;
+        try {
+            invalid = revalidate(item);
+        } catch (Refused r) {
+            throw new Refused("not run, try again: " + r.getMessage());
+        }
+        synchronized (this) {
+            item = approvable(itemId); // decided, expired or approved while the arguments were checked
             if (invalid != null) {
                 store.open().remove(itemId);
                 store.saveOpen();
@@ -370,12 +401,33 @@ public class SchedulerEngine {
             item.setRunning(true);
             store.saveOpen();
         }
-        Outcome outcome = execute(item, by);
-        synchronized (this) {
+        return execute(item, by);
+    }
+
+    /** The open item if it may be approved now, else refused (an expired one is closed). Call under the lock. */
+    private OpenItem approvable(String itemId) {
+        if (store.state().isPaused()) throw new Refused("the scheduler is paused");
+        OpenItem item = store.open().get(itemId);
+        if (item == null) throw new Refused(alreadyDecided(itemId));
+        if (item.isRunning()) throw new Refused("already approved: it is running");
+        if (clock.getAsLong() >= item.getExpiresAt()) {
             store.open().remove(itemId);
             store.saveOpen();
+            close(item, OutcomeState.EXPIRED, "scheduler", "expired before the approval arrived", 0);
+            throw new Refused("expired: it can no longer be approved");
         }
-        return outcome;
+        SchedulerAction a = store.actions().get(item.getActionId());
+        if (a != null && !allowedHere(a)) {
+            throw new Refused("not allowed in environment " + settings.environment());
+        }
+        if (item.getRestartSetId() != null) {
+            for (OpenItem other : store.open().values()) {
+                if (item.getRestartSetId().equals(other.getRestartSetId()) && other.getRestartOrder() < item.getRestartOrder()) {
+                    throw new Refused("restart actions run in order: decide '" + other.getTitle() + "' first");
+                }
+            }
+        }
+        return item;
     }
 
     public synchronized Outcome decline(String itemId, String by) {
@@ -534,8 +586,13 @@ public class SchedulerEngine {
             }
         }
         synchronized (this) {
-            return close(item, r.ok() ? OutcomeState.RAN_OK : OutcomeState.FAILED, by, r.output(),
-                    Math.max(0, clock.getAsLong() - start));
+            try {
+                return close(item, r.ok() ? OutcomeState.RAN_OK : OutcomeState.FAILED, by, r.output(),
+                        Math.max(0, clock.getAsLong() - start));
+            } finally {
+                // even if recording fails the item must not stay "running"; recovery skips one already recorded
+                if (store.open().remove(item.getId()) != null) store.saveOpen();
+            }
         }
     }
 
@@ -585,7 +642,9 @@ public class SchedulerEngine {
         try {
             return Catalogue.validate(match, item.getArguments(), arg -> choices(match, arg));
         } catch (Refused r) {
-            return r.getMessage();
+            throw r;
+        } catch (RuntimeException e) {
+            throw new Refused("could not check the arguments: " + e);
         }
     }
 
@@ -605,7 +664,7 @@ public class SchedulerEngine {
         try {
             return Catalogue.choices(match, arg, cmd -> {
                 if (!gateway.liveCommands().contains(cmd)) throw new Refused("choices command " + cmd + " is not registered on this server");
-                CommandResult r = gateway.run(cmd, List.of());
+                CommandResult r = gateway.lookup(cmd);
                 if (!r.ok()) throw new Refused("choices command " + cmd + " failed: " + r.output());
                 return r.output();
             });
@@ -635,6 +694,13 @@ public class SchedulerEngine {
 
     private boolean hasOpenFor(String scheduleId) {
         return store.open().values().stream().anyMatch(i -> scheduleId.equals(i.getScheduleId()));
+    }
+
+    private boolean recorded(String itemId) {
+        for (Outcome o : store.history()) {
+            if (itemId.equals(o.getItemId())) return true;
+        }
+        return false;
     }
 
     private String alreadyDecided(String itemId) {

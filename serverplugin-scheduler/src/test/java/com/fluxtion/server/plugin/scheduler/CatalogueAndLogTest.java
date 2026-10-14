@@ -86,12 +86,35 @@ class CatalogueAndLogTest {
         String text = Files.readString(file);
         assertTrue(text.startsWith("---\n#"), text);
         assertTrue(text.contains("event: SchedulerOutcome"));
-        assertTrue(text.contains("title: Switch source feed1 VENUE1 | second line,"), text);
-        assertTrue(text.contains("arguments: feed1 VENUE1 EURUSD,"), text);
-        for (int i = 0; i < 6; i++) log.append(o);
+        assertTrue(text.contains("title: \"Switch {source}: feed1, [VENUE1] | second line\","), text);
+        o.setDetail("{\"status\":\"ok\", \"note\":\"a \\\\ b\"} *star - dash | pipe & amp ! bang % @ #hash");
+        log.append(o);
+        List<Map<String, Object>> records = new com.fasterxml.jackson.dataformat.yaml.YAMLMapper()
+                .readerFor(Map.class).<Map<String, Object>>readValues(Files.readString(file)).readAll();
+        assertEquals(2, records.size(), "every record parses");
+        Map<?, ?> node = (Map<?, ?>) ((List<?>) ((Map<?, ?>) records.get(1).get("eventLogRecord")).get("nodeLogs")).get(0);
+        Map<?, ?> fields = (Map<?, ?>) node.get("scheduler");
+        assertEquals(o.getDetail(), fields.get("detail"), "output comes back exactly");
+        assertEquals("feed1 VENUE1 EURUSD", fields.get("arguments"));
+        for (int i = 0; i < 4; i++) log.append(o);
         assertTrue(Files.exists(dir.resolve("auditLog-scheduler-1.yaml")));
         assertTrue(Files.exists(dir.resolve("auditLog-scheduler-2.yaml")));
         assertTrue(!Files.exists(dir.resolve("auditLog-scheduler-3.yaml")), "keeps only maxFiles rolled files");
+    }
+
+    @Test
+    void aTornHistoryLineIsSkippedNotFatal() throws Exception {
+        SchedulerStore store = new SchedulerStore(dir, 10);
+        store.load();
+        Outcome o = new Outcome();
+        o.setItemId("i1");
+        o.setState(OutcomeState.DECLINED);
+        store.appendHistory(o);
+        Files.writeString(dir.resolve("history.jsonl"), "{\"itemId\":\"i2\",\"sta", java.nio.file.StandardOpenOption.APPEND);
+        SchedulerStore reloaded = new SchedulerStore(dir, 10);
+        reloaded.load();
+        assertEquals(List.of("i1"), reloaded.history().stream().map(Outcome::getItemId).toList());
+        assertEquals(1, reloaded.skippedHistoryLines());
     }
 
     @Test

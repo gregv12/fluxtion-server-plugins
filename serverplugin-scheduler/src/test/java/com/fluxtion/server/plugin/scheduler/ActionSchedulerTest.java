@@ -122,6 +122,17 @@ class ActionSchedulerTest {
     }
 
     @Test
+    void afterATimeoutTheNextCommandDoesNotQueueBehindTheStuckOne() throws Exception {
+        JsonNode slow = ok("scheduler.saveAction", "{\"title\":\"connect\",\"command\":\"feedA.connect\"}");
+        JsonNode quick = ok("scheduler.saveAction",
+                "{\"title\":\"age\",\"command\":\"strat.A.setMaxBookAge\",\"arguments\":[\"5\"]}");
+        assertEquals("FAILED", ok("scheduler.testAction", slow.get("id").asText()).get("state").asText());
+        long start = System.currentTimeMillis();
+        assertEquals("RAN_OK", ok("scheduler.testAction", quick.get("id").asText()).get("state").asText());
+        assertTrue(System.currentTimeMillis() - start < 1_000, "ran on a fresh thread, not after the stuck command");
+    }
+
+    @Test
     void pauseAndStatus() throws Exception {
         assertEquals(false, ok("scheduler.status").get("paused").asBoolean());
         assertEquals(true, ok("scheduler.pause", "ops").get("paused").asBoolean());

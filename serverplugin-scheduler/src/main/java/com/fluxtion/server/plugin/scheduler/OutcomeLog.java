@@ -42,18 +42,18 @@ public class OutcomeLog {
                 + "    logTime: " + o.getDecidedAt() + "\n"
                 + "    groupingId: null\n"
                 + "    event: SchedulerOutcome\n"
-                + "    eventToString: " + clean(o.getTitle()) + "\n"
+                + "    eventToString: " + quote(o.getTitle()) + "\n"
                 + "    nodeLogs: \n"
                 + "        - scheduler: { state: " + o.getState()
-                + ", title: " + clean(o.getTitle())
-                + ", command: " + clean(o.getCommand())
-                + ", arguments: " + clean(String.join(" ", o.getArguments()))
-                + ", decidedBy: " + clean(o.getDecidedBy())
+                + ", title: " + quote(o.getTitle())
+                + ", command: " + quote(o.getCommand())
+                + ", arguments: " + quote(String.join(" ", o.getArguments()))
+                + ", decidedBy: " + quote(o.getDecidedBy())
                 + ", dueAt: " + o.getDueAt()
                 + ", durationMillis: " + o.getDurationMillis()
-                + ", restartSet: " + clean(o.getRestartSetId())
-                + ", itemId: " + clean(o.getItemId())
-                + ", detail: " + clean(o.getDetail()) + "}\n"
+                + ", restartSet: " + quote(o.getRestartSetId())
+                + ", itemId: " + quote(o.getItemId())
+                + ", detail: " + quote(o.getDetail()) + "}\n"
                 + "    endTime: " + o.getDecidedAt() + "\n";
         try {
             Path parent = file.toAbsolutePath().getParent();
@@ -65,11 +65,27 @@ public class OutcomeLog {
         }
     }
 
-    /** One line, no YAML flow-structure characters, bounded length. */
-    static String clean(String s) {
-        if (s == null || s.isEmpty()) return "null";
-        String one = s.replaceAll("[\\r\\n]+", " | ").replaceAll("[{}\\[\\],:#]", " ").replaceAll("\\s+", " ").trim();
-        return one.length() > 500 ? one.substring(0, 500) + "..." : one;
+    /**
+     * A double-quoted YAML scalar on one line, bounded length: any command output (JSON, quotes, '*', '- ', '|')
+     * stays a plain string to a YAML reader. JSON string escaping is a subset of YAML double-quoted escaping.
+     */
+    static String quote(String s) {
+        if (s == null) return "null";
+        String one = s.replaceAll("[\\r\\n]+", " | ").trim();
+        if (one.length() > 500) one = one.substring(0, 500) + "...";
+        StringBuilder sb = new StringBuilder(one.length() + 2).append('"');
+        for (char c : one.toCharArray()) {
+            switch (c) {
+                case '"' -> sb.append("\\\"");
+                case '\\' -> sb.append("\\\\");
+                case '\t' -> sb.append("\\t");
+                default -> {
+                    if (c < 0x20 || c == 0x7f) sb.append(String.format("\\u%04x", (int) c));
+                    else sb.append(c);
+                }
+            }
+        }
+        return sb.append('"').toString();
     }
 
     private void roll() throws IOException {
