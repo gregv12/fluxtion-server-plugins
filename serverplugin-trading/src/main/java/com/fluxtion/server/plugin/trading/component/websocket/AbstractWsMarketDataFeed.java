@@ -302,12 +302,22 @@ public abstract class AbstractWsMarketDataFeed extends AbstractMarketDataFeed {
                 return "handshake rejected (no response)";
             }
             Object body = response.body();
-            String text = body instanceof String b && !b.isBlank()
-                    ? " " + (b.length() > 200 ? b.substring(0, 200) + "..." : b).replaceAll("\\s+", " ").trim()
-                    : "";
-            return "handshake rejected: HTTP " + response.statusCode() + text;
+            String text = body instanceof String b ? readableBody(b) : "";
+            return "handshake rejected: HTTP " + response.statusCode() + (text.isEmpty() ? "" : " " + text);
         }
         return t.toString();
+    }
+
+    /** A response body as one short line: markup stripped (venues often answer with an HTML error page). */
+    static String readableBody(String body) {
+        if (body == null) {
+            return "";
+        }
+        String text = body.replaceAll("(?is)<(script|style)[^>]*>.*?</\\1>", " ")
+                .replaceAll("<[^>]*>", " ")
+                .replace("&nbsp;", " ").replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
+                .replaceAll("\\s+", " ").trim();
+        return text.length() > 160 ? text.substring(0, 160) + "..." : text;
     }
 
     /**

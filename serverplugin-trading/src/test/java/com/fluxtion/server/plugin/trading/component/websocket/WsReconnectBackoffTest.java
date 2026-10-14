@@ -80,6 +80,21 @@ class WsReconnectBackoffTest {
     }
 
     @Test
+    void anHtmlErrorPageIsReducedToItsText() {
+        String page = "<!DOCTYPE HTML><html><head><title>Error response</title><style>p{x:y}</style></head>"
+                + "<body><h1>Error response</h1><p>Error code: 404</p><p>Message: File not found.</p></body></html>";
+        Throwable ex = new CompletionException(new WebSocketHandshakeException(response(404, page)));
+        assertEquals("handshake rejected: HTTP 404 Error response Error response Error code: 404 Message: File not found.",
+                AbstractWsMarketDataFeed.describeConnectFailure(ex));
+    }
+
+    @Test
+    void aLongBodyIsTruncated() {
+        String body = "x".repeat(500);
+        assertEquals(163, AbstractWsMarketDataFeed.readableBody(body).length(), "160 chars plus an ellipsis");
+    }
+
+    @Test
     void otherFailuresReportTheUnderlyingCause() {
         Throwable ex = new CompletionException(new java.net.ConnectException("Connection refused"));
         assertEquals("java.net.ConnectException: Connection refused", AbstractWsMarketDataFeed.describeConnectFailure(ex));
