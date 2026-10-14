@@ -13,17 +13,22 @@ import lombok.extern.log4j.Log4j2;
 
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpResponse;
 import java.net.http.WebSocket;
+import java.net.http.WebSocketHandshakeException;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.nio.ByteBuffer;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -68,6 +73,14 @@ public abstract class AbstractWsMarketDataFeed extends AbstractMarketDataFeed {
 
     @Getter @Setter protected String url;
     @Getter @Setter protected int reconnectMillis = 5000;
+    /**
+     * Before the first successful connect, this many failed attempts retry fast (500ms, or reconnectMillis if
+     * smaller) to ride out a venue socket that is not up yet at boot. Further failures fall back to
+     * reconnectMillis and back off, so a venue that keeps refusing (e.g. a rejected API key) is not hammered.
+     */
+    @Getter @Setter protected int fastReconnectAttempts = 10;
+    /** Cap for the exponential reconnect backoff; set it to reconnectMillis to retry at a fixed interval. */
+    @Getter @Setter protected int maxReconnectMillis = 60_000;
     @Getter @Setter protected int connectTimeoutSeconds = 10;
     /** Handshake headers (e.g. an API-key header). Inject secrets from config / a secret store, never source. */
     @Getter @Setter protected Map<String, String> headers = new LinkedHashMap<>();
@@ -88,6 +101,9 @@ public abstract class AbstractWsMarketDataFeed extends AbstractMarketDataFeed {
     private final StringBuilder textBuffer = new StringBuilder();
     private final AtomicLong messagesReceived = new AtomicLong();
     private final AtomicLong reconnects = new AtomicLong();
+    /** Failed connect attempts since the last successful open; drives the backoff. */
+    private final AtomicInteger consecutiveConnectFailures = new AtomicInteger();
+    private volatile String lastConnectError;
     private volatile long lastMessageTime = 0L;
     /** The pending watchdog check for the current socket; cancelled on disconnect so chains never overlap. */
     private volatile ScheduledFuture<?> staleCheckFuture;
@@ -252,30 +268,78 @@ public abstract class AbstractWsMarketDataFeed extends AbstractMarketDataFeed {
                     .whenComplete((ws, ex) -> {
                         connectPending = false;
                         if (ex != null) {
-                            log.warn("{} connect failed: {}", getFeedName(), ex.toString());
-                            scheduleReconnect();
+                            connectFailed(describeConnectFailure(ex));
                         }
                     });
         } catch (Exception e) {
             connectPending = false;
             log.error("{} connect error", getFeedName(), e);
-            scheduleReconnect();
+            connectFailed(describeConnectFailure(e));
         }
     }
 
-    private void scheduleReconnect() {
-        if (shuttingDown || !reconnectEnabled || wsExecutor == null) {
-            return;
+    /** A connect attempt failed: count it, log why and when the next attempt is, and schedule it. */
+    private void connectFailed(String reason) {
+        int failures = consecutiveConnectFailures.incrementAndGet();
+        lastConnectError = reason;
+        long delay = scheduleReconnect();
+        log.warn("{} connect failed (attempt {} in a row): {}{}", getFeedName(), failures, reason,
+                delay < 0 ? " - not retrying" : " - retry in " + delay + "ms");
+    }
+
+    /**
+     * The failure as an operator needs it: a rejected handshake names its HTTP status (many venues answer a
+     * missing or invalid API key with 401/403, some with 404), anything else is the underlying cause.
+     */
+    static String describeConnectFailure(Throwable ex) {
+        Throwable t = ex;
+        while ((t instanceof CompletionException || t instanceof ExecutionException) && t.getCause() != null) {
+            t = t.getCause();
         }
-        // Until the first successful connect, retry fast (the venue socket may just not be up yet at
-        // boot — the startup race); afterwards use the configured steady-state reconnect interval.
-        long delay = everConnected ? reconnectMillis : Math.min(reconnectMillis, 500);
+        if (t instanceof WebSocketHandshakeException handshake) {
+            HttpResponse<?> response = handshake.getResponse();
+            if (response == null) {
+                return "handshake rejected (no response)";
+            }
+            Object body = response.body();
+            String text = body instanceof String b && !b.isBlank()
+                    ? " " + (b.length() > 200 ? b.substring(0, 200) + "..." : b).replaceAll("\\s+", " ").trim()
+                    : "";
+            return "handshake rejected: HTTP " + response.statusCode() + text;
+        }
+        return t.toString();
+    }
+
+    /**
+     * Delay before the next connect attempt. Before the first successful connect the first
+     * {@code fastAttempts} failures retry fast (the boot race); after that, and after a drop, it starts at
+     * {@code reconnectMillis} and doubles on each further failure up to {@code maxReconnectMillis}.
+     */
+    static long reconnectDelay(boolean everConnected, int failures, int reconnectMillis, int fastAttempts,
+                               int maxReconnectMillis) {
+        if (!everConnected && failures <= fastAttempts) {
+            return Math.min(reconnectMillis, 500);
+        }
+        int steadyFailures = everConnected ? failures : failures - fastAttempts;   // 0 or 1 = first steady retry
+        int doublings = Math.max(0, Math.min(steadyFailures - 1, 20));
+        long cap = Math.max(reconnectMillis, maxReconnectMillis);
+        return Math.min(cap, (long) reconnectMillis << doublings);
+    }
+
+    /** Schedule the next connect attempt; returns its delay, or -1 when none is scheduled. */
+    private long scheduleReconnect() {
+        if (shuttingDown || !reconnectEnabled || wsExecutor == null) {
+            return -1;
+        }
+        long delay = reconnectDelay(everConnected, consecutiveConnectFailures.get(), reconnectMillis,
+                fastReconnectAttempts, maxReconnectMillis);
         wsExecutor.schedule(() -> {
             if (!connected && !connectPending && !shuttingDown && reconnectEnabled) {
                 reconnects.incrementAndGet();
                 connect();
             }
         }, delay, TimeUnit.MILLISECONDS);
+        return delay;
     }
 
     /** Deliberate close (admin or stop): the graph is told the feed is down, same as an unexpected drop. */
@@ -357,6 +421,8 @@ public abstract class AbstractWsMarketDataFeed extends AbstractMarketDataFeed {
             connectPending = false;
             connected = true;
             everConnected = true;
+            consecutiveConnectFailures.set(0);
+            lastConnectError = null;
             touchLastMessageTime();
             log.info("{} connected to {}", getFeedName(), url);
             publish(new MarketConnected(getFeedName()));
@@ -488,9 +554,10 @@ public abstract class AbstractWsMarketDataFeed extends AbstractMarketDataFeed {
 
     private void statusCmd(List<String> args, Consumer<String> out, Consumer<String> err) {
         String status = String.format(
-                "%s%n  url: %s%n  connected: %s%n  reconnectEnabled: %s%n  subscriptions: %s%n  messagesReceived: %d%n  reconnects: %d%n  lastMessageAgeMs: %s",
+                "%s%n  url: %s%n  connected: %s%n  reconnectEnabled: %s%n  subscriptions: %s%n  messagesReceived: %d%n  reconnects: %d%n  lastMessageAgeMs: %s%n  connectFailures: %d%n  lastConnectError: %s",
                 getFeedName(), url, connected, reconnectEnabled, subscriptions, messagesReceived.get(), reconnects.get(),
-                lastMessageTime == 0 ? "n/a" : (System.currentTimeMillis() - lastMessageTime));
+                lastMessageTime == 0 ? "n/a" : (System.currentTimeMillis() - lastMessageTime),
+                consecutiveConnectFailures.get(), lastConnectError == null ? "none" : lastConnectError);
         String extra = statusExtra();
         out.accept(extra == null || extra.isEmpty() ? status : status + System.lineSeparator() + extra);
     }
@@ -503,6 +570,14 @@ public abstract class AbstractWsMarketDataFeed extends AbstractMarketDataFeed {
 
     public long messagesReceived() {
         return messagesReceived.get();
+    }
+
+    public int consecutiveConnectFailures() {
+        return consecutiveConnectFailures.get();
+    }
+
+    public String lastConnectError() {
+        return lastConnectError;
     }
 
     public long reconnects() {
