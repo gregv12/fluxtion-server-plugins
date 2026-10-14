@@ -124,6 +124,12 @@ class CatalogueAndLogTest {
         long start = System.nanoTime();
         assertThrows(IllegalStateException.class, () -> Catalogue.choices(m, m.entry().getArguments().get(0), cmd -> "a".repeat(100_000) + "!"));
         assertTrue(System.nanoTime() - start < 5_000_000_000L, "gave up within the budget");
+        // backtracking that keeps revisiting the same few positions is caught too
+        Catalogue c2 = Catalogue.parse("commands:\n  - command: \"{s}.x\"\n    arguments:\n      - name: v\n        type: CHOICE\n        choicesFrom: {command: \"{s}.list\", regex: '^x((a|aa)+)+$'}\n");
+        Catalogue.Match m2 = c2.find("p.x");
+        long start2 = System.nanoTime();
+        assertThrows(IllegalStateException.class, () -> Catalogue.choices(m2, m2.entry().getArguments().get(0), cmd -> "x" + "a".repeat(40) + "!"));
+        assertTrue(System.nanoTime() - start2 < 5_000_000_000L, "gave up within the budget");
     }
 
     @Test

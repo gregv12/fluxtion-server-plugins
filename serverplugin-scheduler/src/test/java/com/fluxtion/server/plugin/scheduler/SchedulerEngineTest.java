@@ -580,6 +580,76 @@ class SchedulerEngineTest {
     }
 
     @Test
+    void anItemWhoseWriteFailedIsNotTreatedAsHandled() throws Exception {
+        SchedulerAction a = engine.saveAction(action("strat.A.setMaxBookAge", "500"), null, "support");
+        engine.saveSchedule(once(a, "2026-10-14T09:00"), "t");
+        int[] failOpen = {1};
+        SchedulerStore store = new SchedulerStore(dir.resolve("state"), 1000) {
+            @Override
+            public void saveOpen() {
+                if (failOpen[0]-- > 0) throw new java.io.UncheckedIOException(new java.io.IOException("disk full"));
+                super.saveOpen();
+            }
+        };
+        store.load();
+        SchedulerEngine flaky = new SchedulerEngine(store, new OutcomeLog(dir.resolve("log/out.yaml"), 1_000_000, 3),
+                Catalogue.parse(CATALOGUE), server, now::get, new SchedulerEngine.Settings("uat", "UTC", 15, 30));
+        now.set(T0 + 60 * MIN);
+        assertTrue(flaky.tick().isEmpty(), "the write failed: nothing opened");
+        assertTrue(flaky.open().isEmpty());
+        assertTrue(flaky.schedules().get(0).isEnabled(), "and the schedule did not move on");
+        assertEquals(1, flaky.tick().size(), "the next tick opens it");
+        SchedulerEngine restarted = newEngine("uat");
+        assertEquals(1, restarted.open().size(), "durable");
+    }
+
+    @Test
+    void aHistoryWriteThatFailedIsNotTakenAsRecorded() throws Exception {
+        SchedulerAction a = engine.saveAction(action("strat.A.setMaxBookAge", "500"), null, "support");
+        engine.saveSchedule(once(a, "2026-10-14T09:00"), "t");
+        now.set(T0 + 60 * MIN);
+        OpenItem item = engine.tick().get(0);
+        Path history = dir.resolve("state/history.jsonl");
+        Files.deleteIfExists(history);
+        Files.createDirectory(history); // appending to it fails
+        assertThrows(RuntimeException.class, () -> engine.decline(item.getId(), "alice"));
+        engine.tick(); // retries and fails again: still pending, not removed
+        assertEquals(1, engine.open().size());
+        Files.delete(history);
+        engine.tick(); // now it records
+        assertTrue(engine.open().isEmpty());
+        SchedulerEngine restarted = newEngine("uat");
+        assertEquals(List.of(OutcomeState.DECLINED), restarted.history(0, Long.MAX_VALUE).stream().map(Outcome::getState).toList());
+        String log = Files.readString(dir.resolve("log/auditLog-scheduler.yaml"));
+        assertEquals(1, log.split("itemId: \"" + item.getId() + "\"", -1).length - 1, "logged once");
+    }
+
+    @Test
+    void aStopBetweenTheOutcomeLogAndHistoryLogsTheOutcomeOnce() throws Exception {
+        SchedulerAction a = engine.saveAction(action("strat.A.setMaxBookAge", "500"), null, "support");
+        engine.saveSchedule(once(a, "2026-10-14T09:00"), "t");
+        now.set(T0 + 60 * MIN);
+        OpenItem item = engine.tick().get(0);
+        Path logFile = dir.resolve("log/auditLog-scheduler.yaml");
+        SchedulerStore store = new SchedulerStore(dir.resolve("state"), 1000);
+        store.load();
+        OutcomeLog crashing = new OutcomeLog(logFile, 1_000_000, 3) {
+            @Override
+            public synchronized void append(Outcome o) {
+                super.append(o);
+                throw new IllegalStateException("stopped here");
+            }
+        };
+        SchedulerEngine dying = new SchedulerEngine(store, crashing, Catalogue.parse(CATALOGUE), server, now::get,
+                new SchedulerEngine.Settings("uat", "UTC", 15, 30));
+        assertThrows(IllegalStateException.class, () -> dying.decline(item.getId(), "alice"));
+        SchedulerEngine restarted = newEngine("uat");
+        restarted.recoverAfterStart();
+        assertEquals(1, restarted.history(0, Long.MAX_VALUE).size());
+        assertEquals(1, Files.readString(logFile).split("itemId: \"" + item.getId() + "\"", -1).length - 1, "logged once");
+    }
+
+    @Test
     void environmentsMustBeNames() {
         SchedulerAction a = action("strat.A.setMaxBookAge", "500");
         List<String> envs = new ArrayList<>();

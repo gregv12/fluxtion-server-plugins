@@ -92,6 +92,7 @@ public class ActionScheduler implements Lifecycle {
     private int maxOutputChars = 64 * 1024;
     private volatile String restartStatus = "not started";
     private String catalogueError;
+    private RegistryGateway gateway;
 
     @ServiceRegistered
     public void adminRegistry(AdminCommandRegistry registry, String name) {
@@ -177,7 +178,8 @@ public class ActionScheduler implements Lifecycle {
         commandRunner = newRunner("scheduler-command");
         lookupRunner = newRunner("scheduler-lookup");
         ticker = Executors.newSingleThreadScheduledExecutor(r -> daemon(r, "scheduler-tick"));
-        engine = new SchedulerEngine(store, outcomeLog, catalogue, new RegistryGateway(), System::currentTimeMillis,
+        gateway = new RegistryGateway();
+        engine = new SchedulerEngine(store, outcomeLog, catalogue, gateway, System::currentTimeMillis,
                 new SchedulerEngine.Settings(environment, zone, timedExpiryMinutes, restartExpiryMinutes));
         engine.recoverAfterStart();
         log.info("scheduler init environment:'{}' zone:{} enabled:{} state:{} catalogue:{} entries",
@@ -262,6 +264,7 @@ public class ActionScheduler implements Lifecycle {
         m.put("commandTimeoutSeconds", commandTimeoutSeconds);
         m.put("restart", restartStatus);
         if (catalogueError != null) m.put("catalogueError", catalogueError);
+        if (gateway != null && gateway.busyReason() != null) m.put("busy", gateway.busyReason());
         return m;
     }
 
@@ -324,40 +327,46 @@ public class ActionScheduler implements Lifecycle {
 
     /** Runs commands through the registry on the single command thread, bounded by the timeout. */
     private class RegistryGateway implements SchedulerEngine.CommandGateway {
+        /** One execution slot per path, held from reservation until the command has really returned. */
+        private final Slot commands = new Slot("command");
+        private final Slot lookups = new Slot("lookup");
+
         @Override
         public Collection<String> liveCommands() {
             return ActionScheduler.this.liveCommands();
         }
 
         @Override
-        public SchedulerEngine.CommandResult run(String command, List<String> arguments) {
-            return execute(command, arguments, false);
+        public boolean tryReserve(String command) {
+            return commands.tryReserve(command);
         }
 
+        @Override
+        public void release() {
+            commands.release();
+        }
+
+        @Override
+        public String busyReason() {
+            return commands.busyReason();
+        }
+
+        /** Runs on the slot the engine reserved; the slot is freed when the command returns, not before. */
+        @Override
+        public SchedulerEngine.CommandResult run(String command, List<String> arguments) {
+            return execute(command, arguments, commands, commandRunner);
+        }
+
+        /** A lookup never queues: if one is still in flight this one is refused (the caller can try again). */
         @Override
         public SchedulerEngine.CommandResult lookup(String command) {
-            return execute(command, List.of(), true);
-        }
-
-        /**
-         * A command that timed out may still be running (it ignored the interrupt, or it is queued in a
-         * processor). Until it finishes no other command is started on that path, so two never run at once.
-         */
-        private java.util.concurrent.atomic.AtomicBoolean stuckCommand;
-        private String stuckCommandName;
-        private java.util.concurrent.atomic.AtomicBoolean stuckLookup;
-        private String stuckLookupName;
-
-        @Override
-        public synchronized String busyReason() {
-            // a cancelled Future reports done at once, so the task itself says when it has really finished
-            if (stuckCommand != null && !stuckCommand.get()) {
-                return "the command thread is still busy with " + stuckCommandName + ", which timed out (result unknown)";
+            if (!lookups.tryReserve(command)) {
+                return new SchedulerEngine.CommandResult(false, "not run: " + lookups.busyReason());
             }
-            return null;
+            return execute(command, List.of(), lookups, lookupRunner);
         }
 
-        private SchedulerEngine.CommandResult execute(String command, List<String> arguments, boolean lookup) {
+        private SchedulerEngine.CommandResult execute(String command, List<String> arguments, Slot slot, ExecutorService runner) {
             Output output = new Output(maxOutputChars);
             Output errors = new Output(maxOutputChars);
             AdminCommandRequest request = new AdminCommandRequest();
@@ -367,45 +376,70 @@ public class ActionScheduler implements Lifecycle {
             request.setOutput(output::add);
             request.setErrOutput(errors::add);
             Future<?> f;
-            java.util.concurrent.atomic.AtomicBoolean finished = new java.util.concurrent.atomic.AtomicBoolean();
-            synchronized (this) {
-                java.util.concurrent.atomic.AtomicBoolean stuck = lookup ? stuckLookup : stuckCommand;
-                if (stuck != null && !stuck.get()) {
-                    return new SchedulerEngine.CommandResult(false, "not run: the " + (lookup ? "lookup" : "command")
-                            + " thread is still busy with " + (lookup ? stuckLookupName : stuckCommandName) + ", which timed out");
-                }
-                f = (lookup ? lookupRunner : commandRunner).submit(() -> {
+            try {
+                f = runner.submit(() -> {
                     try {
                         registry.processAdminCommandRequest(request);
                     } finally {
-                        finished.set(true);
+                        slot.release();
                     }
                 });
+            } catch (RuntimeException e) {
+                slot.release();
+                return new SchedulerEngine.CommandResult(false, "not run: " + e);
             }
             try {
                 f.get(commandTimeoutSeconds, TimeUnit.SECONDS);
             } catch (TimeoutException e) {
-                f.cancel(true);
-                synchronized (this) {
-                    if (lookup) {
-                        stuckLookup = finished;
-                        stuckLookupName = command;
-                    } else {
-                        stuckCommand = finished;
-                        stuckCommandName = command;
-                    }
-                }
-                log.warn("scheduler {} {} timed out after {}s; no other {} starts until it finishes",
-                        lookup ? "lookup" : "command", command, commandTimeoutSeconds, lookup ? "lookup" : "command");
+                // Never interrupted: for a processor's command the server publishes it and then waits for the
+                // processor to run it, so an interrupt would end the wait, not the command. The slot stays held
+                // until the call really returns, so no other command can overlap it.
+                slot.timedOut();
+                log.warn("scheduler {} {} timed out after {}s; nothing else runs on that path until it returns",
+                        slot.path, command, commandTimeoutSeconds);
                 return new SchedulerEngine.CommandResult(false, "timed out after " + commandTimeoutSeconds + "s, result unknown. " + output + errors);
-            } catch (Exception e) {
-                return new SchedulerEngine.CommandResult(false, "error: " + e + " " + output + errors);
+            } catch (java.util.concurrent.ExecutionException e) {
+                return new SchedulerEngine.CommandResult(false, "error: " + e.getCause() + " " + output + errors);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return new SchedulerEngine.CommandResult(false, "interrupted while waiting, result unknown. " + output + errors);
             }
             String out = output.toString();
-            boolean ok = errors.isEmpty() && !out.contains(BUSY) && !out.contains(PROBLEM);
+            boolean ok = errors.isEmpty() && !output.sawFailureMarker();
             return new SchedulerEngine.CommandResult(ok, ok ? out : (out + (errors.isEmpty() ? "" : " error: " + errors)).trim());
         }
+    }
 
+    /** Who holds an execution path, and whether they overran the timeout. */
+    private static final class Slot {
+        private final String path;
+        private String holder;
+        private boolean overran;
+
+        Slot(String path) {
+            this.path = path;
+        }
+
+        synchronized boolean tryReserve(String command) {
+            if (holder != null) return false;
+            holder = command;
+            overran = false;
+            return true;
+        }
+
+        synchronized void release() {
+            holder = null;
+            overran = false;
+        }
+
+        synchronized void timedOut() {
+            overran = true;
+        }
+
+        synchronized String busyReason() {
+            return holder == null ? null : "the " + path + " path is busy with " + holder
+                    + (overran ? ", which timed out (result unknown)" : "");
+        }
     }
 
     /** Command output, kept up to a limit (a command that floods its output cannot exhaust the heap). */
@@ -413,14 +447,16 @@ public class ActionScheduler implements Lifecycle {
         private final StringBuilder sb = new StringBuilder();
         private final int max;
         private boolean truncated;
+        private boolean failureMarker;
 
         Output(int max) {
             this.max = max;
         }
 
         synchronized void add(Object o) {
-            if (truncated) return;
             String text = String.valueOf(o);
+            if (text.contains(BUSY) || text.contains(PROBLEM)) failureMarker = true; // even if not kept
+            if (truncated) return;
             if (!sb.isEmpty()) sb.append('\n');
             if (sb.length() + text.length() > max) {
                 sb.append(text, 0, Math.max(0, max - sb.length())).append(" ...[output truncated]");
@@ -432,6 +468,10 @@ public class ActionScheduler implements Lifecycle {
 
         synchronized boolean isEmpty() {
             return sb.isEmpty();
+        }
+
+        synchronized boolean sawFailureMarker() {
+            return failureMarker;
         }
 
         @Override

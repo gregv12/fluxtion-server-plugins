@@ -119,15 +119,21 @@ public class SchedulerStore {
     public void saveState() { write("state.json", state); }
 
     /** Append one outcome to the capped history (rewritten whole when it outgrows the cap). */
+    /** Append one outcome; it joins the in-memory history only once it is on disk. */
     public void appendHistory(Outcome outcome) {
-        history.add(outcome);
         try {
-            if (history.size() > historyCap) {
-                trimHistory();
-                rewriteHistory();
+            if (history.size() + 1 > historyCap) {
+                List<Outcome> next = new ArrayList<>(history);
+                next.add(outcome);
+                int keep = Math.max(1, historyCap * 4 / 5);
+                next = new ArrayList<>(next.subList(next.size() - keep, next.size()));
+                writeHistory(next);
+                history.clear();
+                history.addAll(next);
             } else {
                 Files.writeString(dir.resolve("history.jsonl"), JSON.writeValueAsString(outcome) + "\n",
                         StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                history.add(outcome);
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -135,8 +141,12 @@ public class SchedulerStore {
     }
 
     private void rewriteHistory() throws IOException {
+        writeHistory(history);
+    }
+
+    private void writeHistory(List<Outcome> outcomes) throws IOException {
         StringBuilder sb = new StringBuilder();
-        for (Outcome o : history) sb.append(JSON.writeValueAsString(o)).append('\n');
+        for (Outcome o : outcomes) sb.append(JSON.writeValueAsString(o)).append('\n');
         atomicWrite("history.jsonl", sb.toString());
     }
 

@@ -50,9 +50,21 @@ public class SchedulerEngine {
             return run(command, List.of());
         }
 
-        /** Why no command can be run now (an earlier one timed out and is still running), or null. */
+        /** Why no command can be run now (one is still running, perhaps past its timeout), or null. */
         default String busyReason() {
             return null;
+        }
+
+        /**
+         * Reserve the single command path for {@code command} before an approval is committed; false = busy, and
+         * nothing is queued. A reserved path is freed by {@link #run} when the command really returns, or by
+         * {@link #release} if it is not run after all.
+         */
+        default boolean tryReserve(String command) {
+            return busyReason() == null;
+        }
+
+        default void release() {
         }
     }
 
@@ -170,12 +182,11 @@ public class SchedulerEngine {
         synchronized (this) {
             if (settings.isProduction()) throw new Refused("test is not allowed in production; schedule it and approve it instead");
             if (store.state().isPaused()) throw new Refused("the scheduler is paused");
-            String busy = gateway.busyReason();
-            if (busy != null) throw new Refused("not run, try again: " + busy);
             a = action(id);
             if (a.isRetired()) throw new Refused("action " + id + " is retired");
             checkEnvironment(a);
             checkLive(a.getCommand());
+            if (!gateway.tryReserve(a.getCommand())) throw new Refused("not run, try again: " + gateway.busyReason());
         }
         OpenItem item = itemFor(a, null, clock.getAsLong(), clock.getAsLong(), null, 0);
         return execute(item, by + " (test)");
@@ -321,7 +332,12 @@ public class SchedulerEngine {
                 close(item, OutcomeState.FAILED, "scheduler", "not allowed in environment " + settings.environment(), 0);
             } else {
                 store.open().put(item.getId(), item);
-                store.saveOpen();
+                try {
+                    store.saveOpen();
+                } catch (RuntimeException e) {
+                    store.open().remove(item.getId()); // not durable: not handled, retried next tick
+                    throw e;
+                }
                 opened = item;
             }
         }
@@ -435,7 +451,12 @@ public class SchedulerEngine {
             }
             store.open().put(item.getId(), item);
         }
-        store.saveOpen();
+        try {
+            store.saveOpen();
+        } catch (RuntimeException e) {
+            store.open().values().removeIf(i -> setId.equals(i.getRestartSetId()));
+            throw e;
+        }
         return setId;
     }
 
@@ -463,8 +484,17 @@ public class SchedulerEngine {
                 close(item, OutcomeState.FAILED, by, "not run: " + invalid, 0);
                 throw new Refused("not run: " + invalid);
             }
+            if (!gateway.tryReserve(item.getCommand())) {
+                throw new Refused("not run, try again: " + gateway.busyReason()); // still open, nothing queued
+            }
             item.setRunning(true);
-            store.saveOpen();
+            try {
+                store.saveOpen();
+            } catch (RuntimeException e) {
+                item.setRunning(false);
+                gateway.release();
+                throw e;
+            }
         }
         return execute(item, by);
     }
@@ -643,9 +673,8 @@ public class SchedulerEngine {
         long start = clock.getAsLong();
         CommandResult r;
         if (!gateway.liveCommands().contains(item.getCommand())) {
+            gateway.release();
             r = new CommandResult(false, "command not registered on this server: " + item.getCommand());
-        } else if (gateway.busyReason() != null) {
-            r = new CommandResult(false, "not run: " + gateway.busyReason());
         } else {
             try {
                 r = gateway.run(item.getCommand(), item.getArguments());
@@ -681,17 +710,25 @@ public class SchedulerEngine {
     /**
      * Close durably: an open item first saves its outcome on itself, then the outcome is recorded (outcome log,
      * then history), then the item is removed. A stop at any point is finished by {@link #recoverAfterStart()};
-     * a failure to record leaves the outcome pending and the next tick retries. History holds each item once;
-     * after a stop between the two writes the outcome log can repeat a record.
+     * a failure to record leaves the outcome pending and the next tick retries. Each item is written once to the
+     * history and once to the outcome log (a resumed close checks the log for the item first).
      */
     private void finish(OpenItem item, Outcome o) {
         boolean open = store.open().containsKey(item.getId());
-        if (open && item.getPendingOutcome() == null) {
+        boolean resuming = open && item.getPendingOutcome() != null; // an earlier attempt may have got part way
+        if (open && !resuming) {
             item.setPendingOutcome(o);
-            store.saveOpen();
+            try {
+                store.saveOpen();
+            } catch (RuntimeException e) {
+                item.setPendingOutcome(null);
+                throw e;
+            }
         }
         if (!recorded(o.getItemId())) {
-            outcomeLog.append(o);
+            if (!resuming || !outcomeLog.contains(o.getItemId())) {
+                outcomeLog.append(o);
+            }
             store.appendHistory(o);
         }
         if (open) {

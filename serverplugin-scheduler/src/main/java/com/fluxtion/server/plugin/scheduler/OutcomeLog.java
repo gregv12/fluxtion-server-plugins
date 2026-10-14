@@ -10,6 +10,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
@@ -32,6 +33,21 @@ public class OutcomeLog {
         this.file = file;
         this.maxBytes = maxBytes;
         this.maxFiles = maxFiles;
+    }
+
+    /** Whether a record for this item is already in the log (current file or the latest rolled one). */
+    public synchronized boolean contains(String itemId) {
+        String needle = "itemId: " + quote(itemId) + ",";
+        String name = file.getFileName().toString();
+        String base = name.endsWith(".yaml") ? name.substring(0, name.length() - 5) : name;
+        for (Path p : List.of(file, file.resolveSibling(base + "-1.yaml"))) {
+            try {
+                if (Files.exists(p) && Files.readString(p, StandardCharsets.UTF_8).contains(needle)) return true;
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
+        return false;
     }
 
     public synchronized void append(Outcome o) {

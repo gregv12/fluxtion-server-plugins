@@ -16,6 +16,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Future;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -131,10 +135,82 @@ class ActionSchedulerTest {
                 "{\"title\":\"age\",\"command\":\"strat.A.setMaxBookAge\",\"arguments\":[\"5\"]}");
         assertEquals("FAILED", ok("scheduler.testAction", slow.get("id").asText()).get("state").asText());
         Reply busy = run("scheduler.testAction", quick.get("id").asText());
-        assertTrue(busy.err.contains("still busy with feedA.connect"), busy.toString());
+        assertTrue(busy.err.contains("busy with feedA.connect, which timed out"), busy.toString());
         assertTrue(calls.isEmpty(), "never two commands at once");
         Thread.sleep(2_500); // the stuck command finishes (3 s in all)
         assertEquals("RAN_OK", ok("scheduler.testAction", quick.get("id").asText()).get("state").asText());
+    }
+
+    @Test
+    void aTimedOutProcessorCommandIsNeverOverlapped() throws Exception {
+        // as the server dispatches a processor's command: publish to the processor, then wait (interruptibly)
+        ProcessorRegistry server = new ProcessorRegistry();
+        List<String> log = new CopyOnWriteArrayList<>();
+        server.registerCommand("feedA.connect", (args, out, err) -> {
+            log.add("start connect");
+            sleepQuietly(2_500);
+            log.add("end connect");
+            out.accept("connected");
+        });
+        server.registerCommand("strat.A.setMaxBookAge", (args, out, err) -> {
+            log.add("age");
+            out.accept("ok");
+        });
+        ActionScheduler s = schedulerOn(server, "state4");
+        try {
+            String slow = okOn(server, "scheduler.saveAction", "{\"title\":\"c\",\"command\":\"feedA.connect\"}").get("id").asText();
+            String quick = okOn(server, "scheduler.saveAction", "{\"title\":\"a\",\"command\":\"strat.A.setMaxBookAge\",\"arguments\":[\"1\"]}").get("id").asText();
+            assertTrue(okOn(server, "scheduler.testAction", slow).get("detail").asText().startsWith("timed out"));
+            Reply busy = runOn(server, "scheduler.testAction", quick);
+            assertTrue(busy.err.contains("busy with feedA.connect, which timed out"), busy.toString());
+            assertTrue(okOn(server, "scheduler.status").get("busy").asText().contains("feedA.connect"));
+            Thread.sleep(2_000);
+            assertEquals("RAN_OK", okOn(server, "scheduler.testAction", quick).get("state").asText());
+            assertEquals(List.of("start connect", "end connect", "age"), log, "never overlapped");
+        } finally {
+            s.tearDown();
+            server.stop();
+        }
+    }
+
+    @Test
+    void aSecondCommandIsRefusedNotQueuedAndThePathFreesItself() throws Exception {
+        ProcessorRegistry server = new ProcessorRegistry();
+        server.registerCommand("feedA.connect", (args, out, err) -> {
+            sleepQuietly(1_500);
+            out.accept("connected");
+        });
+        server.registerCommand("strat.A.setMaxBookAge", (args, out, err) -> out.accept("ok"));
+        ActionScheduler s = schedulerOn(server, "state5");
+        s.setCommandTimeoutSeconds(5);
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            String slow = okOn(server, "scheduler.saveAction", "{\"title\":\"c\",\"command\":\"feedA.connect\"}").get("id").asText();
+            String quick = okOn(server, "scheduler.saveAction", "{\"title\":\"a\",\"command\":\"strat.A.setMaxBookAge\",\"arguments\":[\"1\"]}").get("id").asText();
+            Future<JsonNode> first = pool.submit(() -> okOn(server, "scheduler.testAction", slow));
+            Thread.sleep(300);
+            Reply second = runOn(server, "scheduler.testAction", quick);
+            assertTrue(second.err.contains("not run, try again"), second.toString());
+            assertEquals("RAN_OK", first.get(5, TimeUnit.SECONDS).get("state").asText());
+            assertEquals("RAN_OK", okOn(server, "scheduler.testAction", quick).get("state").asText(), "free again");
+            assertEquals(2, okOn(server, "scheduler.history").size(), "the refused one was not recorded");
+        } finally {
+            pool.shutdownNow();
+            s.tearDown();
+            server.stop();
+        }
+    }
+
+    @Test
+    void aFailureMarkerPastTheOutputCapStillFails() throws Exception {
+        registry.registerCommand("strat.A.setMaxBookAge", (args, out, err) -> {
+            out.accept("x".repeat(101));
+            out.accept("command is busy try again");
+        });
+        scheduler.setMaxOutputChars(100);
+        JsonNode quick = ok("scheduler.saveAction",
+                "{\"title\":\"age\",\"command\":\"strat.A.setMaxBookAge\",\"arguments\":[\"5\"]}");
+        assertEquals("FAILED", ok("scheduler.testAction", quick.get("id").asText()).get("state").asText());
     }
 
     @Test
@@ -200,6 +276,81 @@ class ActionSchedulerTest {
     }
 
     // ==================== helpers ====================
+
+    static void sleepQuietly(long millis) {
+        long end = System.currentTimeMillis() + millis; // ignores interrupts, like a real command
+        while (System.currentTimeMillis() < end) {
+            try {
+                Thread.sleep(20);
+            } catch (InterruptedException ignored) {
+                // keep going
+            }
+        }
+    }
+
+    ActionScheduler schedulerOn(AdminCommandRegistry server, String state) throws Exception {
+        Path catalogue = dir.resolve("catalogue.yaml");
+        ActionScheduler s = new ActionScheduler();
+        s.setStateDirectory(dir.resolve(state).toString());
+        s.setOutcomeLogFile(dir.resolve(state + "/out.yaml").toString());
+        s.setCatalogueFile(catalogue.toString());
+        s.setEnvironment("dev");
+        s.setCommandTimeoutSeconds(1);
+        s.adminRegistry(server, "admin");
+        s.init();
+        return s;
+    }
+
+    JsonNode okOn(AdminCommandRegistry server, String command, String... args) throws Exception {
+        Reply r = runOn(server, command, args);
+        assertTrue(r.err.isEmpty(), command + " refused: " + r.err);
+        return json.readTree(r.out);
+    }
+
+    Reply runOn(AdminCommandRegistry server, String command, String... args) {
+        Reply r = new Reply();
+        AdminCommandRequest req = new AdminCommandRequest();
+        req.setCommand(command);
+        req.setArguments(new ArrayList<>(List.of(args)));
+        req.setOutput(o -> r.out += o);
+        req.setErrOutput(o -> r.err += o);
+        server.processAdminCommandRequest(req);
+        return r;
+    }
+
+    /**
+     * Dispatches like the server does for a processor's command: publish it to the processor thread, then wait
+     * on a semaphore (interruptibly, no timeout) until the processor has run it. The scheduler's own commands
+     * run on the caller's thread, as commands registered outside a processor do.
+     */
+    static class ProcessorRegistry extends FakeRegistry {
+        final ExecutorService processor = Executors.newSingleThreadExecutor();
+
+        @Override
+        public void processAdminCommandRequest(AdminCommandRequest request) {
+            if (request.getCommand().startsWith("scheduler.")) {
+                super.processAdminCommandRequest(request);
+                return;
+            }
+            java.util.concurrent.Semaphore done = new java.util.concurrent.Semaphore(0);
+            processor.execute(() -> {
+                try {
+                    super.processAdminCommandRequest(request);
+                } finally {
+                    done.release();
+                }
+            });
+            try {
+                done.acquire();
+            } catch (InterruptedException e) {
+                throw new IllegalStateException("Interrupted while publishing admin command", e);
+            }
+        }
+
+        void stop() {
+            processor.shutdownNow();
+        }
+    }
 
     JsonNode ok(String command, String... args) throws Exception {
         Reply r = run(command, args);

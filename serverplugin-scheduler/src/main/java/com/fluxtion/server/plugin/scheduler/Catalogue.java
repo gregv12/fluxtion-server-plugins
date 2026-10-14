@@ -184,11 +184,18 @@ public class Catalogue {
     /** All lines of one answer must be matched within this time: a pathological regex fails, it does not hang. */
     static final long REGEX_BUDGET_NANOS = 2_000_000_000L;
 
-    /** Text that stops a regex match once the deadline has passed (the JDK matcher reads it char by char). */
-    private record Deadline(CharSequence text, long deadline) implements CharSequence {
+    /**
+     * Text that stops a regex match once the deadline has passed. The JDK matcher reads it char by char, so the
+     * clock is checked every 1024 reads, whichever positions backtracking revisits.
+     */
+    private record Deadline(CharSequence text, long deadline, long[] reads) implements CharSequence {
+        Deadline(CharSequence text, long deadline) {
+            this(text, deadline, new long[1]);
+        }
+
         @Override
         public char charAt(int index) {
-            if ((index & 0xFF) == 0 && System.nanoTime() > deadline) {
+            if ((++reads[0] & 0x3FF) == 0 && System.nanoTime() > deadline) {
                 throw new IllegalStateException("choices regex took longer than " + REGEX_BUDGET_NANOS / 1_000_000 + "ms");
             }
             return text.charAt(index);
@@ -201,7 +208,7 @@ public class Catalogue {
 
         @Override
         public CharSequence subSequence(int start, int end) {
-            return new Deadline(text.subSequence(start, end), deadline);
+            return new Deadline(text.subSequence(start, end), deadline, reads);
         }
 
         @Override
