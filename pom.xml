@@ -70,6 +70,7 @@
 <!--        <module>serverconnector-tcpsocket</module>-->
         <module>serverlibrary-trading-api</module>
         <module>serverplugin-trading</module>
+        <module>serverplugin-scheduler</module>
     </modules>
 
     <dependencies>
