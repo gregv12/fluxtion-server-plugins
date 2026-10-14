@@ -30,6 +30,40 @@ class CatalogueAndLogTest {
     }
 
     @Test
+    void choicesCanBeReadFromPlainTextLines() throws Exception {
+        Catalogue c = Catalogue.parse("""
+                commands:
+                  - command: "{svc}.updateTier"
+                    arguments:
+                      - name: tier
+                        type: CHOICE
+                        choicesFrom:
+                          command: "{svc}.listTiers"
+                          regex: 'Tier\\(name=(?<name>[^,]+), symbol=(?<symbol>[^,]+),'
+                          values: [name, symbol]
+                      - name: width
+                        type: NUMBER
+                """);
+        Catalogue.Match m = c.find("pricing.updateTier");
+        String answer = "Tier(name=gold, symbol=EUR-USD, width=2.0)\nTier(name=gold, symbol=EUR-USD, width=2.0)\n"
+                + "header line\nTier(name=silver, symbol=GBP-USD, width=4.0)";
+        List<List<String>> choices = Catalogue.choices(m, m.entry().getArguments().get(0), cmd -> {
+            assertEquals("pricing.listTiers", cmd);
+            return answer;
+        });
+        assertEquals(List.of(List.of("gold", "EUR-USD"), List.of("silver", "GBP-USD")), choices, "skips non-matching lines and repeats");
+        assertNull(Catalogue.validate(m, List.of("silver", "GBP-USD", "3.5"), a -> choices));
+        assertThrows(IllegalArgumentException.class, () -> Catalogue.parse("""
+                commands:
+                  - command: a.b
+                    arguments:
+                      - name: x
+                        type: CHOICE
+                        choicesFrom: {command: a.c, regex: "(?<n>.*)", values: [m]}
+                """), "values must name groups in the regex");
+    }
+
+    @Test
     void aCatalogueTypoFailsAtLoad() {
         assertThrows(Exception.class, () -> Catalogue.parse("commands:\n  - command: a.b\n    argumnets: []\n"), "unknown field");
         assertThrows(IllegalArgumentException.class, () -> Catalogue.parse("commands:\n  - command: a.b\n    arguments:\n      - name: x\n        type: enum\n"));

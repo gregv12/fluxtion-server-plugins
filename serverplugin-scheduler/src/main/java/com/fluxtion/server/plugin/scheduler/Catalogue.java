@@ -61,6 +61,15 @@ public class Catalogue {
                 if (a.getType() == CatalogueArg.Type.CHOICE && (a.getChoicesFrom() == null || a.getChoicesFrom().getCommand() == null)) {
                     throw new IllegalArgumentException(e.getCommand() + ": choice argument '" + a.getName() + "' has no choicesFrom.command");
                 }
+                if (a.getType() == CatalogueArg.Type.CHOICE && a.getChoicesFrom().getRegex() != null) {
+                    java.util.regex.Pattern p = java.util.regex.Pattern.compile(a.getChoicesFrom().getRegex());
+                    for (String group : a.getChoicesFrom().getValues()) {
+                        if (!p.pattern().contains("(?<" + group + ">")) {
+                            throw new IllegalArgumentException(e.getCommand() + ": choice argument '" + a.getName()
+                                    + "' regex has no named group '" + group + "'");
+                        }
+                    }
+                }
             }
         }
     }
@@ -109,6 +118,9 @@ public class Catalogue {
     public static List<List<String>> choices(Match match, CatalogueArg arg, Function<String, String> runCommand) throws IOException {
         CatalogueArg.ChoicesFrom from = arg.getChoicesFrom();
         String answer = runCommand.apply(CatalogueEntry.fill(from.getCommand(), match.params()));
+        if (from.getRegex() != null && !from.getRegex().isBlank()) {
+            return textChoices(answer, from);
+        }
         JsonNode node = JSON.readTree(answer);
         if (from.getPath() != null && !from.getPath().isBlank()) {
             for (String part : from.getPath().split("\\.")) {
@@ -132,6 +144,23 @@ public class Catalogue {
             out.add(tuple);
         }
         return out;
+    }
+
+    private static List<List<String>> textChoices(String answer, CatalogueArg.ChoicesFrom from) {
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(from.getRegex());
+        java.util.LinkedHashSet<List<String>> out = new java.util.LinkedHashSet<>();
+        for (String line : answer == null ? new String[0] : answer.split("\\R")) {
+            java.util.regex.Matcher m = pattern.matcher(line);
+            if (!m.find()) continue;
+            List<String> tuple = new ArrayList<>();
+            if (from.getValues().isEmpty()) {
+                tuple.add((m.groupCount() > 0 ? m.group(1) : m.group()).trim());
+            } else {
+                for (String group : from.getValues()) tuple.add(m.group(group).trim());
+            }
+            out.add(tuple);
+        }
+        return new ArrayList<>(out);
     }
 
     /**

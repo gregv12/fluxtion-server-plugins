@@ -37,13 +37,16 @@ public class CatalogueArg {
     }
 
     /**
-     * An admin command whose JSON answer lists the choices: {@code path} names the array (dotted, empty = the
-     * answer itself), {@code values} the fields of each element, in command-argument order.
+     * An admin command whose answer lists the choices. A JSON answer: {@code path} names the array (dotted, empty =
+     * the answer itself), {@code values} the fields of each element, in command-argument order. A plain-text answer:
+     * {@code regex} is applied to each line, {@code values} name its named groups (none = the first group, or the
+     * whole match); lines that do not match are skipped and repeats are dropped.
      */
     @Data
     public static class ChoicesFrom {
         private String command;
         private String path = "";
+        private String regex;
         private List<String> values = new ArrayList<>();
     }
 }
