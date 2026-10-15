@@ -32,4 +32,7 @@ public class OpenItem {
     private boolean running;
     /** Set once decided and saved before it is recorded, so a stop mid-close is finished at the next start. */
     private Outcome pendingOutcome;
+    /** Completed recording steps, retained while a failed write or removal is retried. */
+    private boolean outcomeLogged;
+    private boolean historyRecorded;
 }

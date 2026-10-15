@@ -12,6 +12,9 @@ import lombok.Data;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -42,6 +45,7 @@ public class SchedulerStore {
     private final List<Outcome> history = new ArrayList<>();
     private State state = new State();
     private int skippedHistoryLines;
+    private Long historyRollbackTo;
 
     /** Small flags that must survive a restart. */
     @Data
@@ -118,10 +122,10 @@ public class SchedulerStore {
     public void saveOpen() { write("open.json", envelope(open.values())); }
     public void saveState() { write("state.json", state); }
 
-    /** Append one outcome to the capped history (rewritten whole when it outgrows the cap). */
     /** Append one outcome; it joins the in-memory history only once it is on disk. */
     public void appendHistory(Outcome outcome) {
         try {
+            repairHistoryTail();
             if (history.size() + 1 > historyCap) {
                 List<Outcome> next = new ArrayList<>(history);
                 next.add(outcome);
@@ -131,12 +135,61 @@ public class SchedulerStore {
                 history.clear();
                 history.addAll(next);
             } else {
-                Files.writeString(dir.resolve("history.jsonl"), JSON.writeValueAsString(outcome) + "\n",
-                        StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                Path file = dir.resolve("history.jsonl");
+                long before = Files.exists(file) ? Files.size(file) : 0;
+                try {
+                    writeHistoryLine((JSON.writeValueAsString(outcome) + "\n").getBytes(StandardCharsets.UTF_8));
+                } catch (IOException e) {
+                    // A failed append may have written a prefix, or even the entire line. Undo that
+                    // attempt before retrying, so it cannot become a malformed or duplicate record.
+                    historyRollbackTo = before;
+                    try {
+                        repairHistoryTail();
+                    } catch (IOException rollback) {
+                        e.addSuppressed(rollback);
+                    }
+                    throw e;
+                }
                 history.add(outcome);
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    /** One append, separated so a partial write can be exercised by the persistence tests. */
+    protected void writeHistoryLine(byte[] bytes) throws IOException {
+        try (FileChannel channel = FileChannel.open(dir.resolve("history.jsonl"), StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE, StandardOpenOption.APPEND)) {
+            ByteBuffer buffer = ByteBuffer.wrap(bytes);
+            while (buffer.hasRemaining()) channel.write(buffer);
+            channel.force(true);
+        }
+    }
+
+    private void repairHistoryTail() throws IOException {
+        Path file = dir.resolve("history.jsonl");
+        if (!Files.exists(file)) {
+            historyRollbackTo = null;
+            return;
+        }
+        try (RandomAccessFile historyFile = new RandomAccessFile(file.toFile(), "rw")) {
+            if (historyRollbackTo != null) {
+                historyFile.setLength(historyRollbackTo);
+                historyFile.getChannel().force(true);
+                historyRollbackTo = null;
+            }
+            long end = historyFile.length();
+            long clean = end;
+            while (clean > 0) {
+                historyFile.seek(clean - 1);
+                if (historyFile.read() == '\n') break;
+                clean--;
+            }
+            if (clean != end) {
+                historyFile.setLength(clean);
+                historyFile.getChannel().force(true);
+            }
         }
     }
 

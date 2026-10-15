@@ -7,6 +7,10 @@ package com.fluxtion.server.plugin.scheduler;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.io.BufferedReader;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -42,7 +46,14 @@ public class OutcomeLog {
         String base = name.endsWith(".yaml") ? name.substring(0, name.length() - 5) : name;
         for (Path p : List.of(file, file.resolveSibling(base + "-1.yaml"))) {
             try {
-                if (Files.exists(p) && Files.readString(p, StandardCharsets.UTF_8).contains(needle)) return true;
+                if (!Files.exists(p)) continue;
+                repairTail(p);
+                try (BufferedReader reader = Files.newBufferedReader(p, StandardCharsets.UTF_8)) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        if (line.startsWith("        - scheduler: {") && line.contains(needle)) return true;
+                    }
+                }
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
@@ -74,10 +85,60 @@ public class OutcomeLog {
         try {
             Path parent = file.toAbsolutePath().getParent();
             if (parent != null) Files.createDirectories(parent);
+            repairTail(file);
             roll();
-            Files.writeString(file, record, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            writeRecord(record.getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    protected void writeRecord(byte[] bytes) throws IOException {
+        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE, StandardOpenOption.APPEND)) {
+            ByteBuffer buffer = ByteBuffer.wrap(bytes);
+            while (buffer.hasRemaining()) channel.write(buffer);
+            channel.force(true);
+        }
+    }
+
+    /**
+     * Appends can stop at any byte, including inside UTF-8. Work backwards in bytes to the last complete
+     * endTime line before decoding anything. All scalar newlines are escaped, so this framing line can
+     * only be written after the whole record. Normal appends inspect only the last buffer of the file.
+     */
+    private static void repairTail(Path path) throws IOException {
+        if (!Files.exists(path)) return;
+        try (RandomAccessFile logFile = new RandomAccessFile(path.toFile(), "rw")) {
+            long length = logFile.length();
+            long lineEnd = -1;
+            long clean = 0;
+            byte[] block = new byte[8192];
+            for (long end = length; end > 0 && clean == 0; ) {
+                int count = (int) Math.min(block.length, end);
+                long start = end - count;
+                logFile.seek(start);
+                logFile.readFully(block, 0, count);
+                for (int i = count - 1; i >= 0; i--) {
+                    if (block[i] != '\n') continue;
+                    long position = start + i;
+                    if (lineEnd >= 0 && lineEnd - position <= 80) {
+                        byte[] line = new byte[(int) (lineEnd - position - 1)];
+                        logFile.seek(position + 1);
+                        logFile.readFully(line);
+                        if (new String(line, StandardCharsets.US_ASCII).matches("    endTime: -?\\d+")) {
+                            clean = lineEnd + 1;
+                            break;
+                        }
+                    }
+                    lineEnd = position;
+                }
+                end = start;
+            }
+            if (clean != length) {
+                logFile.setLength(clean);
+                logFile.getChannel().force(true);
+            }
         }
     }
 

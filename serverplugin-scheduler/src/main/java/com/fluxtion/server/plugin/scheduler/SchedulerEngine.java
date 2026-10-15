@@ -179,6 +179,7 @@ public class SchedulerEngine {
     /** Run an action once now, without approval: support's check that it works. Refused in production. */
     public Outcome testAction(String id, String by) {
         SchedulerAction a;
+        OpenItem item;
         synchronized (this) {
             if (settings.isProduction()) throw new Refused("test is not allowed in production; schedule it and approve it instead");
             if (store.state().isPaused()) throw new Refused("the scheduler is paused");
@@ -187,8 +188,17 @@ public class SchedulerEngine {
             checkEnvironment(a);
             checkLive(a.getCommand());
             if (!gateway.tryReserve(a.getCommand())) throw new Refused("not run, try again: " + gateway.busyReason());
+            item = itemFor(a, null, clock.getAsLong(), clock.getAsLong(), null, 0);
+            item.setRunning(true);
+            store.open().put(item.getId(), item);
+            try {
+                store.saveOpen();
+            } catch (RuntimeException e) {
+                store.open().remove(item.getId());
+                gateway.release();
+                throw e;
+            }
         }
-        OpenItem item = itemFor(a, null, clock.getAsLong(), clock.getAsLong(), null, 0);
         return execute(item, by + " (test)");
     }
 
@@ -229,7 +239,13 @@ public class SchedulerEngine {
             if (s.getNextDueAt() <= clock.getAsLong()) throw new Refused("that time has already passed");
         }
         store.schedules().put(s.getId(), s);
-        store.saveSchedules();
+        try {
+            store.saveSchedules();
+        } catch (RuntimeException e) {
+            if (existing == null) store.schedules().remove(s.getId());
+            else store.schedules().put(existing.getId(), existing);
+            throw e;
+        }
         return s;
     }
 
@@ -241,18 +257,35 @@ public class SchedulerEngine {
         if (enabled && s.getTrigger() == TriggerType.ONCE && (nextDue <= clock.getAsLong() || nextDue <= s.getLastFiredDue())) {
             throw new Refused("that time has already passed or been handled; edit the schedule with a new time");
         }
+        boolean previousEnabled = s.isEnabled();
+        long previousDue = s.getNextDueAt();
+        long previousChangedAt = s.getChangedAt();
+        String previousChangedBy = s.getChangedBy();
         s.setEnabled(enabled);
         s.setChangedBy(by);
         s.setChangedAt(nextChangeStamp(s.getChangedAt()));
         s.setNextDueAt(nextDue);
-        store.saveSchedules();
+        try {
+            store.saveSchedules();
+        } catch (RuntimeException e) {
+            s.setEnabled(previousEnabled);
+            s.setNextDueAt(previousDue);
+            s.setChangedAt(previousChangedAt);
+            s.setChangedBy(previousChangedBy);
+            throw e;
+        }
         return s;
     }
 
     public synchronized SchedulerSchedule deleteSchedule(String id) {
         SchedulerSchedule s = store.schedules().remove(id);
         if (s == null) throw new Refused("no schedule " + id);
-        store.saveSchedules();
+        try {
+            store.saveSchedules();
+        } catch (RuntimeException e) {
+            store.schedules().put(id, s);
+            throw e;
+        }
         return s;
     }
 
@@ -311,7 +344,9 @@ public class SchedulerEngine {
             for (long next = nextDaily(s, latest); next <= now; next = nextDaily(s, latest)) latest = next;
             if (latest != due) {
                 if (due > s.getLastFiredDue() && !handled(occurrenceId(s, due))) {
-                    close(itemFor(a, s, due, due + expiryMillis(s), null, 0), OutcomeState.EXPIRED, "scheduler",
+                    OpenItem missed = itemFor(a, s, due, due + expiryMillis(s), null, 0);
+                    missed.setId(occurrenceId(s, due));
+                    close(missed, OutcomeState.EXPIRED, "scheduler",
                             "missed: the scheduler did not run at the due time", 0);
                 }
                 due = latest;
@@ -341,9 +376,19 @@ public class SchedulerEngine {
                 opened = item;
             }
         }
+        long previousLast = s.getLastFiredDue();
+        long previousDue = s.getNextDueAt();
+        boolean previousEnabled = s.isEnabled();
         s.setLastFiredDue(Math.max(s.getLastFiredDue(), due));
-        advance(s, now);
-        store.saveSchedules();
+        try {
+            advance(s, now);
+            store.saveSchedules();
+        } catch (RuntimeException e) {
+            s.setLastFiredDue(previousLast);
+            s.setNextDueAt(previousDue);
+            s.setEnabled(previousEnabled);
+            throw e;
+        }
         return opened;
     }
 
@@ -353,6 +398,20 @@ public class SchedulerEngine {
 
     private boolean handled(String itemId) {
         return store.open().containsKey(itemId) || recorded(itemId);
+    }
+
+    /** Keep replay protection on the schedule before an item can run or leave live state. */
+    private void persistHandledOccurrence(OpenItem item) {
+        SchedulerSchedule s = store.schedules().get(item.getScheduleId());
+        if (s == null || item.getRestartSetId() != null || !occurrenceId(s, item.getDueAt()).equals(item.getId())) return;
+        long previous = s.getLastFiredDue();
+        s.setLastFiredDue(Math.max(previous, item.getDueAt()));
+        try {
+            store.saveSchedules();
+        } catch (RuntimeException e) {
+            s.setLastFiredDue(previous);
+            throw e;
+        }
     }
 
     /** Finish closes whose recording failed earlier (disk full, for example). */
@@ -377,6 +436,7 @@ public class SchedulerEngine {
                 // decided before the stop: finish recording it (history is written once)
                 finish(item, item.getPendingOutcome());
             } else if (recorded(item.getId())) {
+                persistHandledOccurrence(item);
                 store.open().remove(item.getId());
                 changed = true;
             } else if (item.isRunning()) {
@@ -484,6 +544,7 @@ public class SchedulerEngine {
                 close(item, OutcomeState.FAILED, by, "not run: " + invalid, 0);
                 throw new Refused("not run: " + invalid);
             }
+            persistHandledOccurrence(item);
             if (!gateway.tryReserve(item.getCommand())) {
                 throw new Refused("not run, try again: " + gateway.busyReason()); // still open, nothing queued
             }
@@ -515,6 +576,11 @@ public class SchedulerEngine {
         }
         String busy = gateway.busyReason();
         if (busy != null) throw new Refused("not run, try again: " + busy);
+        checkRestartOrder(item);
+        return item;
+    }
+
+    private void checkRestartOrder(OpenItem item) {
         if (item.getRestartSetId() != null) {
             for (OpenItem other : store.open().values()) {
                 if (item.getRestartSetId().equals(other.getRestartSetId()) && other.getRestartOrder() < item.getRestartOrder()) {
@@ -522,13 +588,13 @@ public class SchedulerEngine {
                 }
             }
         }
-        return item;
     }
 
     public synchronized Outcome decline(String itemId, String by) {
         OpenItem item = store.open().get(itemId);
         if (item == null) throw new Refused(alreadyDecided(itemId));
         if (item.isRunning() || item.getPendingOutcome() != null) throw new Refused("already approved: it is running");
+        checkRestartOrder(item);
         return close(item, OutcomeState.DECLINED, by, "declined", 0);
     }
 
@@ -560,7 +626,10 @@ public class SchedulerEngine {
             try {
                 out.add(decline(item.getId(), by));
             } catch (Refused ignored) {
-                // decided meanwhile
+                // A concurrent approval or failed close must not let later items overtake this one.
+                synchronized (this) {
+                    if (store.open().containsKey(item.getId())) break;
+                }
             }
         }
         return out;
@@ -581,8 +650,14 @@ public class SchedulerEngine {
         if (!paused && store.state().isPaused()) {
             tick(); // still paused: anything already due is recorded as skipped, not opened late
         }
+        boolean previous = store.state().isPaused();
         store.state().setPaused(paused);
-        store.saveState();
+        try {
+            store.saveState();
+        } catch (RuntimeException e) {
+            store.state().setPaused(previous);
+            throw e;
+        }
     }
 
     public synchronized boolean isPaused() {
@@ -590,8 +665,14 @@ public class SchedulerEngine {
     }
 
     public synchronized void acknowledgeExpired() {
+        long previous = store.state().getExpiredAcknowledgedUpTo();
         store.state().setExpiredAcknowledgedUpTo(clock.getAsLong());
-        store.saveState();
+        try {
+            store.saveState();
+        } catch (RuntimeException e) {
+            store.state().setExpiredAcknowledgedUpTo(previous);
+            throw e;
+        }
     }
 
     public synchronized List<SchedulerAction> actions() {
@@ -714,26 +795,35 @@ public class SchedulerEngine {
      * history and once to the outcome log (a resumed close checks the log for the item first).
      */
     private void finish(OpenItem item, Outcome o) {
-        boolean open = store.open().containsKey(item.getId());
-        boolean resuming = open && item.getPendingOutcome() != null; // an earlier attempt may have got part way
-        if (open && !resuming) {
-            item.setPendingOutcome(o);
-            try {
-                store.saveOpen();
-            } catch (RuntimeException e) {
-                item.setPendingOutcome(null);
-                throw e;
-            }
+        boolean resuming = item.getPendingOutcome() != null;
+        if (!resuming) item.setPendingOutcome(o);
+        // Include direct closes (missed/skipped occurrences and failed restart items). Retain a known
+        // outcome if its write fails: execution cannot be rolled back and tick must retry this result.
+        store.open().put(item.getId(), item);
+        store.saveOpen();
+        persistHandledOccurrence(item);
+        if (recorded(o.getItemId())) {
+            item.setOutcomeLogged(true);
+            item.setHistoryRecorded(true);
         }
-        if (!recorded(o.getItemId())) {
+        if (!item.isOutcomeLogged()) {
             if (!resuming || !outcomeLog.contains(o.getItemId())) {
                 outcomeLog.append(o);
             }
-            store.appendHistory(o);
-        }
-        if (open) {
-            store.open().remove(item.getId());
+            item.setOutcomeLogged(true);
             store.saveOpen();
+        }
+        if (!item.isHistoryRecorded()) {
+            store.appendHistory(o);
+            item.setHistoryRecorded(true);
+            store.saveOpen();
+        }
+        store.open().remove(item.getId());
+        try {
+            store.saveOpen();
+        } catch (RuntimeException e) {
+            store.open().put(item.getId(), item);
+            throw e;
         }
     }
 
