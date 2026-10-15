@@ -225,16 +225,18 @@ public class SchedulerEngine {
             if (!command.equals(a.getCommand())) throw new Refused("action " + id + " was changed meanwhile; try again");
             checkEnvironment(a);
             if (!gateway.tryReserve(a.getCommand())) throw new Refused("not run, try again: " + gateway.busyReason());
-            item = itemFor(a, null, clock.getAsLong(), clock.getAsLong(), null, 0);
-            item.setRunning(true);
-            store.open().put(item.getId(), item);
-            try {
+            OpenItem candidate = null;
+            try { // from here until the item is saved, any failure must give the reserved path back
+                candidate = itemFor(a, null, clock.getAsLong(), clock.getAsLong(), null, 0);
+                candidate.setRunning(true);
+                store.open().put(candidate.getId(), candidate);
                 store.saveOpen();
             } catch (RuntimeException e) {
-                store.open().remove(item.getId());
+                if (candidate != null) store.open().remove(candidate.getId());
                 gateway.release();
                 throw e;
             }
+            item = candidate;
         }
         return execute(item, by + " (test)");
     }
@@ -826,7 +828,16 @@ public class SchedulerEngine {
     private Outcome execute(OpenItem item, String by) {
         long start = clock.getAsLong();
         CommandResult r;
-        if (!gateway.liveCommands().contains(item.getCommand())) {
+        boolean live;
+        try {
+            live = gateway.liveCommands().contains(item.getCommand());
+        } catch (RuntimeException e) {
+            gateway.release(); // nothing was dispatched: free the reserved path, then close the item as usual
+            synchronized (this) {
+                return close(item, OutcomeState.FAILED, by, "not run: the command registry could not be read: " + e, 0);
+            }
+        }
+        if (!live) {
             gateway.release();
             r = new CommandResult(false, "command not registered on this server: " + item.getCommand());
         } else {

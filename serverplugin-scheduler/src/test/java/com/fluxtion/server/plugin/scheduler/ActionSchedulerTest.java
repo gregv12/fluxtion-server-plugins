@@ -472,6 +472,44 @@ class ActionSchedulerTest {
         }
     }
 
+    /** The registry throws on the lookup just before dispatch: the item closes Failed and the path is freed. */
+    @Test
+    void aRegistryFailureBeforeDispatchReleasesThePathAndClosesTheItem() throws Exception {
+        int[] calls = {0};
+        int[] failOnCall = {2}; // Test looks up twice: before reserving (1) and just before dispatch (2)
+        FakeRegistry flaky = new FakeRegistry() {
+            @Override
+            public List<String> commandList() {
+                if (++calls[0] == failOnCall[0]) throw new IllegalStateException("registry unavailable");
+                return super.commandList();
+            }
+        };
+        List<String> runs = new CopyOnWriteArrayList<>();
+        flaky.registerCommand("strat.A.setMaxBookAge", (args, out, err) -> {
+            runs.add(String.valueOf(args));
+            out.accept("ok");
+        });
+        ActionScheduler s = restartScheduler(dir.resolve("state11"), dir.resolve("log11/out.yaml"));
+        s.adminRegistry(flaky, "admin");
+        s.init();
+        try {
+            String id = s.getEngine().saveAction(SchedulerEngineTest.action("strat.A.setMaxBookAge", "1"), null, "s").getId();
+            calls[0] = 0;
+            Outcome failed = s.getEngine().testAction(id, "support");
+            assertEquals(OutcomeState.FAILED, failed.getState());
+            assertTrue(failed.getDetail().contains("registry could not be read"), failed.getDetail());
+            assertTrue(s.getEngine().open().isEmpty(), "the running item is closed, not left behind");
+            assertTrue(runs.isEmpty(), "nothing was dispatched");
+            assertEquals(null, okOn(flaky, "scheduler.status").get("busy"), "the path is free");
+            calls[0] = 0;
+            failOnCall[0] = -1;
+            assertEquals(OutcomeState.RAN_OK, s.getEngine().testAction(id, "support").getState(), "the next command runs");
+            assertEquals(1, runs.size());
+        } finally {
+            s.tearDown();
+        }
+    }
+
     /** A previous run that offered a one-item restart set and stopped before anyone decided it. */
     private String leaveUndecidedRestartSet(Path state) throws Exception {
         SchedulerStore store = new SchedulerStore(state, 100);
