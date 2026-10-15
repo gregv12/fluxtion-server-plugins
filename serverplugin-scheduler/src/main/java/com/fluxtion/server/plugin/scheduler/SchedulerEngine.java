@@ -211,13 +211,19 @@ public class SchedulerEngine {
     public Outcome testAction(String id, String by) {
         SchedulerAction a;
         OpenItem item;
+        String command;
+        synchronized (this) {
+            command = action(id).getCommand();
+        }
+        // the registry lookup can be slow: never under the engine lock (tearDown and tick wait on it)
+        checkLive(command);
         synchronized (this) {
             if (settings.isProduction()) throw new Refused("test is not allowed in production; schedule it and approve it instead");
             if (store.state().isPaused()) throw new Refused("the scheduler is paused");
             a = action(id);
             if (a.isRetired()) throw new Refused("action " + id + " is retired");
+            if (!command.equals(a.getCommand())) throw new Refused("action " + id + " was changed meanwhile; try again");
             checkEnvironment(a);
-            checkLive(a.getCommand());
             if (!gateway.tryReserve(a.getCommand())) throw new Refused("not run, try again: " + gateway.busyReason());
             item = itemFor(a, null, clock.getAsLong(), clock.getAsLong(), null, 0);
             item.setRunning(true);

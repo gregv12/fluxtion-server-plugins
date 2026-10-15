@@ -428,6 +428,50 @@ class ActionSchedulerTest {
         assertTrue(manual.err.contains("stopped"), manual.toString());
     }
 
+    /** A slow registry lookup during Test must not hold the engine lock, so tearDown does not wait on it. */
+    @Test
+    void tearDownDoesNotWaitForASlowRegistryLookupInTest() throws Exception {
+        java.util.concurrent.CountDownLatch inLookup = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        FakeRegistry slow = new FakeRegistry() {
+            @Override
+            public List<String> commandList() {
+                if (Thread.currentThread().getName().equals("admin-test")) {
+                    inLookup.countDown();
+                    try {
+                        release.await(5, TimeUnit.SECONDS);
+                    } catch (InterruptedException ignored) {
+                        // carry on
+                    }
+                }
+                return super.commandList();
+            }
+        };
+        slow.registerCommand("strat.A.setMaxBookAge", (args, out, err) -> out.accept("ok"));
+        ActionScheduler s = restartScheduler(dir.resolve("state10"), dir.resolve("log10/out.yaml"));
+        s.adminRegistry(slow, "admin");
+        s.init();
+        String id = s.getEngine().saveAction(SchedulerEngineTest.action("strat.A.setMaxBookAge", "1"), null, "s").getId();
+        Thread test = new Thread(() -> {
+            try {
+                s.getEngine().testAction(id, "support");
+            } catch (RuntimeException ignored) {
+                // refused or failed after tearDown: fine
+            }
+        }, "admin-test");
+        test.start();
+        try {
+            assertTrue(inLookup.await(5, TimeUnit.SECONDS), "Test is inside the registry lookup");
+            long start = System.currentTimeMillis();
+            s.tearDown();
+            long took = System.currentTimeMillis() - start;
+            assertTrue(took < 1_000, "tearDown waited " + took + " ms for the lookup");
+        } finally {
+            release.countDown();
+            test.join(5_000);
+        }
+    }
+
     /** A previous run that offered a one-item restart set and stopped before anyone decided it. */
     private String leaveUndecidedRestartSet(Path state) throws Exception {
         SchedulerStore store = new SchedulerStore(state, 100);
