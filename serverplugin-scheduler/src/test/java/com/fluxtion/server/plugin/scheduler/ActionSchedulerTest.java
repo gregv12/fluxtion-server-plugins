@@ -271,6 +271,39 @@ class ActionSchedulerTest {
     }
 
     @Test
+    void anUnavailableOutcomeLogDoesNotPreventStartupAndRecoveryRetries() throws Exception {
+        Path state = dir.resolve("recovery-state");
+        SchedulerStore store = new SchedulerStore(state, 10);
+        store.load();
+        for (int i = 0; i < 2; i++) {
+            OpenItem item = new OpenItem();
+            item.setId("expired-" + i);
+            item.setTitle("expired item");
+            item.setCommand("feedA.connect");
+            item.setExpiresAt(1);
+            store.open().put(item.getId(), item);
+        }
+        store.saveOpen();
+        Path log = Files.createDirectories(dir.resolve("unavailable-log.yaml"));
+        ActionScheduler recovering = new ActionScheduler();
+        recovering.setStateDirectory(state.toString());
+        recovering.setOutcomeLogFile(log.toString());
+        recovering.setCatalogueFile(dir.resolve("catalogue.yaml").toString());
+        recovering.adminRegistry(registry, "admin");
+        try {
+            org.junit.jupiter.api.Assertions.assertDoesNotThrow(recovering::init);
+            assertEquals(2, recovering.getEngine().open().size());
+            assertTrue(recovering.getEngine().open().stream().allMatch(i -> i.getPendingOutcome() != null));
+            Files.delete(log);
+            recovering.getEngine().tick();
+            assertTrue(recovering.getEngine().open().isEmpty());
+            assertEquals(2, recovering.getEngine().history(0, Long.MAX_VALUE).size());
+        } finally {
+            recovering.tearDown();
+        }
+    }
+
+    @Test
     void runRestartActionsWithNothingScheduledIsRefused() {
         assertTrue(run("scheduler.runRestartActions", "trader").err.contains("no enabled after-restart"));
     }

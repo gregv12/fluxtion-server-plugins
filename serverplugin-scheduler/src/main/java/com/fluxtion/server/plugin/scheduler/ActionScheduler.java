@@ -181,7 +181,11 @@ public class ActionScheduler implements Lifecycle {
         gateway = new RegistryGateway();
         engine = new SchedulerEngine(store, outcomeLog, catalogue, gateway, System::currentTimeMillis,
                 new SchedulerEngine.Settings(environment, zone, timedExpiryMinutes, restartExpiryMinutes));
-        engine.recoverAfterStart();
+        try {
+            engine.recoverAfterStart();
+        } catch (RuntimeException e) {
+            log.error("scheduler recovery incomplete; pending decisions will be retried by tick", e);
+        }
         log.info("scheduler init environment:'{}' zone:{} enabled:{} state:{} catalogue:{} entries",
                 environment, zone, enabled, stateDirectory, catalogue.getCommands().size());
     }

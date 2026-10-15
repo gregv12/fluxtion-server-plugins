@@ -25,7 +25,7 @@ class SchedulerDurabilityTest {
 
     static class FailingStore extends SchedulerStore {
         final Path dir;
-        int failSchedules, failState, failPending, failRemove;
+        int failSchedules, failState, failPending, failRemove, failActions;
         boolean partialHistory, completeHistoryThenFail;
 
         FailingStore(Path dir, int cap) {
@@ -37,6 +37,11 @@ class SchedulerDurabilityTest {
         @Override public void saveSchedules() {
             if (failSchedules-- > 0) throw failure();
             super.saveSchedules();
+        }
+
+        @Override public void saveActions() {
+            if (failActions-- > 0) throw failure();
+            super.saveActions();
         }
 
         @Override public void saveState() {
@@ -352,6 +357,207 @@ class SchedulerDurabilityTest {
         assertTrue(reloaded.open().isEmpty());
         assertEquals(OutcomeState.FAILED, reloaded.history().getFirst().getState());
         assertTrue(reloaded.history().getFirst().getDetail().contains("interrupted"));
+    }
+
+    @Test void restartSetIsCompleteWhenAnEnvironmentFailureCannotBeLogged() throws Exception {
+        Fixture f = new Fixture("restart-log-failure", 10);
+        SchedulerAction first = f.action();
+        SchedulerAction denied = f.engine.saveAction(SchedulerEngineTest.action("pricer.setLogLevel", "INFO"), null, "support");
+        SchedulerAction last = f.engine.saveAction(SchedulerEngineTest.action("strat.A.setMaxBookAge", "5"), null, "support");
+        f.engine.saveSchedule(restart(first, 1), "trader");
+        f.engine.saveSchedule(restart(denied, 2), "trader");
+        f.engine.saveSchedule(restart(last, 3), "trader");
+        SchedulerAction edit = SchedulerEngineTest.action(denied.getCommand(), "INFO");
+        edit.setId(denied.getId());
+        edit.setEnvironments(List.of("dev"));
+        f.engine.saveAction(edit, denied.getChangedAt(), "support");
+        f.engine = f.engine(f.store, new OutcomeLog(f.logFile, 1_000_000, 3) {
+            boolean fail = true;
+            @Override public synchronized void append(Outcome o) {
+                if (fail) { fail = false; throw FailingStore.failure(); }
+                super.append(o);
+            }
+        });
+        String set = assertDoesNotThrow(() -> f.engine.offerRestartSet("test"));
+        assertEquals(3, f.reload(10).open().size(), "all items are durable before any outcome is recorded");
+        assertNotNull(f.engine.open().stream().filter(i -> denied.getId().equals(i.getActionId()))
+                .findFirst().orElseThrow().getPendingOutcome());
+        f.engine.tick();
+        assertEquals(2, f.engine.open().size());
+        assertTrue(f.engine.open().stream().anyMatch(i -> last.getId().equals(i.getActionId())));
+        assertEquals(List.of(OutcomeState.RAN_OK, OutcomeState.RAN_OK),
+                f.engine.approveAll(set, "trader").stream().map(Outcome::getState).toList());
+        assertTrue(f.server.runs.stream().anyMatch(s -> s.startsWith(last.getCommand())));
+    }
+
+    @Test void restartSetInitialWriteFailureRollsBackEveryItem() throws Exception {
+        Fixture f = new Fixture("restart-initial-failure", 10);
+        SchedulerAction allowed = f.action();
+        SchedulerAction denied = f.engine.saveAction(SchedulerEngineTest.action("strat.A.setMaxBookAge", "5"), null, "support");
+        f.engine.saveSchedule(restart(allowed, 1), "trader");
+        f.engine.saveSchedule(restart(denied, 2), "trader");
+        SchedulerAction edit = SchedulerEngineTest.action(denied.getCommand(), "5");
+        edit.setId(denied.getId());
+        edit.setEnvironments(List.of("dev"));
+        f.engine.saveAction(edit, denied.getChangedAt(), "support");
+        f.store.failPending = 1;
+        assertThrows(UncheckedIOException.class, () -> f.engine.offerRestartSet("test"));
+        assertTrue(f.engine.open().isEmpty());
+        assertTrue(f.reload(10).open().isEmpty());
+        assertFalse(Files.exists(f.logFile));
+        assertNotNull(f.engine.offerRestartSet("retry"));
+        assertEquals(1, f.engine.open().size());
+        assertEquals(OutcomeState.FAILED, f.store.history().getFirst().getState());
+    }
+
+    @Test void restartSetSurvivesAStopWhileRecordingAnEnvironmentFailure() throws Exception {
+        Fixture f = new Fixture("restart-stop", 10);
+        SchedulerAction a = f.action();
+        SchedulerAction denied = f.engine.saveAction(SchedulerEngineTest.action("strat.A.setMaxBookAge", "5"), null, "support");
+        f.engine.saveSchedule(restart(a, 1), "trader");
+        f.engine.saveSchedule(restart(denied, 2), "trader");
+        f.engine.saveSchedule(restart(a, 3), "trader");
+        SchedulerAction edit = SchedulerEngineTest.action(denied.getCommand(), "5");
+        edit.setId(denied.getId());
+        edit.setEnvironments(List.of("dev"));
+        f.engine.saveAction(edit, denied.getChangedAt(), "support");
+        f.engine = f.engine(f.store, new OutcomeLog(f.logFile, 1_000_000, 3) {
+            @Override public synchronized void append(Outcome o) { super.append(o); throw new Stop(); }
+        });
+        assertThrows(Stop.class, () -> f.engine.offerRestartSet("test"));
+        SchedulerStore reloaded = f.reload(10);
+        assertEquals(3, reloaded.open().size());
+        String lastId = reloaded.open().values().stream().filter(i -> i.getRestartOrder() == 3)
+                .findFirst().orElseThrow().getId();
+        f.engine(reloaded, f.log()).recoverAfterStart();
+        assertTrue(reloaded.open().isEmpty());
+        assertEquals(3, reloaded.history().size());
+        assertTrue(reloaded.history().stream().anyMatch(o -> o.getItemId().equals(lastId)
+                && o.getState() == OutcomeState.EXPIRED));
+        assertEquals(3, records(f.logFile).size());
+    }
+
+    @Test void recoveryContinuesAfterAnOutcomeWriteFailsAndTickCompletesBothItems() throws Exception {
+        for (boolean persistent : List.of(false, true)) {
+            Fixture f = new Fixture("recovery-" + persistent, 10);
+            SchedulerAction a = f.action();
+            f.engine.saveSchedule(once(a, "2026-10-14T09:00"), "trader");
+            f.engine.saveSchedule(once(a, "2026-10-14T09:01"), "trader");
+            f.now.set(T0 + 61 * MIN);
+            assertEquals(2, f.engine.tick().size());
+            f.now.addAndGet(60 * MIN);
+            SchedulerStore reloaded = f.reload(10);
+            SchedulerEngine recovering = f.engine(reloaded, new OutcomeLog(f.logFile, 1_000_000, 3) {
+                boolean first = true;
+                @Override public synchronized void append(Outcome o) {
+                    if (persistent || first) { first = false; throw FailingStore.failure(); }
+                    super.append(o);
+                }
+            });
+            assertDoesNotThrow(recovering::recoverAfterStart);
+            assertEquals(persistent ? 2 : 1, reloaded.open().size());
+            assertTrue(reloaded.open().values().stream().allMatch(i -> i.getPendingOutcome() != null));
+            assertEquals(persistent ? 0 : 1, reloaded.history().size(), "later items are still processed");
+            f.engine(reloaded, f.log()).tick();
+            assertTrue(f.reload(10).open().isEmpty());
+            assertEquals(2, f.reload(10).history().size());
+            assertEquals(2, records(f.logFile).size());
+        }
+    }
+
+    @Test void failedActionCreateEditAndRetirementRestoreThePreviousState() throws Exception {
+        Fixture f = new Fixture("action-rollback", 10);
+        f.store.failActions = 1;
+        assertThrows(UncheckedIOException.class, () -> f.action());
+        assertTrue(f.engine.actions().isEmpty());
+        SchedulerAction a = f.engine.saveAction(SchedulerEngineTest.action("strat.A.setMaxBookAge", "5"), null, "support");
+        long stamp = a.getChangedAt();
+        SchedulerAction edit = SchedulerEngineTest.action(a.getCommand(), "999999");
+        edit.setId(a.getId());
+        f.store.failActions = 1;
+        assertThrows(UncheckedIOException.class, () -> f.engine.saveAction(edit, stamp, "other"));
+        assertEquals(List.of("5"), f.engine.actions().getFirst().getArguments());
+        assertEquals(stamp, f.engine.actions().getFirst().getChangedAt());
+        assertEquals(List.of("5"), f.reload(10).actions().get(a.getId()).getArguments());
+        assertDoesNotThrow(() -> f.engine.saveAction(edit, stamp, "other"));
+        SchedulerAction current = f.engine.actions().getFirst();
+        long editedStamp = current.getChangedAt();
+        f.store.failActions = 1;
+        assertThrows(UncheckedIOException.class, () -> f.engine.retireAction(a.getId(), "support"));
+        assertFalse(current.isRetired());
+        assertEquals(editedStamp, current.getChangedAt());
+        assertFalse(f.reload(10).actions().get(a.getId()).isRetired());
+    }
+
+    @Test void retirementCommitsOnceAndRetriesScheduleCleanup() throws Exception {
+        Fixture f = new Fixture("retirement-cleanup", 10);
+        SchedulerAction a = f.action();
+        f.engine.saveSchedule(once(a, "2026-10-14T09:00"), "trader");
+        f.engine.saveSchedule(restart(a, 1), "trader");
+        f.store.failSchedules = 1;
+        assertTrue(assertDoesNotThrow(() -> f.engine.retireAction(a.getId(), "support")).isRetired());
+        assertTrue(f.reload(10).actions().get(a.getId()).isRetired());
+        assertTrue(f.engine.schedules().stream().allMatch(SchedulerSchedule::isEnabled), "failed cleanup is rolled back");
+        assertNull(f.engine.offerRestartSet("cleanup pending"), "retired schedules do not create an empty restart set");
+        f.engine.tick();
+        assertTrue(f.engine.schedules().stream().noneMatch(SchedulerSchedule::isEnabled));
+        assertTrue(f.reload(10).schedules().values().stream().noneMatch(SchedulerSchedule::isEnabled));
+        assertTrue(f.server.runs.isEmpty());
+    }
+
+    @Test void failedDisablingOfAnOrphanedDueScheduleRetries() throws Exception {
+        Fixture f = new Fixture("orphan-disable", 10);
+        SchedulerAction a = f.action();
+        SchedulerSchedule s = f.schedule(a);
+        f.store.actions().remove(a.getId());
+        f.store.saveActions();
+        f.store.failSchedules = 1;
+        f.engine.tick();
+        assertTrue(s.isEnabled());
+        assertTrue(f.reload(10).schedules().get(s.getId()).isEnabled());
+        f.engine.tick();
+        assertFalse(s.isEnabled());
+        assertFalse(f.reload(10).schedules().get(s.getId()).isEnabled());
+        assertTrue(f.server.runs.isEmpty());
+    }
+
+    @Test void supplementaryCharactersRoundTripAcrossTheYamlParserBufferBoundary() throws Exception {
+        Path file = dir.resolve("emoji.yaml");
+        Outcome o = new Outcome();
+        o.setItemId("id");
+        o.setState(OutcomeState.FAILED);
+        o.setTitle("a".repeat(398) + "😀");
+        o.setCommand("x".repeat(499));
+        o.setDecidedBy("trader");
+        o.setDetail("b".repeat(398) + "😀");
+        new OutcomeLog(file, 1_000_000, 3).append(o);
+        List<Map<String, Object>> parsed = records(file);
+        assertEquals(1, parsed.size());
+        Map<?, ?> record = (Map<?, ?>) parsed.getFirst().get("eventLogRecord");
+        Map<?, ?> fields = (Map<?, ?>) ((Map<?, ?>) ((List<?>) record.get("nodeLogs")).getFirst()).get("scheduler");
+        assertEquals(o.getTitle(), fields.get("title"));
+        assertEquals(o.getDetail(), fields.get("detail"));
+    }
+
+    @Test void uncertainAuditWriteDeduplicatesAfterMoreThanOneLogRoll() throws Exception {
+        Fixture f = new Fixture("uncertain-roll", 10);
+        f.engine = f.engine(f.store, new OutcomeLog(f.logFile, 1, 3) {
+            boolean first = true;
+            @Override protected void writeRecord(byte[] bytes) throws IOException {
+                super.writeRecord(bytes);
+                if (first) { first = false; throw new IOException("flush result unknown"); }
+            }
+        });
+        OpenItem item = f.open();
+        assertThrows(UncheckedIOException.class, () -> f.engine.decline(item.getId(), "trader"));
+        f.engine.testAction(item.getActionId(), "support");
+        f.engine.testAction(item.getActionId(), "support");
+        assertEquals(1, countItem(f.logFile.resolveSibling("out-2.yaml"), item.getId()));
+        f.engine.tick();
+        assertTrue(f.reload(10).open().isEmpty());
+        assertEquals(3, f.reload(10).history().size());
+        assertEquals(1, countItem(f.logFile.resolveSibling("out-2.yaml"), item.getId()));
+        assertEquals(0, countItem(f.logFile, item.getId()));
     }
 
     private static long countItem(Path file, String id) throws IOException {

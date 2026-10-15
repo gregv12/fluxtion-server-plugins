@@ -14,7 +14,6 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
@@ -39,12 +38,13 @@ public class OutcomeLog {
         this.maxFiles = maxFiles;
     }
 
-    /** Whether a record for this item is already in the log (current file or the latest rolled one). */
+    /** Whether a record for this item is already in the current log or any retained rolled file. */
     public synchronized boolean contains(String itemId) {
         String needle = "itemId: " + quote(itemId) + ",";
         String name = file.getFileName().toString();
         String base = name.endsWith(".yaml") ? name.substring(0, name.length() - 5) : name;
-        for (Path p : List.of(file, file.resolveSibling(base + "-1.yaml"))) {
+        for (int i = 0; i <= maxFiles; i++) {
+            Path p = i == 0 ? file : file.resolveSibling(base + "-" + i + ".yaml");
             try {
                 if (!Files.exists(p)) continue;
                 repairTail(p);
@@ -161,6 +161,7 @@ public class OutcomeLog {
             if (Character.isSurrogate((char) cp) && cp <= 0xFFFF) cp = 0xFFFD; // a lone surrogate cannot be written
             if (cp == '"') sb.append("\\\"");
             else if (cp == '\\') sb.append("\\\\");
+            else if (cp > 0xFFFF) sb.append(String.format("\\U%08X", cp)); // avoid parser surrogate-buffer splits
             else if (yamlPrintable(cp)) sb.appendCodePoint(cp);
             else sb.append(String.format("\\u%04x", cp)); // only BMP code points reach here
         }
