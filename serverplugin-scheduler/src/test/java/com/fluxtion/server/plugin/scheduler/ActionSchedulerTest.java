@@ -259,6 +259,100 @@ class ActionSchedulerTest {
         }
     }
 
+    @Test
+    void aManualOfferFulfilsTheStartupRetryEvenAfterItsSetIsCompleted() throws Exception {
+        Path state = dir.resolve("manual-retry");
+        leaveUndecidedRestartSet(state);
+        Path blocker = Files.createDirectory(state.resolve("open.json.tmp"));
+        ActionScheduler s = restartScheduler(state, dir.resolve("manual-retry.yaml"));
+        try {
+            s.init();
+            invokeStartupOffer(s, System.currentTimeMillis());
+            assertTrue(s.getRestartStatus().contains("retry 1"));
+            Files.delete(blocker);
+            String manual = ok("scheduler.runRestartActions", "operator").get("restartSetId").asText();
+            s.getEngine().approveAll(manual, "operator");
+            s.getEngine().tick(); // finish any old pending close
+            assertTrue(s.getEngine().open().isEmpty());
+            assertEquals(1, calls.size());
+            s.start(); // a manual offer before lifecycle start must keep its fulfilled status
+            assertTrue(s.getRestartStatus().endsWith("on request"));
+            invokeStartupOffer(s, System.currentTimeMillis()); // the outstanding automatic callback
+            assertTrue(s.getEngine().open().isEmpty(), "manual completion must not cause another automatic set");
+            assertEquals(1, calls.size());
+            // An explicit later request is still permitted.
+            assertTrue(ok("scheduler.runRestartActions", "operator").has("restartSetId"));
+        } finally {
+            s.tearDown();
+        }
+    }
+
+    @Test
+    void aRetryDoesNotOfferAfterTheStartupDeadline() throws Exception {
+        Path state = dir.resolve("deadline-retry");
+        leaveUndecidedRestartSet(state);
+        Path blocker = Files.createDirectory(state.resolve("open.json.tmp"));
+        ActionScheduler s = restartScheduler(state, dir.resolve("deadline-retry.yaml"));
+        s.setRestartExpiryMinutes(1);
+        try {
+            s.init();
+            invokeStartupOffer(s, System.currentTimeMillis());
+            assertTrue(s.getRestartStatus().contains("retry 1"));
+            Files.delete(blocker);
+            invokeStartupOffer(s, System.currentTimeMillis() - 60_001); // callback runs beyond its deadline
+            assertTrue(s.getRestartStatus().contains("gave up after 1 min"));
+            assertTrue(s.getEngine().open().stream().noneMatch(i -> i.getPendingOutcome() == null));
+            assertTrue(ok("scheduler.runRestartActions", "operator").has("restartSetId"), "manual recovery stays available");
+        } finally {
+            s.tearDown();
+        }
+    }
+
+    @Test
+    void retryBackoffIsLimitedToTheRemainingStartupWindow() throws Exception {
+        Path state = dir.resolve("clamped-retry");
+        leaveUndecidedRestartSet(state);
+        Files.createDirectory(state.resolve("open.json.tmp"));
+        ActionScheduler s = restartScheduler(state, dir.resolve("clamped-retry.yaml"));
+        s.setRestartExpiryMinutes(1);
+        try {
+            s.init();
+            invokeStartupOffer(s, System.currentTimeMillis() - 59_000);
+            assertTrue(s.getRestartStatus().contains("retry 1"));
+            List<Runnable> queued = s.getTicker().shutdownNow();
+            assertEquals(1, queued.size());
+            long delay = ((java.util.concurrent.Delayed) queued.getFirst()).getDelay(TimeUnit.MILLISECONDS);
+            assertTrue(delay <= 1_000, "five-second backoff must fit the remaining one second: " + delay);
+        } finally {
+            s.tearDown();
+        }
+    }
+
+    @Test
+    void pausedStartupAlsoStopsAtItsDeadline() throws Exception {
+        Path state = dir.resolve("paused-deadline");
+        leaveUndecidedRestartSet(state);
+        ActionScheduler s = restartScheduler(state, dir.resolve("paused-deadline.yaml"));
+        s.setRestartExpiryMinutes(1);
+        try {
+            s.init();
+            s.getEngine().setPaused(true);
+            invokeStartupOffer(s, System.currentTimeMillis() - 60_001);
+            assertTrue(s.getRestartStatus().contains("gave up after 1 min"));
+            s.getEngine().setPaused(false);
+            invokeStartupOffer(s, System.currentTimeMillis());
+            assertTrue(s.getEngine().open().isEmpty(), "resume must not revive an expired startup attempt");
+        } finally {
+            s.tearDown();
+        }
+    }
+
+    private static void invokeStartupOffer(ActionScheduler s, long startedAt) throws Exception {
+        var offer = ActionScheduler.class.getDeclaredMethod("offerRestartSetWhenReady", long.class);
+        offer.setAccessible(true);
+        offer.invoke(s, startedAt);
+    }
+
     /** A previous run that offered a one-item restart set and stopped before anyone decided it. */
     private String leaveUndecidedRestartSet(Path state) throws Exception {
         SchedulerStore store = new SchedulerStore(state, 100);

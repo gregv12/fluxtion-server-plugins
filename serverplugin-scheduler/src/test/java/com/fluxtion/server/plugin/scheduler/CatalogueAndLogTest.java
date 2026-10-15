@@ -215,6 +215,36 @@ class CatalogueAndLogTest {
         assertTrue(log.contains("absent"), "after forget, a full scan finds it");
     }
 
+    @Test
+    void aFailedRollPreservesCachedAbsenceButInvalidatesPositions() throws Exception {
+        Path file = dir.resolve("failed-roll.yaml");
+        OutcomeLog log = new OutcomeLog(file, 1, 2);
+        log.append(outcome("present"));
+        assertFalse(log.contains("absent"));
+        // A non-empty directory at the destination makes rolling fail on every supported platform.
+        Files.copy(file, dir.resolve("failed-roll-1.yaml"));
+        Path blocked = Files.createDirectory(dir.resolve("failed-roll-2.yaml"));
+        Files.writeString(blocked.resolve("blocker"), "cannot replace this directory");
+        for (int retry = 0; retry < 3; retry++) {
+            assertThrows(java.io.UncheckedIOException.class, () -> log.append(outcome("absent")));
+            // Make any full scan fail too: a cached absent answer must not read the log.
+            Path saved = dir.resolve("saved.yaml");
+            Files.move(file, saved);
+            Files.createDirectory(file);
+            try {
+                assertFalse(log.contains("absent"), "failed rolling must not discard absence proofs");
+            } finally {
+                Files.delete(file);
+                Files.move(saved, file);
+            }
+            assertTrue(log.contains("present"), "invalidated positions still find existing records");
+        }
+        Files.delete(blocked.resolve("blocker"));
+        Files.delete(blocked);
+        log.append(outcome("absent"));
+        assertTrue(log.contains("absent"), "a successful append invalidates the old absence proof");
+    }
+
     private static Outcome outcome(String itemId) {
         Outcome o = new Outcome();
         o.setItemId(itemId);

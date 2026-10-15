@@ -92,6 +92,13 @@ public class ActionScheduler implements Lifecycle {
     private int maxOutputChars = 64 * 1024;
     private volatile String restartStatus = "not started";
     private int offerRetries;
+    /** Serialises manual offers with the startup attempt, including its completion marker. */
+    @Getter(lombok.AccessLevel.NONE)
+    @Setter(lombok.AccessLevel.NONE)
+    private final Object restartOfferLock = new Object();
+    @Getter(lombok.AccessLevel.NONE)
+    @Setter(lombok.AccessLevel.NONE)
+    private boolean startupOfferComplete;
     private String catalogueError;
     private RegistryGateway gateway;
 
@@ -130,9 +137,14 @@ public class ActionScheduler implements Lifecycle {
         register("scheduler.approveAll", (a, out, err) -> answer(out, err, () -> engine.approveAll(arg(a, 0, "restart set id"), by(a, 1))));
         register("scheduler.declineAll", (a, out, err) -> answer(out, err, () -> engine.declineAll(arg(a, 0, "restart set id"), by(a, 1))));
         register("scheduler.runRestartActions", (a, out, err) -> answer(out, err, () -> {
-            String setId = engine.offerRestartSet("offered on request by " + by(a, 0));
-            if (setId == null) throw new SchedulerEngine.Refused("there are no enabled after-restart schedules");
-            return Map.of("restartSetId", setId);
+            synchronized (restartOfferLock) {
+                String setId = engine.offerRestartSet("offered on request by " + by(a, 0));
+                if (setId == null) throw new SchedulerEngine.Refused("there are no enabled after-restart schedules");
+                // A manual offer also fulfils any outstanding offer for this startup.
+                startupOfferComplete = true;
+                restartStatus = "offered " + setId + " on request";
+                return Map.of("restartSetId", setId);
+            }
         }));
         register("scheduler.summary", (a, out, err) -> answer(out, err, () -> {
             long since = LocalDate.now(ZoneId.of(zone)).atStartOfDay(ZoneId.of(zone)).toInstant().toEpochMilli();
@@ -199,9 +211,12 @@ public class ActionScheduler implements Lifecycle {
             return;
         }
         ticker.scheduleWithFixedDelay(this::tick, tickMillis, tickMillis, TimeUnit.MILLISECONDS);
-        long startedAt = System.currentTimeMillis();
-        restartStatus = "waiting for the server to be ready";
-        ticker.schedule(() -> offerRestartSetWhenReady(startedAt), restartReadyDelaySeconds, TimeUnit.SECONDS);
+        synchronized (restartOfferLock) {
+            if (startupOfferComplete) return; // a manual offer may already have fulfilled this startup
+            long startedAt = System.currentTimeMillis();
+            restartStatus = "waiting for the server to be ready";
+            scheduleStartupOffer(startedAt, restartReadyDelaySeconds * 1_000L);
+        }
     }
 
     @Override
@@ -222,58 +237,87 @@ public class ActionScheduler implements Lifecycle {
     }
 
     private void offerRestartSetWhenReady(long startedAt) {
-        try {
-            Collection<String> live = liveCommands();
-            List<String> missing = new ArrayList<>(engine.restartCommands());
-            missing.removeAll(live);
-            if (engine.isPaused()) {
-                restartStatus = "waiting: the scheduler is paused";
-                ticker.schedule(() -> offerRestartSetWhenReady(startedAt), 5, TimeUnit.SECONDS);
+        synchronized (restartOfferLock) {
+            if (startupOfferComplete || ticker.isShutdown()) return;
+            if (remainingOfferMillis(startedAt) <= 0) {
+                giveUpStartupOffer("startup offer deadline reached", null);
                 return;
             }
-            boolean timedOut = System.currentTimeMillis() - startedAt >= restartReadyTimeoutSeconds * 1000L;
-            if (!missing.isEmpty() && !timedOut) {
-                ticker.schedule(() -> offerRestartSetWhenReady(startedAt), 2, TimeUnit.SECONDS);
-                return;
+            try {
+                Collection<String> live = liveCommands();
+                List<String> missing = new ArrayList<>(engine.restartCommands());
+                missing.removeAll(live);
+                if (engine.isPaused()) {
+                    restartStatus = "waiting: the scheduler is paused";
+                    scheduleStartupOffer(startedAt, 5_000);
+                    return;
+                }
+                boolean timedOut = System.currentTimeMillis() - startedAt >= restartReadyTimeoutSeconds * 1000L;
+                if (!missing.isEmpty() && !timedOut) {
+                    scheduleStartupOffer(startedAt, 2_000);
+                    return;
+                }
+                for (String pattern : engine.catalogue().unmatchedEntries(live)) {
+                    log.warn("scheduler catalogue entry '{}' matches no command on this server", pattern);
+                }
+                // Registry inspection/logging may have taken time: check again immediately before offering.
+                if (remainingOfferMillis(startedAt) <= 0) {
+                    giveUpStartupOffer("startup offer deadline reached", null);
+                    return;
+                }
+                String reason = missing.isEmpty() ? "server restart"
+                        : "server restart; WARNING not registered after " + restartReadyTimeoutSeconds + "s: " + missing;
+                String setId = engine.offerRestartSet(reason);
+                // Commit before status/logging: failures after a successful offer must never re-offer it.
+                startupOfferComplete = true;
+                restartStatus = setId == null ? "no after-restart schedules" : "offered " + setId + (missing.isEmpty() ? "" : " with missing commands " + missing);
+                log.info("scheduler restart set: {}", restartStatus);
+            } catch (SchedulerEngine.Refused r) {
+                if (engine.isPaused()) { // paused between the check and the offer: wait for resume
+                    restartStatus = "waiting: the scheduler is paused";
+                    scheduleStartupOffer(startedAt, 5_000);
+                } else {
+                    retryOffer(startedAt, r.getMessage(), null);
+                }
+            } catch (Throwable t) {
+                retryOffer(startedAt, t.getMessage(), t);
             }
-            for (String pattern : engine.catalogue().unmatchedEntries(live)) {
-                log.warn("scheduler catalogue entry '{}' matches no command on this server", pattern);
-            }
-            String reason = missing.isEmpty() ? "server restart"
-                    : "server restart; WARNING not registered after " + restartReadyTimeoutSeconds + "s: " + missing;
-            String setId = engine.offerRestartSet(reason);
-            restartStatus = setId == null ? "no after-restart schedules" : "offered " + setId + (missing.isEmpty() ? "" : " with missing commands " + missing);
-            log.info("scheduler restart set: {}", restartStatus);
-        } catch (SchedulerEngine.Refused r) {
-            if (engine.isPaused()) { // paused between the check and the offer: wait for resume
-                restartStatus = "waiting: the scheduler is paused";
-                ticker.schedule(() -> offerRestartSetWhenReady(startedAt), 5, TimeUnit.SECONDS);
-            } else {
-                retryOffer(startedAt, r.getMessage(), null);
-            }
-        } catch (Throwable t) {
-            retryOffer(startedAt, t.getMessage(), t);
         }
     }
 
-    /**
-     * The offer failed for a reason that can clear by itself (storage briefly unavailable; the previous
-     * start's set still being recorded): try again with backoff until the restart set would have expired,
-     * then give up and say so; Run restart actions can still offer it.
-     */
+    /** Retry storage/readiness failures only within this startup's offer window. Called under restartOfferLock. */
     private void retryOffer(long startedAt, String reason, Throwable error) {
-        long elapsed = System.currentTimeMillis() - startedAt;
-        long deadline = restartExpiryMinutes * 60_000L;
-        if (elapsed >= deadline) {
-            restartStatus = "restart set not offered (gave up after " + restartExpiryMinutes + " min; use Run restart actions): " + reason;
-            log.error("scheduler restart set not offered, gave up: {}", reason, error);
+        if (startupOfferComplete || ticker.isShutdown()) return;
+        long remaining = remainingOfferMillis(startedAt);
+        if (remaining <= 0) {
+            giveUpStartupOffer(reason, error);
             return;
         }
         offerRetries++;
-        long delay = Math.min(60, 5L << Math.min(offerRetries - 1, 4)); // 5, 10, 20, 40, 60, 60 ... seconds
-        restartStatus = "restart set not offered yet, retry " + offerRetries + " in " + delay + "s: " + reason;
-        log.warn("scheduler restart set not offered, retrying in {}s: {}", delay, reason, error);
-        ticker.schedule(() -> offerRestartSetWhenReady(startedAt), delay, TimeUnit.SECONDS);
+        long delayMillis = Math.min(remaining, 1_000 * Math.min(60, 5L << Math.min(offerRetries - 1, 4)));
+        restartStatus = "restart set not offered yet, retry " + offerRetries + " in " + ((delayMillis + 999) / 1_000) + "s: " + reason;
+        log.warn("scheduler restart set not offered, retrying in {}ms: {}", delayMillis, reason, error);
+        scheduleStartupOffer(startedAt, delayMillis);
+    }
+
+    private long remainingOfferMillis(long startedAt) {
+        return restartExpiryMinutes * 60_000L - (System.currentTimeMillis() - startedAt);
+    }
+
+    private void scheduleStartupOffer(long startedAt, long delayMillis) {
+        if (startupOfferComplete || ticker.isShutdown()) return;
+        long remaining = remainingOfferMillis(startedAt);
+        if (remaining <= 0) {
+            giveUpStartupOffer("startup offer deadline reached", null);
+            return;
+        }
+        ticker.schedule(() -> offerRestartSetWhenReady(startedAt), Math.min(delayMillis, remaining), TimeUnit.MILLISECONDS);
+    }
+
+    private void giveUpStartupOffer(String reason, Throwable error) {
+        startupOfferComplete = true;
+        restartStatus = "restart set not offered (gave up after " + restartExpiryMinutes + " min; use Run restart actions): " + reason;
+        log.error("scheduler restart set not offered, gave up: {}", reason, error);
     }
 
     private Map<String, Object> status() {

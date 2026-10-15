@@ -236,9 +236,9 @@ public class OutcomeLog {
             shiftFiles();
             rolls++;
         } catch (IOException | RuntimeException e) {
-            // a part-done roll moves files unpredictably: forget positions, so lookups fall back to a full scan
+            // A part-done roll moves files unpredictably: forget positions. Keep absence proofs:
+            // moving/deleting retained files cannot introduce an absent id (this instance is the only writer).
             attempts.clear();
-            knownAbsent.clear();
             throw e;
         }
     }
