@@ -650,6 +650,27 @@ class SchedulerEngineTest {
     }
 
     @Test
+    void aDecidedItemStillBeingRecordedDoesNotHoldItsRestartSetOpen() throws Exception {
+        SchedulerAction a = engine.saveAction(action("feedA.connect"), null, "support");
+        engine.saveSchedule(restart(a, 1), "t");
+        String first = engine.offerRestartSet("first");
+        OpenItem item = engine.open().get(0);
+        Path badLog = Files.createDirectories(dir.resolve("unwritable.yaml"));
+        SchedulerStore store = new SchedulerStore(dir.resolve("state"), 1000);
+        store.load();
+        SchedulerEngine failing = new SchedulerEngine(store, new OutcomeLog(badLog, 1_000_000, 3),
+                Catalogue.parse(CATALOGUE), server, now::get, new SchedulerEngine.Settings("uat", "UTC", 15, 30));
+        assertThrows(RuntimeException.class, () -> failing.decline(item.getId(), "t")); // decided, not recorded
+        String second = failing.offerRestartSet("again");
+        assertNotNull(second, "the decided item does not block the next set");
+        assertFalse(second.equals(first));
+        OpenItem fresh = failing.open().stream().filter(i -> second.equals(i.getRestartSetId())).findFirst().orElseThrow();
+        assertRefused("already open", () -> failing.offerRestartSet("third")); // the undecided new set does
+        assertTrue(failing.open().stream().anyMatch(i -> first.equals(i.getRestartSetId()) && i.getPendingOutcome() != null),
+                "the old decision is still waiting to be recorded alongside the new set " + fresh.getRestartSetId());
+    }
+
+    @Test
     void environmentsMustBeNames() {
         SchedulerAction a = action("strat.A.setMaxBookAge", "500");
         List<String> envs = new ArrayList<>();

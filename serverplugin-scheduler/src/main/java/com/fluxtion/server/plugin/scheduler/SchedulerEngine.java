@@ -533,7 +533,9 @@ public class SchedulerEngine {
      */
     public synchronized String offerRestartSet(String reason) {
         if (store.state().isPaused()) throw new Refused("the scheduler is paused");
-        boolean setOpen = store.open().values().stream().anyMatch(i -> i.getRestartSetId() != null);
+        // an item with a saved outcome is decided, only waiting to be recorded: it does not hold the set open
+        boolean setOpen = store.open().values().stream()
+                .anyMatch(i -> i.getRestartSetId() != null && i.getPendingOutcome() == null);
         if (setOpen) throw new Refused("a restart set is already open; decide it first");
         List<SchedulerSchedule> schedules = restartSchedules();
         if (schedules.isEmpty()) return null;
@@ -884,6 +886,7 @@ public class SchedulerEngine {
             store.open().put(item.getId(), item);
             throw e;
         }
+        outcomeLog.forget(item.getId());
     }
 
     private OpenItem itemFor(SchedulerAction a, SchedulerSchedule s, long due, long expires, String setId, int order) {

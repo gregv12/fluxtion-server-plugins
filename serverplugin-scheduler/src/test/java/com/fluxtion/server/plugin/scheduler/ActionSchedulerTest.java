@@ -213,6 +213,89 @@ class ActionSchedulerTest {
         assertEquals("FAILED", ok("scheduler.testAction", quick.get("id").asText()).get("state").asText());
     }
 
+    /** The previous start left a restart set undecided; at this start the outcome log is briefly unavailable. */
+    @Test
+    void aPreviousSetStillBeingRecordedDoesNotStopThisStartsOffer() throws Exception {
+        Path state = dir.resolve("state6");
+        String oldSet = leaveUndecidedRestartSet(state);
+        Path log = Files.createDirectories(dir.resolve("log6/out.yaml")); // unavailable: a directory
+        ActionScheduler s = restartScheduler(state, log);
+        try {
+            s.init();
+            s.start();
+            String newSet = waitForOpenSetOtherThan(s, oldSet, 5_000);
+            assertTrue(newSet != null, "this start's set is offered although the old one is not yet recorded: "
+                    + s.getEngine().open());
+            Files.delete(log); // the log comes back: the old item is recorded and leaves
+            long end = System.currentTimeMillis() + 5_000;
+            while (System.currentTimeMillis() < end && s.getEngine().open().stream().anyMatch(i -> oldSet.equals(i.getRestartSetId()))) {
+                Thread.sleep(100);
+            }
+            assertTrue(s.getEngine().open().stream().noneMatch(i -> oldSet.equals(i.getRestartSetId())));
+            assertEquals(OutcomeState.EXPIRED, s.getEngine().history(0, Long.MAX_VALUE).get(0).getState());
+        } finally {
+            s.tearDown();
+        }
+    }
+
+    @Test
+    void aStartupOfferThatFailsIsRetried() throws Exception {
+        Path state = dir.resolve("state7");
+        leaveUndecidedRestartSet(state);
+        Path blocker = Files.createDirectories(state.resolve("open.json.tmp")); // open.json cannot be written
+        ActionScheduler s = restartScheduler(state, dir.resolve("log7/out.yaml"));
+        try {
+            s.init();
+            s.start();
+            Thread.sleep(2_500);
+            assertTrue(okOn(registry, "scheduler.status").get("restart").asText().contains("retry 1"),
+                    okOn(registry, "scheduler.status").toString());
+            Files.delete(blocker);
+            String set = waitForOpenSetOtherThan(s, "none", 8_000); // first retry after 5 s
+            assertTrue(set != null, "offered on retry: " + okOn(registry, "scheduler.status"));
+            assertTrue(okOn(registry, "scheduler.status").get("restart").asText().startsWith("offered"));
+        } finally {
+            s.tearDown();
+        }
+    }
+
+    /** A previous run that offered a one-item restart set and stopped before anyone decided it. */
+    private String leaveUndecidedRestartSet(Path state) throws Exception {
+        SchedulerStore store = new SchedulerStore(state, 100);
+        store.load();
+        SchedulerEngine previous = new SchedulerEngine(store, new OutcomeLog(state.resolve("prev.yaml"), 1_000_000, 3),
+                Catalogue.parse(SchedulerEngineTest.CATALOGUE), new SchedulerEngineTest.FakeServer(), System::currentTimeMillis,
+                new SchedulerEngine.Settings("dev", "UTC", 15, 30));
+        SchedulerAction a = previous.saveAction(SchedulerEngineTest.action("strat.A.setMaxBookAge", "1"), null, "s");
+        previous.saveSchedule(SchedulerEngineTest.restart(a, 1), "t");
+        return previous.offerRestartSet("previous start");
+    }
+
+    private ActionScheduler restartScheduler(Path state, Path log) {
+        ActionScheduler s = new ActionScheduler();
+        s.setStateDirectory(state.toString());
+        s.setOutcomeLogFile(log.toString());
+        s.setCatalogueFile(dir.resolve("catalogue.yaml").toString());
+        s.setEnvironment("dev");
+        s.setTickMillis(200);
+        s.setRestartReadyDelaySeconds(1);
+        s.adminRegistry(registry, "admin");
+        return s;
+    }
+
+    private static String waitForOpenSetOtherThan(ActionScheduler s, String setId, long millis) throws InterruptedException {
+        long end = System.currentTimeMillis() + millis;
+        while (System.currentTimeMillis() < end) {
+            for (OpenItem i : s.getEngine().open()) {
+                if (i.getRestartSetId() != null && !i.getRestartSetId().equals(setId) && i.getPendingOutcome() == null) {
+                    return i.getRestartSetId();
+                }
+            }
+            Thread.sleep(100);
+        }
+        return null;
+    }
+
     @Test
     void floodedOutputIsCapped() throws Exception {
         registry.registerCommand("strat.A.setMaxBookAge", (args, out, err) -> {

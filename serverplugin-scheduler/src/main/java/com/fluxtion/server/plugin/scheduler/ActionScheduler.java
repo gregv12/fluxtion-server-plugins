@@ -91,6 +91,7 @@ public class ActionScheduler implements Lifecycle {
     /** Most output kept from one command; the rest is dropped and marked. */
     private int maxOutputChars = 64 * 1024;
     private volatile String restartStatus = "not started";
+    private int offerRetries;
     private String catalogueError;
     private RegistryGateway gateway;
 
@@ -248,13 +249,31 @@ public class ActionScheduler implements Lifecycle {
                 restartStatus = "waiting: the scheduler is paused";
                 ticker.schedule(() -> offerRestartSetWhenReady(startedAt), 5, TimeUnit.SECONDS);
             } else {
-                restartStatus = "restart set not offered: " + r.getMessage();
-                log.warn("scheduler restart set not offered: {}", r.getMessage());
+                retryOffer(startedAt, r.getMessage(), null);
             }
         } catch (Throwable t) {
-            restartStatus = "restart set not offered: " + t.getMessage();
-            log.error("scheduler could not offer the restart set", t);
+            retryOffer(startedAt, t.getMessage(), t);
         }
+    }
+
+    /**
+     * The offer failed for a reason that can clear by itself (storage briefly unavailable; the previous
+     * start's set still being recorded): try again with backoff until the restart set would have expired,
+     * then give up and say so; Run restart actions can still offer it.
+     */
+    private void retryOffer(long startedAt, String reason, Throwable error) {
+        long elapsed = System.currentTimeMillis() - startedAt;
+        long deadline = restartExpiryMinutes * 60_000L;
+        if (elapsed >= deadline) {
+            restartStatus = "restart set not offered (gave up after " + restartExpiryMinutes + " min; use Run restart actions): " + reason;
+            log.error("scheduler restart set not offered, gave up: {}", reason, error);
+            return;
+        }
+        offerRetries++;
+        long delay = Math.min(60, 5L << Math.min(offerRetries - 1, 4)); // 5, 10, 20, 40, 60, 60 ... seconds
+        restartStatus = "restart set not offered yet, retry " + offerRetries + " in " + delay + "s: " + reason;
+        log.warn("scheduler restart set not offered, retrying in {}s: {}", delay, reason, error);
+        ticker.schedule(() -> offerRestartSetWhenReady(startedAt), delay, TimeUnit.SECONDS);
     }
 
     private Map<String, Object> status() {

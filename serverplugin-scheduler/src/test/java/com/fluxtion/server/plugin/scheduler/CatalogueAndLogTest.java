@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -170,6 +171,56 @@ class CatalogueAndLogTest {
         again.load();
         assertEquals(List.of("i1", "i3"), again.history().stream().map(Outcome::getItemId).toList(), "the next append is not lost");
         assertEquals(0, again.skippedHistoryLines());
+    }
+
+    @Test
+    void aRecordThatLandedBeforeItsWriteFailedIsFoundWhereItWasWrittenAcrossRolls() throws Exception {
+        Path file = dir.resolve("roll.yaml");
+        boolean[] failAfterWrite = {true};
+        OutcomeLog log = new OutcomeLog(file, 900, 3) {
+            @Override
+            protected void writeRecord(byte[] bytes) throws java.io.IOException {
+                super.writeRecord(bytes);
+                if (failAfterWrite[0]) {
+                    failAfterWrite[0] = false;
+                    throw new java.io.IOException("flush reported failure after the bytes landed");
+                }
+            }
+        };
+        assertThrows(java.io.UncheckedIOException.class, () -> log.append(outcome("uncertain")));
+        assertTrue(log.contains("uncertain"));
+        int rolled = 0;
+        for (int i = 0; rolled < 2; i++) { // two rolls: the record is now in -2
+            boolean before = Files.exists(dir.resolve("roll-1.yaml"));
+            log.append(outcome("other" + i));
+            if (!before && Files.exists(dir.resolve("roll-1.yaml"))) rolled++;
+            else if (before && Files.readString(dir.resolve("roll-1.yaml")).contains("itemId: \"other" + (i - 1))) rolled = Math.max(rolled, 2);
+        }
+        assertTrue(log.contains("uncertain"), "found in the rolled file it was written to");
+        for (int i = 0; i < 40; i++) log.append(outcome("more" + i)); // rolled out of retention
+        assertFalse(log.contains("uncertain"), "outside retention: not found, as documented");
+    }
+
+    @Test
+    void anItemScannedAndAbsentIsNotScannedAgainUntilItIsWritten() throws Exception {
+        Path file = dir.resolve("cache.yaml");
+        OutcomeLog log = new OutcomeLog(file, 1_000_000, 3);
+        log.append(outcome("present"));
+        assertFalse(log.contains("absent"));
+        new OutcomeLog(file, 1_000_000, 3).append(outcome("absent")); // written behind its back
+        assertFalse(log.contains("absent"), "answered from the cache, not by another full scan");
+        log.append(outcome("absent"));
+        assertTrue(log.contains("absent"), "an attempt clears the cache and is looked for where it was written");
+        log.forget("absent");
+        assertTrue(log.contains("absent"), "after forget, a full scan finds it");
+    }
+
+    private static Outcome outcome(String itemId) {
+        Outcome o = new Outcome();
+        o.setItemId(itemId);
+        o.setTitle("t");
+        o.setState(OutcomeState.RAN_OK);
+        return o;
     }
 
     @Test

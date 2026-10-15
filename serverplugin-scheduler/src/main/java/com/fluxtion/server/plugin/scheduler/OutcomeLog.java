@@ -19,6 +19,10 @@ import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Set;
+import java.util.Map;
+import java.util.HashSet;
+import java.util.HashMap;
 
 /**
  * Append-only outcome log in the server's audit-record layout ({@code ---} separated records, one
@@ -31,6 +35,12 @@ public class OutcomeLog {
     private final Path file;
     private final long maxBytes;
     private final int maxFiles;
+    /** Rolls completed by this process: a record written at roll generation g is now in file -(rolls - g). */
+    private long rolls;
+    /** Where this process last tried to append each item's record: {roll generation, offset before the write}. */
+    private final Map<String, long[]> attempts = new HashMap<>();
+    /** Items a full scan found absent, with no append attempted since: still absent (only this log appends). */
+    private final Set<String> knownAbsent = new HashSet<>();
 
     public OutcomeLog(Path file, long maxBytes, int maxFiles) {
         this.file = file;
@@ -38,24 +48,67 @@ public class OutcomeLog {
         this.maxFiles = maxFiles;
     }
 
-    /** Whether a record for this item is already in the current log or any retained rolled file. */
+    /**
+     * Whether a record for this item is already in the current log or any retained rolled file. An item this
+     * process tried to append is looked for only where that attempt wrote, from the offset it started at; an
+     * item already scanned for and absent stays absent until the next attempt. So the full scan of every
+     * retained file (slow: up to maxFiles x maxBytes) happens at most once per item per process, typically
+     * when a close interrupted by a stop resumes at start-up.
+     */
     public synchronized boolean contains(String itemId) {
-        String needle = "itemId: " + quote(itemId) + ",";
-        String name = file.getFileName().toString();
-        String base = name.endsWith(".yaml") ? name.substring(0, name.length() - 5) : name;
-        for (int i = 0; i <= maxFiles; i++) {
-            Path p = i == 0 ? file : file.resolveSibling(base + "-" + i + ".yaml");
-            try {
+        String needle = needle(itemId);
+        try {
+            long[] attempt = attempts.get(itemId);
+            if (attempt != null) {
+                long behind = rolls - attempt[0];
+                if (behind > maxFiles) return false; // rolled out of retention
+                Path p = rolledPath((int) behind);
+                if (!Files.exists(p)) return false;
+                if (behind == 0) repairTail(p);
+                return scan(p, attempt[1], needle);
+            }
+            if (knownAbsent.contains(itemId)) return false;
+            for (int i = 0; i <= maxFiles; i++) {
+                Path p = rolledPath(i);
                 if (!Files.exists(p)) continue;
                 repairTail(p);
-                try (BufferedReader reader = Files.newBufferedReader(p, StandardCharsets.UTF_8)) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        if (line.startsWith("        - scheduler: {") && line.contains(needle)) return true;
-                    }
+                if (scan(p, 0, needle)) return true;
+            }
+            knownAbsent.add(itemId);
+            return false;
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /** The item is closed: its record no longer needs finding. */
+    public synchronized void forget(String itemId) {
+        attempts.remove(itemId);
+        knownAbsent.remove(itemId);
+    }
+
+    private static String needle(String itemId) {
+        return "itemId: " + quote(itemId) + ",";
+    }
+
+    private Path rolledPath(int index) {
+        if (index == 0) return file;
+        String name = file.getFileName().toString();
+        String base = name.endsWith(".yaml") ? name.substring(0, name.length() - 5) : name;
+        return file.resolveSibling(base + "-" + index + ".yaml");
+    }
+
+    /** Record lines from {@code offset} on (records start on a line, and offset is a record boundary). */
+    private static boolean scan(Path p, long offset, String needle) throws IOException {
+        try (FileChannel channel = FileChannel.open(p, StandardOpenOption.READ)) {
+            if (offset >= channel.size()) return false;
+            channel.position(offset);
+            try (BufferedReader reader = new BufferedReader(
+                    java.nio.channels.Channels.newReader(channel, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.startsWith("        - scheduler: {") && line.contains(needle)) return true;
                 }
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
             }
         }
         return false;
@@ -87,6 +140,9 @@ public class OutcomeLog {
             if (parent != null) Files.createDirectories(parent);
             repairTail(file);
             roll();
+            // from here the record may land even if the write reports failure: remember where to look
+            knownAbsent.remove(o.getItemId());
+            attempts.put(o.getItemId(), new long[]{rolls, Files.exists(file) ? Files.size(file) : 0});
             writeRecord(record.getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -176,6 +232,18 @@ public class OutcomeLog {
 
     private void roll() throws IOException {
         if (!Files.exists(file) || Files.size(file) < maxBytes) return;
+        try {
+            shiftFiles();
+            rolls++;
+        } catch (IOException | RuntimeException e) {
+            // a part-done roll moves files unpredictably: forget positions, so lookups fall back to a full scan
+            attempts.clear();
+            knownAbsent.clear();
+            throw e;
+        }
+    }
+
+    private void shiftFiles() throws IOException {
         String name = file.getFileName().toString();
         String base = name.endsWith(".yaml") ? name.substring(0, name.length() - 5) : name;
         for (int i = maxFiles - 1; i >= 1; i--) {
