@@ -37,6 +37,8 @@ import java.util.function.LongSupplier;
 @lombok.extern.log4j.Log4j2
 public class SchedulerEngine {
 
+    private boolean closed;
+
     /** How the engine reaches the server's commands. */
     public interface CommandGateway {
         /** Names of every command the server registers now. */
@@ -532,6 +534,7 @@ public class SchedulerEngine {
      * Refused while an earlier set still has open items. Returns the set id, or null when there is nothing to offer.
      */
     public synchronized String offerRestartSet(String reason) {
+        if (closed) throw new Refused("the scheduler has stopped");
         if (store.state().isPaused()) throw new Refused("the scheduler is paused");
         // an item with a saved outcome is decided, only waiting to be recorded: it does not hold the set open
         boolean setOpen = store.open().values().stream()
@@ -714,6 +717,14 @@ public class SchedulerEngine {
             store.state().setPaused(previous);
             throw e;
         }
+    }
+
+    /**
+     * The service is stopping: no restart set may be offered from now on. Taken under the engine lock, so an
+     * offer already inside {@link #offerRestartSet} completes first and none can start afterwards.
+     */
+    public synchronized void close() {
+        closed = true;
     }
 
     public synchronized boolean isPaused() {

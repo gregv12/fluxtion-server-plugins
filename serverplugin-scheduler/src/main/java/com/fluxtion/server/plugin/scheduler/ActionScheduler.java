@@ -221,6 +221,8 @@ public class ActionScheduler implements Lifecycle {
 
     @Override
     public void tearDown() {
+        // first, so a startup callback already past its checks cannot offer a set once we are stopping
+        if (engine != null) engine.close();
         if (ticker != null) ticker.shutdownNow();
         if (commandRunner != null) commandRunner.shutdownNow();
         if (lookupRunner != null) lookupRunner.shutdownNow();
@@ -252,7 +254,9 @@ public class ActionScheduler implements Lifecycle {
                     scheduleStartupOffer(startedAt, 5_000);
                     return;
                 }
-                boolean timedOut = System.currentTimeMillis() - startedAt >= restartReadyTimeoutSeconds * 1000L;
+                // waiting for commands never outlasts the offer window: at the last chance, offer with a warning
+                boolean timedOut = System.currentTimeMillis() - startedAt >= restartReadyTimeoutSeconds * 1000L
+                        || remainingOfferMillis(startedAt) <= lastChanceMillis();
                 if (!missing.isEmpty() && !timedOut) {
                     scheduleStartupOffer(startedAt, 2_000);
                     return;
@@ -266,7 +270,8 @@ public class ActionScheduler implements Lifecycle {
                     return;
                 }
                 String reason = missing.isEmpty() ? "server restart"
-                        : "server restart; WARNING not registered after " + restartReadyTimeoutSeconds + "s: " + missing;
+                        : "server restart; WARNING not registered after "
+                        + (System.currentTimeMillis() - startedAt) / 1_000 + "s: " + missing;
                 String setId = engine.offerRestartSet(reason);
                 // Commit before status/logging: failures after a successful offer must never re-offer it.
                 startupOfferComplete = true;
@@ -301,9 +306,19 @@ public class ActionScheduler implements Lifecycle {
     }
 
     private long remainingOfferMillis(long startedAt) {
-        return restartExpiryMinutes * 60_000L - (System.currentTimeMillis() - startedAt);
+        return offerWindowMillis() - (System.currentTimeMillis() - startedAt);
     }
 
+    /** How long after start the automatic offer may still be made: the restart set's expiry. */
+    long offerWindowMillis() {
+        return restartExpiryMinutes * 60_000L;
+    }
+
+    /**
+     * Never wait past the last chance to offer: a long ready delay, readiness wait or backoff is cut short so
+     * one attempt runs before the window closes. After the last chance the next callback is at the deadline,
+     * where it gives up (no busy loop).
+     */
     private void scheduleStartupOffer(long startedAt, long delayMillis) {
         if (startupOfferComplete || ticker.isShutdown()) return;
         long remaining = remainingOfferMillis(startedAt);
@@ -311,7 +326,14 @@ public class ActionScheduler implements Lifecycle {
             giveUpStartupOffer("startup offer deadline reached", null);
             return;
         }
-        ticker.schedule(() -> offerRestartSetWhenReady(startedAt), Math.min(delayMillis, remaining), TimeUnit.MILLISECONDS);
+        long lastChance = remaining - lastChanceMillis();
+        long delay = lastChance > 0 ? Math.min(delayMillis, lastChance) : remaining;
+        ticker.schedule(() -> offerRestartSetWhenReady(startedAt), delay, TimeUnit.MILLISECONDS);
+    }
+
+    /** How long before the window closes the final attempt is made: 5 s, or a tenth of a short window. */
+    private long lastChanceMillis() {
+        return Math.min(5_000, offerWindowMillis() / 10);
     }
 
     private void giveUpStartupOffer(String reason, Throwable error) {

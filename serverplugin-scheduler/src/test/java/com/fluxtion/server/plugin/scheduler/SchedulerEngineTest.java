@@ -671,6 +671,15 @@ class SchedulerEngineTest {
     }
 
     @Test
+    void aClosedEngineOffersNoRestartSet() {
+        SchedulerAction a = engine.saveAction(action("feedA.connect"), null, "support");
+        engine.saveSchedule(restart(a, 1), "t");
+        engine.close();
+        assertRefused("stopped", () -> engine.offerRestartSet("late"));
+        assertTrue(engine.open().isEmpty());
+    }
+
+    @Test
     void environmentsMustBeNames() {
         SchedulerAction a = action("strat.A.setMaxBookAge", "500");
         List<String> envs = new ArrayList<>();

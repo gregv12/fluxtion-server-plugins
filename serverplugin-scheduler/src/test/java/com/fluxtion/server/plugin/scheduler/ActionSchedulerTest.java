@@ -353,6 +353,81 @@ class ActionSchedulerTest {
         offer.invoke(s, startedAt);
     }
 
+    /** Readiness timeout (120 s) longer than the offer window: offer at the last chance, with a warning. */
+    @Test
+    void aReadinessWaitLongerThanTheWindowStillOffersBeforeItCloses() throws Exception {
+        Path state = dir.resolve("state8");
+        SchedulerStore store = new SchedulerStore(state, 100);
+        store.load();
+        SchedulerEngine previous = new SchedulerEngine(store, new OutcomeLog(state.resolve("prev.yaml"), 1_000_000, 3),
+                Catalogue.parse(SchedulerEngineTest.CATALOGUE), new SchedulerEngineTest.FakeServer(), System::currentTimeMillis,
+                new SchedulerEngine.Settings("dev", "UTC", 15, 30));
+        SchedulerAction a = previous.saveAction(SchedulerEngineTest.action("strat.A.setMaxBookAge", "1"), null, "s");
+        previous.saveSchedule(SchedulerEngineTest.restart(a, 1), "t");
+        FakeRegistry late = new FakeRegistry(); // the restart command never registers
+        ActionScheduler s = new ActionScheduler() {
+            @Override
+            long offerWindowMillis() {
+                return 4_000; // last chance 400 ms before it closes
+            }
+        };
+        s.setStateDirectory(state.toString());
+        s.setOutcomeLogFile(dir.resolve("log8/out.yaml").toString());
+        s.setCatalogueFile(dir.resolve("catalogue.yaml").toString());
+        s.setEnvironment("dev");
+        s.setTickMillis(200);
+        s.setRestartReadyDelaySeconds(30);    // longer than the window too
+        s.setRestartReadyTimeoutSeconds(120);
+        s.adminRegistry(late, "admin");
+        try {
+            s.init();
+            s.start();
+            String set = waitForOpenSetOtherThan(s, "none", 6_000);
+            assertTrue(set != null, "offered before the window closed: " + okOn(late, "scheduler.status"));
+            String status = okOn(late, "scheduler.status").get("restart").asText();
+            assertTrue(status.contains("with missing commands [strat.A.setMaxBookAge]"), status);
+            assertTrue(s.getEngine().open().get(0).getDescription().contains("WARNING not registered"));
+        } finally {
+            s.tearDown();
+        }
+    }
+
+    @Test
+    void nothingIsOfferedOnceTornDownEvenByACallbackAlreadyRunning() throws Exception {
+        Path state = dir.resolve("state9");
+        leaveUndecidedRestartSet(state);
+        // a fresh store with the old set recovered: make the callback stall inside commandList
+        java.util.concurrent.CountDownLatch inCallback = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        FakeRegistry stalling = new FakeRegistry() {
+            @Override
+            public List<String> commandList() {
+                if (Thread.currentThread().getName().startsWith("scheduler-tick") && inCallback.getCount() > 0) {
+                    inCallback.countDown();
+                    try {
+                        release.await(5, TimeUnit.SECONDS);
+                    } catch (InterruptedException ignored) {
+                        // tearDown interrupts the ticker: carry on, as a real lookup would
+                    }
+                }
+                return super.commandList();
+            }
+        };
+        stalling.registerCommand("strat.A.setMaxBookAge", (args, out, err) -> out.accept("ok"));
+        ActionScheduler s = restartScheduler(state, dir.resolve("log9/out.yaml"));
+        s.adminRegistry(stalling, "admin");
+        s.init();
+        s.start();
+        assertTrue(inCallback.await(5, TimeUnit.SECONDS), "the startup callback is running");
+        s.tearDown();
+        release.countDown();
+        Thread.sleep(500);
+        assertTrue(s.getEngine().open().stream().allMatch(i -> i.getPendingOutcome() != null),
+                "no new set after tearDown: " + s.getEngine().open());
+        Reply manual = runOn(stalling, "scheduler.runRestartActions", "trader");
+        assertTrue(manual.err.contains("stopped"), manual.toString());
+    }
+
     /** A previous run that offered a one-item restart set and stopped before anyone decided it. */
     private String leaveUndecidedRestartSet(Path state) throws Exception {
         SchedulerStore store = new SchedulerStore(state, 100);
