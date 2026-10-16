@@ -9,7 +9,7 @@
 
     <groupId>com.fluxtion</groupId>
     <artifactId>fluxtion-server-plugins</artifactId>
-    <version>0.2.22-SNAPSHOT</version>
+    <version>0.2.23-SNAPSHOT</version>
     <name>fluxtion :: server-plugins</name>
     <packaging>pom</packaging>
 
@@ -70,6 +70,7 @@
 <!--        <module>serverconnector-tcpsocket</module>-->
         <module>serverlibrary-trading-api</module>
         <module>serverplugin-trading</module>
+        <module>serverplugin-scheduler</module>
     </modules>
 
     <dependencies>
