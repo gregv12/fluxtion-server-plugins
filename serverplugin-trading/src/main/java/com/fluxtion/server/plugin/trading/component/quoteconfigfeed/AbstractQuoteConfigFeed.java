@@ -37,6 +37,12 @@ public abstract class AbstractQuoteConfigFeed
     @Getter(AccessLevel.PROTECTED) private EventFlowManager eventFlowManager;
     @Getter(AccessLevel.PROTECTED) private String serviceName;
     @Getter(AccessLevel.PROTECTED) private EventToQueuePublisher<QuoteConfigEvent> targetQueue;
+    /**
+     * Serialises publishing. The queue to each subscriber has a single producer, but a source is called from several
+     * threads (its own I/O thread, the strategy agents, admin): two concurrent publishes can take the same slot and
+     * lose an event. A leaf lock: nothing else is taken under it, and a full queue gives up after a bounded spin.
+     */
+    private final Object publishLock = new Object();
     private SchedulerService scheduler;
     @Getter @Setter private long pollIntervalMillis = 5000;
 
@@ -100,11 +106,15 @@ public abstract class AbstractQuoteConfigFeed
 
     @Override
     public void publishPricingConfig(String symbol, IndicativePricingConfig config) {
-        targetQueue.publish(new PricingConfigEvent(symbol, config));
+        synchronized (publishLock) {
+            targetQueue.publish(new PricingConfigEvent(symbol, config));
+        }
     }
 
     @Override
     public void publishBucketConfig(long account, String symbol, double spreadBps) {
-        targetQueue.publish(new BucketConfigEvent(account, symbol, spreadBps));
+        synchronized (publishLock) {
+            targetQueue.publish(new BucketConfigEvent(account, symbol, spreadBps));
+        }
     }
 }
