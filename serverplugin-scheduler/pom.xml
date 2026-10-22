@@ -8,7 +8,7 @@
     <parent>
         <groupId>com.fluxtion</groupId>
         <artifactId>fluxtion-server-plugins</artifactId>
-        <version>0.2.23</version>
+        <version>0.2.24-SNAPSHOT</version>
     </parent>
     <artifactId>serverplugin-scheduler</artifactId>
     <name>fluxtion :: server-plugin-scheduler</name>
