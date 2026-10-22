@@ -32,6 +32,12 @@ public abstract class AbstractOrderExecutor
     private String serviceName;
     @Getter(AccessLevel.PROTECTED)
     private EventToQueuePublisher<OrderEvent> targetQueue;
+    /**
+     * Serialises publishing. The queue to each subscriber has a single producer, but a source is called from several
+     * threads (its own I/O thread, the strategy agents, admin): two concurrent publishes can take the same slot and
+     * lose an event. A leaf lock: nothing else is taken under it, and a full queue gives up after a bounded spin.
+     */
+    private final Object publishLock = new Object();
     @Getter
     @Setter
     protected String feedName;
@@ -89,7 +95,9 @@ public abstract class AbstractOrderExecutor
     }
 
     protected void publish(OrderEvent orderEvent) {
-        targetQueue.publish(orderEvent);
+        synchronized (publishLock) {
+            targetQueue.publish(orderEvent);
+        }
     }
 
     @Override
